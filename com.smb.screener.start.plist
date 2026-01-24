@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.smb.screener.start</string>
+    
+    <key>ProgramArguments</key>
+    <array>
+        <!-- Use caffeinate to prevent sleep while bot runs -->
+        <string>/usr/bin/caffeinate</string>
+        <string>-i</string>  <!-- Prevent idle sleep -->
+        <string>/Users/joel/.local/bin/uv</string>
+        <string>run</string>
+        <string>smb_screener.py</string>
+    </array>
+    
+    <key>WorkingDirectory</key>
+    <string>/Users/joel/Github/trading</string>
+    
+    <key>StandardOutPath</key>
+    <string>/Users/joel/Github/trading/logs/smb_screener.log</string>
+    
+    <key>StandardErrorPath</key>
+    <string>/Users/joel/Github/trading/logs/smb_screener.error.log</string>
+    
+    <!-- Start script at 6:30 AM local time on weekdays (script handles weekday checking internally) -->
+    <!-- Note: This uses your Mac's local time zone (make sure it's set to PST/PDT) -->
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict>
+            <key>Weekday</key>
+            <integer>2</integer> <!-- Monday -->
+            <key>Hour</key>
+            <integer>6</integer>
+            <key>Minute</key>
+            <integer>30</integer>
+        </dict>
+        <dict>
+            <key>Weekday</key>
+            <integer>3</integer> <!-- Tuesday -->
+            <key>Hour</key>
+            <integer>6</integer>
+            <key>Minute</key>
+            <integer>30</integer>
+        </dict>
+        <dict>
+            <key>Weekday</key>
+            <integer>4</integer> <!-- Wednesday -->
+            <key>Hour</key>
+            <integer>6</integer>
+            <key>Minute</key>
+            <integer>30</integer>
+        </dict>
+        <dict>
+            <key>Weekday</key>
+            <integer>5</integer> <!-- Thursday -->
+            <key>Hour</key>
+            <integer>6</integer>
+            <key>Minute</key>
+            <integer>30</integer>
+        </dict>
+        <dict>
+            <key>Weekday</key>
+            <integer>6</integer> <!-- Friday -->
+            <key>Hour</key>
+            <integer>6</integer>
+            <key>Minute</key>
+            <integer>30</integer>
+        </dict>
+    </array>
+    
+    <!-- Don't auto-start on login, wait for schedule -->
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>

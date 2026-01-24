@@ -1,0 +1,37 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Django
+*.log
+*.pot
+*.pyc
+__pycache__/
+db.sqlite3
+db.sqlite3-journal
+/media
+/static
+.DS_Store
+
+# Logs directory
+logs/
+*.log
+
+# Environment variables
+.env
+.env.local
+
+# Trading bot specific files
+smb_cookies.pkl
+position_snapshot.json
+*.pkl
+
+# Execution logs (CSV files in executions directory)
+smb_trader_executions/*.csv
