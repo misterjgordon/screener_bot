@@ -71,3 +71,90 @@ class Execution(models.Model):
     
     def __str__(self):
         return f"{self.timestamp} | {self.trader} | {self.symbol} | {self.change_type}"
+
+
+class Position(models.Model):
+    """
+    Event log for position changes - stores change events for all traders (equity + options).
+    
+    This is an event log approach: each record represents a CHANGE event, not a full snapshot.
+    Only rows with changes (delta_magnitude != 0 or change_type != null) are saved.
+    
+    Data is read from position_snapshot.json file and only changed positions are saved.
+    
+    Think of it like a cumulative sum:
+    - Each record = one change event
+    - total_magnitude = position size AFTER this change
+    - delta_magnitude = the change that occurred (+ or -)
+    - prev_magnitude = position size BEFORE this change
+    
+    To reconstruct current state:
+    - Query latest record per (trader, symbol) to get current position
+    - Query all records per (trader, symbol) ordered by timestamp to see full history
+    
+    This approach:
+    - Saves only when positions change (not every cycle)
+    - Works for all traders regardless of TRADER_ENABLED status
+    - Captures both equity and options positions
+    - Minimizes data volume (~100-1000 records/day vs ~350K if saving all)
+    """
+    
+    # Timestamp when the change occurred
+    timestamp = models.DateTimeField(default=timezone.now, db_index=True)
+    
+    # Trader name (e.g., "Justin Spero", "Jeff Holden", "Steve Spencer", "Kenneth Sharkness")
+    trader = models.CharField(max_length=100, db_index=True)
+    
+    # Symbol (e.g., "AAPL", "AAPL 2026-01-23 C 150.00")
+    symbol = models.CharField(max_length=100, db_index=True)
+    
+    # Instrument type: equity or option
+    INSTRUMENT_TYPE_CHOICES = [
+        ('equity', 'Equity'),
+        ('option', 'Option'),
+    ]
+    instrument_type = models.CharField(max_length=10, choices=INSTRUMENT_TYPE_CHOICES, db_index=True)
+    
+    # Underlying symbol (same as symbol for equity, underlying stock for options)
+    underlying = models.CharField(max_length=20, db_index=True)
+    
+    # Option-specific fields (null for equity)
+    expiry = models.DateField(null=True, blank=True, db_index=True)
+    strike = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    option_type = models.CharField(max_length=1, null=True, blank=True, choices=[('C', 'Call'), ('P', 'Put')])
+    
+    # Position details
+    is_long_term = models.BooleanField(default=False, db_index=True)
+    net_side = models.CharField(max_length=10, choices=Execution.SIDE_CHOICES)  # long, short, flat
+    conflict = models.BooleanField(default=False)
+    
+    # Magnitude values
+    total_magnitude = models.FloatField(default=0.0)
+    prev_magnitude = models.FloatField(null=True, blank=True)
+    delta_magnitude = models.FloatField(null=True, blank=True)
+    
+    # Change type (NEW, ADD, TRIM, CLOSE, FLIP, or null if no change)
+    change_type = models.CharField(
+        max_length=10,
+        choices=Execution.CHANGE_TYPE_CHOICES + [('', 'No Change')],
+        null=True,
+        blank=True,
+        db_index=True
+    )
+    
+    class Meta:
+        db_table = 'positions'
+        # Order by: trader, underlying, magnitude (descending)
+        ordering = ['trader', 'underlying', '-total_magnitude']
+        indexes = [
+            models.Index(fields=['-timestamp', 'trader']),
+            models.Index(fields=['trader', 'underlying', '-total_magnitude']),  # Matches default ordering
+            models.Index(fields=['trader', 'underlying', '-timestamp']),
+            models.Index(fields=['instrument_type', '-timestamp']),
+            models.Index(fields=['timestamp', 'trader', 'symbol']),  # For uniqueness checks
+        ]
+        # Prevent duplicate change events for same timestamp/trader/symbol
+        unique_together = [['timestamp', 'trader', 'symbol']]
+    
+    def __str__(self):
+        return f"{self.timestamp} | {self.trader} | {self.symbol} | {self.net_side} | {self.total_magnitude}"

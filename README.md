@@ -16,7 +16,7 @@ This project demonstrates a complete trading automation workflow, from position 
 
 ### Core Components
 
-**Position Monitoring Bot** (`smb_screener.py`)
+**Position Monitoring Bot** (`trading/smb_screener.py`)
 - Real-time position monitoring from external trading API
 - Session management with cookie persistence
 - Change detection system (NEW, ADD, TRIM, CLOSE, FLIP)
@@ -50,7 +50,7 @@ This project demonstrates a complete trading automation workflow, from position 
 
 **Integration Points**
 - External trading API (authentication via credentials)
-- Interactive Brokers API (ib_insync library)
+- Interactive Brokers API (ib_async library)
 - Django web framework for data management
 - PostgreSQL database for execution storage
 
@@ -64,8 +64,10 @@ This project demonstrates a complete trading automation workflow, from position 
 ## Project Structure
 
 ```
-trading/
-├── smb_screener.py          # Main monitoring and execution bot
+├── trading/                 # Main bot and scripts
+│   ├── smb_screener.py     # Main monitoring and execution bot
+│   ├── run_screener.py     # Polling/once entrypoint
+│   └── check_trade.py      # Trade checker utility
 ├── smbweb/                  # Django web application
 │   ├── apps/executions/    # Execution tracking app
 │   └── views/              # API endpoints
@@ -77,7 +79,7 @@ trading/
 ## Technology Stack
 
 - **Python 3.13+**
-- **ib_insync** - Interactive Brokers API wrapper
+- **ib_async** - Interactive Brokers API wrapper
 - **Django** - Web framework for execution tracking
 - **PostgreSQL** - Database for execution data
 - **requests** - HTTP client for API interactions

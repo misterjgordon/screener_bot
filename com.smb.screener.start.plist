@@ -7,12 +7,10 @@
     
     <key>ProgramArguments</key>
     <array>
-        <!-- Use caffeinate to prevent sleep while bot runs -->
-        <string>/usr/bin/caffeinate</string>
-        <string>-i</string>  <!-- Prevent idle sleep -->
-        <string>/Users/joel/.local/bin/uv</string>
-        <string>run</string>
-        <string>smb_screener.py</string>
+        <!-- Sleep to 7th second of the minute, then run (launchd has no seconds in StartCalendarInterval) -->
+        <string>/bin/bash</string>
+        <string>-c</string>
+        <string>sleep 7 &amp;&amp; exec /usr/bin/caffeinate -i -m /Users/joel/.local/bin/uv run trading/smb_screener.py</string>
     </array>
     
     <key>WorkingDirectory</key>
@@ -34,7 +32,7 @@
             <key>Hour</key>
             <integer>6</integer>
             <key>Minute</key>
-            <integer>30</integer>
+            <integer>23</integer>
         </dict>
         <dict>
             <key>Weekday</key>
@@ -42,7 +40,7 @@
             <key>Hour</key>
             <integer>6</integer>
             <key>Minute</key>
-            <integer>30</integer>
+            <integer>23</integer>
         </dict>
         <dict>
             <key>Weekday</key>
@@ -50,7 +48,7 @@
             <key>Hour</key>
             <integer>6</integer>
             <key>Minute</key>
-            <integer>30</integer>
+            <integer>23</integer>
         </dict>
         <dict>
             <key>Weekday</key>
@@ -58,7 +56,7 @@
             <key>Hour</key>
             <integer>6</integer>
             <key>Minute</key>
-            <integer>30</integer>
+            <integer>25</integer>
         </dict>
         <dict>
             <key>Weekday</key>
@@ -66,7 +64,7 @@
             <key>Hour</key>
             <integer>6</integer>
             <key>Minute</key>
-            <integer>30</integer>
+            <integer>25</integer>
         </dict>
     </array>
     

@@ -9,13 +9,15 @@ dependencies = [
     "django>=5.0.0",
     "django-cors-headers>=4.3.0",
     "djangorestframework>=3.14.0",
-    "ib-insync>=0.9.86",
+    "ib-async>=0.9.86",
     "ipykernel>=7.1.0",
     "nest-asyncio>=1.6.0",
     "pandas>=2.3.3",
     "psycopg[binary]>=3.2.0",
     "python-dotenv>=1.2.1",
     "requests>=2.32.5",
+    "scipy>=1.11.0",
+    "scikit-learn>=1.3.0",
 ]
 
 [dependency-groups]
@@ -27,3 +29,127 @@ dev = [
 
 [tool.uv]
 default-groups = ["dev"]
+
+[tool.ty.src]
+include = ["jambot", "jambotweb", "tests", "trading", "notebooks"]
+[tool.ty.rules]
+invalid-argument-type = "warn"
+
+[tool.autopep8]
+max_line_length = 120
+exclude = "tests/test_assets/**"
+aggressive = 1
+
+[tool.ruff]
+cache-dir = "~/.cache/ruff"
+line-length = 120
+unsafe-fixes = true
+exclude = [
+    "**/migrations/*",
+    ".python_packages/**/*",
+    "static_build/**",
+    "static/**",
+    ".venv/**",
+]
+target-version = "py313"
+
+[tool.ruff.format]
+quote-style = "single"
+exclude = ["**/migrations/*"]
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    "B",
+    "D",
+    "N",
+    "UP",
+    "T20",
+    "PTH",
+    "PD",
+    "PGH",
+    "TCH",
+    "ANN",
+    "RET",
+    "SIM",
+    "Q",
+    "C4",
+    "TRY",
+    "DJ",
+    "PLC0415"  # Check for imports outside top-level
+]
+ignore = [
+    "T201",
+    "E712",
+    "E713",
+    "E714",
+    "E722",
+    "E731",
+    "F405",
+    "F841",
+    "D100",
+    "D101",
+    "D102",
+    "D103",
+    "D104",
+    "D105",
+    "D106",
+    "D200",
+    "D202",
+    "D204",
+    "D205",
+    "D301",
+    "D400",
+    "D401",
+    "D415",
+    "ANN002",
+    "ANN003",
+    "RET503",
+    "RET505",
+    "PD901",
+    "PD003",
+    "PD004",
+    "PLR5501",
+    "PLR2004",
+    "PGH003",
+    "N817", # No member 'sym' (no-member)
+    "E501",  # Line too long
+    "SIM105",  # Allow try-except-pass for performance-critical code (faster than contextlib.suppress)
+    "D407", # Missing dashed underline after section
+    "D406", # Missing type annotation for lambda
+    "SIM201",
+    "SIM108",
+    "SIM118",
+    "Q003",
+    "C408",
+    "TRY003",
+    "TRY201",
+    "TRY300",
+    "TRY400",
+    "DJ001",
+    "UP039",
+    "TC003",  # standard library
+    "DJ012",
+]
+
+[tool.ruff.lint.flake8-type-checking]
+quote-annotations = true
+
+[tool.ruff.lint.flake8-annotations]
+suppress-none-returning = true
+
+[tool.ruff.lint.flake8-quotes]
+inline-quotes = "single"
+
+[tool.ruff.lint.pylint]
+max-args = 6
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.lint.isort]
+force-single-line = true
+known-first-party = ["jgutils"]
+
+

@@ -5,15 +5,15 @@ help:
 	@echo "Available commands:"
 	@echo "  make install              - Install dependencies with uv"
 	@echo "  make format               - Format all Python code (ty, ruff, autopep8)"
-	@echo "  make format-file FILE=... - Format specific file (e.g., make format-file FILE=check_trade.py)"
+	@echo "  make format-file FILE=... - Format specific file (e.g., make format-file FILE=trading/check_trade.py)"
 	@echo "  make lint                 - Run ruff linter on all files"
 	@echo "  make lint-file FILE=...   - Run ruff linter on specific file"
 	@echo "  make type-check           - Run ty type checker on all files"
 	@echo "  make type-check-file FILE=... - Run ty type checker on specific file"
-	@echo "  make run                  - Run main.py"
-	@echo "  make check-trade          - Run check_trade.py"
-	@echo "  make smb                  - Run smb_screener.py"
-	@echo "  make jobot                - Run jobot.py"
+	@echo "  make run                  - Run trading/smb_screener.py"
+	@echo "  make check-trade          - Run trading/check_trade.py"
+	@echo "  make smb                  - Run trading/smb_screener.py"
+
 	@echo "  make clean                - Clean Python cache files"
 	@echo ""
 	@echo "SMB Screener LaunchAgent commands:"
@@ -30,14 +30,8 @@ install:
 	uv sync
 
 # Format code (following spec.md pattern)
-format:
-	@echo "Formatting with ty..."
-	uv run --frozen ty format .
-	@echo "Formatting with ruff..."
-	uv run --frozen ruff format .
-	@echo "Formatting with autopep8..."
-	uv run --frozen autopep8 --in-place --recursive --aggressive --aggressive .
-
+format:  ## run autopep, isort, ruff on $(code); ty on changed files vs webdev
+	@./trading/format_python_code.sh $(code)
 # Format specific file
 format-file:
 	@if [ -z "$(FILE)" ]; then \
@@ -77,20 +71,15 @@ type-check-file:
 
 # Run main script
 run:
-	python main.py
+	python trading/smb_screener.py
 
 # Run check_trade script
 check-trade:
-	python check_trade.py
+	python trading/check_trade.py
 
 # Run screener script
 smb:
-	python smb_screener.py
-
-# Run jobot script
-jobot:
-	python jobot.py
-
+	python trading/smb_screener.py
 
 # Clean Python cache files
 clean:
@@ -110,7 +99,7 @@ smb-install:
 	@echo "  - Start agent: starts at 6:30 AM on weekdays (or use 'make smb-start' to start now)"
 	@echo "  - Stop agent: stops at 1:00 PM on weekdays"
 	@echo "  - Prevents Mac from sleeping while bot runs"
-	@echo "  - Make sure RUN_MODE is set to 'poll' in smb_screener.py"
+	@echo "  - Make sure RUN_MODE is set to 'poll' in trading/smb_screener.py"
 
 smb-reload:
 	@echo "Reloading SMB Screener LaunchAgents..."
@@ -135,8 +124,75 @@ smb-stop:
 
 smb-status:
 	@echo "SMB Screener LaunchAgent status:"
-	@printf "%-8s %-12s %s\n" "PID" "EXIT STATUS" "LABEL"
-	@launchctl list | grep smb | awk '{printf "%-8s %-12s %s\n", $$1, $$2, $$3}' || echo "  Not loaded"
+	@printf "%-15s %-12s %s\n" "STATUS" "EXIT CODE" "LABEL"
+	@launchctl list | grep smb | awk '{ \
+		if ($$1 == "-") { \
+			status = "Loaded (idle)"; \
+		} else if ($$1 > 0) { \
+			status = "Running (PID " $$1 ")"; \
+		} else { \
+			status = "Unknown"; \
+		} \
+		printf "%-15s %-12s %s\n", status, $$2, $$3 \
+	}' || echo "  Not loaded"
+	@echo ""
+	@echo "Last screener activity:"
+	@if [ -f logs/smb_screener.log ]; then \
+		echo "  Log last modified: $$(stat -f '%Sm' -t '%Y-%m-%d %H:%M:%S' logs/smb_screener.log 2>/dev/null || stat -c '%y' logs/smb_screener.log 2>/dev/null | cut -d. -f1)"; \
+		last_line=$$(grep -E "Running in (polling|once)|Attempting IB|✓ IB connected|Execution: processing" logs/smb_screener.log | tail -1); \
+		if [ -n "$$last_line" ]; then \
+			echo "  Last startup/activity: $$last_line"; \
+		fi; \
+	else \
+		echo "  Log file not found (screener has not run or log path wrong)"; \
+	fi
+	@echo ""
+	@echo "TWS/IB Gateway Connection Status:"
+	@if lsof -i :7497 >/dev/null 2>&1; then \
+		echo "  ✓ Port 7497 (TWS Paper): LISTENING"; \
+		if lsof -i :7497 | grep -q ESTABLISHED; then \
+			echo "  ✓ Active connection detected on port 7497"; \
+		else \
+			echo "  ⚠  Port 7497 listening but no active connections"; \
+		fi; \
+	else \
+		echo "  ✗ Port 7497 (TWS Paper): NOT LISTENING"; \
+	fi
+	@if lsof -i :4001 >/dev/null 2>&1; then \
+		echo "  ✓ Port 4001 (IB Gateway Paper): LISTENING"; \
+		if lsof -i :4001 | grep -q ESTABLISHED; then \
+			echo "  ✓ Active connection detected on port 4001"; \
+		else \
+			echo "  ⚠  Port 4001 listening but no active connections"; \
+		fi; \
+	else \
+		echo "  ✗ Port 4001 (IB Gateway Paper): NOT LISTENING"; \
+	fi
+	@if lsof -i :7497 >/dev/null 2>&1 || lsof -i :4001 >/dev/null 2>&1 || lsof -i :7496 >/dev/null 2>&1; then \
+		tws_pid=$$(lsof -ti :7497 2>/dev/null | head -1); \
+		gateway_pid=$$(lsof -ti :4001 2>/dev/null | head -1); \
+		if [ -n "$$tws_pid" ]; then \
+			echo "  ✓ TWS/Gateway process: RUNNING (PID $$tws_pid on port 7497)"; \
+		elif [ -n "$$gateway_pid" ]; then \
+			echo "  ✓ TWS/Gateway process: RUNNING (PID $$gateway_pid on port 4001)"; \
+		else \
+			echo "  ✓ TWS/Gateway process: RUNNING (port detected)"; \
+		fi; \
+	else \
+		echo "  ✗ TWS/Gateway process: NOT RUNNING"; \
+	fi
+	@echo ""
+	@echo "Recent IB Connection Status (from logs):"
+	@if [ -f logs/smb_screener.log ]; then \
+		last_conn=$$(grep -E "(Attempting IB|IB connected|✓ IB)" logs/smb_screener.log | tail -1); \
+		if [ -n "$$last_conn" ]; then \
+			echo "  $$last_conn"; \
+		else \
+			echo "  No connection attempts found in logs"; \
+		fi; \
+	else \
+		echo "  Log file not found"; \
+	fi
 
 smb-logs:
 	@echo "Following SMB Screener logs (Ctrl+C to exit)..."

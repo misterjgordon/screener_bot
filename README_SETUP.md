@@ -57,7 +57,7 @@ SMB_PASSWORD=your_password
 
 ### 4. Configure Trading Parameters
 
-Edit `smb_screener.py` to adjust:
+Edit `trading/smb_screener.py` to adjust:
 
 - `RUN_MODE`: `"once"`, `"poll"`, or `"off"`
 - `INTERVAL_SECONDS`: Polling interval (default: 10 seconds)
@@ -70,7 +70,7 @@ Edit `smb_screener.py` to adjust:
 ### Run Once
 
 ```bash
-python smb_screener.py
+python trading/smb_screener.py
 ```
 
 Set `RUN_MODE = "once"` in the script to run a single cycle and exit.
@@ -78,7 +78,7 @@ Set `RUN_MODE = "once"` in the script to run a single cycle and exit.
 ### Polling Mode (Continuous)
 
 ```bash
-python smb_screener.py
+python trading/smb_screener.py
 ```
 
 Set `RUN_MODE = "poll"` in the script to continuously monitor and execute trades.
@@ -102,8 +102,9 @@ Press `Ctrl+C` to gracefully stop the bot. The IB connection will be closed auto
 ## File Structure
 
 ```
-trading/
-├── smb_screener.py          # Main bot script
+├── trading/                 # Main bot and scripts
+│   ├── smb_screener.py     # Main bot script
+│   └── check_trade.py     # Trade checker utility
 ├── position_snapshot.json   # Current position snapshot (auto-generated)
 ├── smb_cookies.pkl         # Session cookies (auto-generated)
 ├── smb_trader_executions/  # Execution logs (CSV files)
