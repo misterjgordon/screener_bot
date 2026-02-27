@@ -21,50 +21,28 @@ import asyncio
 asyncio.set_event_loop(asyncio.new_event_loop())
 from ib_async import IB, Stock, LimitOrder, MarketOrder, StopOrder  # noqa: E402
 
-# =========================================================
-# Run configuration
-# =========================================================
-
-# "once"  -> run the workflow a single time and exit
-# "poll"  -> keep running every INTERVAL_SECONDS
-# "off"   -> do nothing (handy when you temporarily disable the script)
-#*******************************************
-RUN_MODE = 'poll'  # poll or once
-#*******************************************
-# Interval between API calls when in polling mode (in seconds) SMB updates every 10 seconds.
-INTERVAL_SECONDS = 10 # 10 seconds
-
-# =========================================================
-# Active Trading Configuration
-# =========================================================
-# Set to True to enable automatic order execution to IB
-ACTIVE_TRADING = True  # Set to True to enable trading, allows trades in IB (interactive brokers live account)
-
-# Per-trader toggle: set to True to mirror trades for that trader. Kenneth and Steve use options 
-# for hedging so turn off as options logic is pending.
-TRADER_ENABLED = {
-    'Justin Spero': True,
-    'Jeff Holden': True,
-    'Steve Spencer': False,
-    'Kenneth Sharkness': False,
-}
-
-# IB Connection settings
-# TWS/Gateway must allow API: Configure → API → Settings → enable API, set port, and either
-# "Allow connections from localhost only" (use IB_HOST='127.0.0.1') or add this machine's IP to Trusted IPs.
-# For live trading, uncheck "Read-Only API" in TWS/Gateway.
-IB_HOST = '127.0.0.1'
-IB_PORT = 7496  # Use 7497 for TWS paper trading, 7496 for TWS live, 4001 for IB Gateway paper
-IB_CLIENT_ID = 1  # Use different client ID from jobot (../jobot)
-
-# Risk management constants (from jobot.py)
-DAILY_STOP = 400  # USD - maximum daily loss allowed
-STOP_OFFSET = 0.02  # USD - buffer below day low (long) or above day high (short) when using day range for stop
-ACCOUNT_CURRENCY = 'USD'
-
-# Order tagging
-ORDER_TAG = 'SMB'  # Tag to identify orders placed by this bot
-ACTIVE_ORDER_STATUSES = ('PreSubmitted', 'Submitted', 'PendingSubmit', 'PendingCancel', 'ApiPending')
+from trading.config import (  # noqa: E402
+    ACCOUNT_CURRENCY,
+    ACTIVE_ORDER_STATUSES,
+    ACTIVE_TRADING,
+    DAILY_STOP,
+    IB_CLIENT_ID,
+    IB_HOST,
+    IB_PORT,
+    INTERVAL_SECONDS,
+    ORDER_TAG,
+    RUN_MODE,
+    STOP_OFFSET,
+    TRADER_ENABLED,
+)
+from trading.market_data import (  # noqa: E402
+    calculate_adr,
+    calculate_gap_percentage,
+    calculate_trailing_stop,
+    diagnose_market_price,
+    get_market_price,
+    get_todays_range,
+)
 
 
 def _order_tag(trader: str = '') -> str:
@@ -302,344 +280,6 @@ def close_ib_connection():
     """Close the IB connection if it exists."""
     reset_ib_connection()
     print('IB connection closed')
-
-def diagnose_market_price(ib: IB, symbol: str) -> None:
-    """
-    Diagnostic function to print detailed market price information for debugging.
-    This is isolated and doesn't affect other code paths.
-    
-    Args:
-        ib: IB connection instance
-        symbol: Stock symbol to diagnose
-    """
-    if ib is None or not ib.isConnected():
-        print(f'DIAGNOSTIC [{symbol}]: IB not connected')
-        return
-    
-    try:
-        contract = Stock(symbol, 'SMART', ACCOUNT_CURRENCY)
-        ib.qualifyContracts(contract)
-        ticker = ib.reqMktData(contract, '', False, False)
-        ib.sleep(0.5)  # Give more time for data to arrive
-        
-        # Check all possible price sources (Ticker: midpoint() is a method; bid, ask, last, close are attributes)
-        midpoint = ticker.midpoint()
-        close = ticker.close
-        bid = ticker.bid
-        ask = ticker.ask
-        last = ticker.last
-        
-        # Try to get values
-        midpoint_val = None
-        close_val = None
-        bid_val = None
-        ask_val = None
-        last_val = None
-        
-        if midpoint is not None:
-            try:
-                midpoint_val = float(midpoint) if not callable(midpoint) else None
-            except (TypeError, ValueError):
-                pass
-        
-        if close is not None:
-            try:
-                close_val = float(close) if not callable(close) else None
-            except (TypeError, ValueError):
-                pass
-        
-        if bid is not None:
-            try:
-                bid_val = float(bid) if not callable(bid) else None
-            except (TypeError, ValueError):
-                pass
-        
-        if ask is not None:
-            try:
-                ask_val = float(ask) if not callable(ask) else None
-            except (TypeError, ValueError):
-                pass
-        
-        if last is not None:
-            try:
-                last_val = float(last) if not callable(last) else None
-            except (TypeError, ValueError):
-                pass
-        
-        # Print diagnostic information
-        print(f'🔍 DIAGNOSTIC [{symbol}]:')
-        print(f'   Midpoint: {midpoint_val if midpoint_val else "N/A"}')
-        print(f'   Close: {close_val if close_val else "N/A"}')
-        print(f'   Bid: {bid_val if bid_val else "N/A"}')
-        print(f'   Ask: {ask_val if ask_val else "N/A"}')
-        print(f'   Last: {last_val if last_val else "N/A"}')
-        
-        # Determine if price is available
-        if midpoint_val and midpoint_val > 0:
-            print(f'   ✓ Price available: ${midpoint_val:.2f} (using midpoint)')
-        elif close_val and close_val > 0:
-            print(f'   ✓ Price available: ${close_val:.2f} (using close)')
-        elif bid_val and ask_val and bid_val > 0 and ask_val > 0:
-            estimated = (bid_val + ask_val) / 2.0
-            print(f'   ✓ Price available: ${estimated:.2f} (estimated from bid/ask)')
-        elif last_val and last_val > 0:
-            print(f'   ✓ Price available: ${last_val:.2f} (using last)')
-        else:
-            print(f'   ❌ ERROR: Price not available for {symbol}')
-            print('      All price sources returned None or invalid values')
-            
-    except Exception as e:
-        print(f'❌ DIAGNOSTIC [{symbol}]: Error - {e}')
-        traceback.print_exc()
-
-def get_market_price(ib: IB, symbol: str) -> float | None:
-    """
-    Get last trade price for a symbol.
-    Returns None if price cannot be obtained.
-    """
-    try:
-        # Check connection before attempting operation
-        if ib is None or not ib.isConnected():
-            return None
-        contract = Stock(symbol, 'SMART', ACCOUNT_CURRENCY)
-        try:
-            ib.qualifyContracts(contract)  # Qualify contract to populate conId before reqMktData
-            # Verify contract was qualified (Contract.conId is set by qualifyContracts)
-            if contract.conId == 0:
-                print(f'Warning: Contract qualification may have failed for {symbol} - conId not set')
-        except Exception as qual_error:
-            print(f'Warning: Failed to qualify contract for {symbol}: {qual_error}')
-            # Continue anyway - reqMktData might still work with some contracts
-        ticker = ib.reqMktData(contract, '', False, False)
-        ib.sleep(0.5)  # give it a moment for data to arrive
-        
-        # Prioritize last (most recent trade price), then close (Ticker attributes)
-        price_candidates = []
-        
-        # Get last (if available and is a number)
-        last = ticker.last
-        if last is not None:
-            try:
-                last_val = float(last) if not callable(last) else None
-                if last_val is not None and last_val > 0:
-                    price_candidates.append(last_val)
-            except (TypeError, ValueError):
-                pass
-        
-        # Get close (if available and is a number)
-        close = ticker.close
-        if close is not None:
-            try:
-                close_val = float(close) if not callable(close) else None
-                if close_val is not None and close_val > 0:
-                    price_candidates.append(close_val)
-            except (TypeError, ValueError):
-                pass
-        
-        # Return first valid price
-        if price_candidates:
-            return price_candidates[0]
-        
-        # Log diagnostic info when price cannot be obtained
-        print(f'Warning: market price for {symbol} is none - last={ticker.last}, close={ticker.close}')
-        return None
-    except Exception as e:
-        print(f'Error getting market price for {symbol}: {e}')
-        traceback.print_exc()
-        return None
-
-def calculate_trailing_stop(ib: IB, symbol: str, prior_bars: int = 3, position_side: str = 'long') -> float | None:
-    """
-    Calculate trailing stop price based on last N bars (15-minute bars) during regular trading hours only.
-    For long: minimum (lowest low) from the prior bars.
-    For short: maximum (highest high) from the prior bars.
-    Only uses data from regular trading hours (RTH). Returns None if market is closed or insufficient data.
-    
-    Args:
-        ib: IB connection instance
-        symbol: Stock symbol to calculate trailing stop for
-        prior_bars: Number of 15-minute bars to look back (default: 3)
-        position_side: "long" or "short" (default: "long")
-    
-    Returns_:
-        float | None: Trailing stop price as float, or None if calculation fails or market is closed
-    """
-    try:
-        contract = Stock(symbol, 'SMART', ACCOUNT_CURRENCY)
-        ib.qualifyContracts(contract)
-        
-        # Calculate duration: prior_bars * 15 minutes per bar * 60 seconds per minute
-        # Add a small buffer to ensure we get enough bars
-        duration_seconds = (prior_bars * 15 * 60) + (15 * 60)  # Request one extra bar to be safe
-        bars = ib.reqHistoricalData(
-            contract, endDateTime='', durationStr=f'{duration_seconds} S',
-            barSizeSetting='15 mins', whatToShow='TRADES', useRTH=True, formatDate=1
-        )
-        
-        # Only use bars from regular trading hours - return None if no bars available
-        if not bars:
-            return None
-        
-        # Use only bars from the current session (same calendar day). At market open the
-        # last completed RTH bar can be from yesterday, which would place the stop at
-        # yesterday's low instead of today's 15-min low.
-        today = date.today()
-        bar_date = lambda b: b.date.date() if isinstance(b.date, datetime) else b.date
-        session_bars = [b for b in bars if bar_date(b) == today]
-        if not session_bars:
-            return None
-        bars = session_bars[-prior_bars:] if len(session_bars) >= prior_bars else session_bars
-        
-        # Need at least one bar to calculate stop
-        if not bars:
-            return None
-        
-        if position_side.lower() == 'long':
-            # For long: minimum value (lowest low) from the prior bars during market hours
-            return float(min(bar.low for bar in bars))
-        else:
-            # For short: maximum value (highest high) from the prior bars during market hours
-            return float(max(bar.high for bar in bars))
-            
-    except Exception as e:
-        print(f'Error calculating trailing stop for {symbol}: {e}')
-        return None
-
-
-def get_todays_range(ib: IB, symbol: str) -> tuple[float, float] | None:
-    """Return today's RTH low and high so far (from 1-min bars), or None if no intraday bars for today."""
-    try:
-        contract = Stock(symbol, 'SMART', ACCOUNT_CURRENCY)
-        ib.qualifyContracts(contract)
-        bars = ib.reqHistoricalData(
-            contract,
-            endDateTime='',
-            durationStr='1 D',
-            barSizeSetting='1 min',
-            whatToShow='TRADES',
-            useRTH=True,
-            formatDate=1,
-        )
-        if not bars:
-            return None
-        today = date.today()
-        bar_date = lambda b: b.date.date() if isinstance(b.date, datetime) else b.date
-        session_bars = [b for b in bars if bar_date(b) == today and b.low is not None and b.high is not None]
-        if not session_bars:
-            return None
-        day_low = float(min(b.low for b in session_bars))
-        day_high = float(max(b.high for b in session_bars))
-        return (day_low, day_high)
-    except Exception as e:
-        print(f'Error getting today\'s range for {symbol}: {e}')
-        return None
-
-
-def calculate_adr(ib: IB, symbol: str, days: int = 20) -> float | None:
-    """
-    Calculate Average Daily Range (ADR) for a symbol.
-    
-    ADR is the average of (high - low) over the specified number of days.
-    
-    Args:
-        ib: IB connection instance
-        symbol: Stock symbol to calculate ADR for
-        days: Number of days to use for calculation (default: 20)
-    
-    Returns_:
-        float | None: ADR value as float, or None if calculation fails
-    """
-    try:
-        # Create and qualify contract
-        contract = Stock(symbol, 'SMART', ACCOUNT_CURRENCY)
-        ib.qualifyContracts(contract)
-        
-        # Request historical daily bars
-        bars = ib.reqHistoricalData(
-            contract,
-            endDateTime='',
-            durationStr=f'{days} D',
-            barSizeSetting='1 day',
-            whatToShow='TRADES',
-            useRTH=True,
-            formatDate=1
-        )
-        
-        if not bars:
-            return None
-        
-        # Calculate daily ranges (high - low) for each bar
-        daily_ranges = [bar.high - bar.low for bar in bars if bar.high is not None and bar.low is not None]
-        
-        if not daily_ranges:
-            return None
-        
-        # Calculate average daily range
-        adr = sum(daily_ranges) / len(daily_ranges)
-        
-        return float(adr)
-        
-    except Exception as e:
-        print(f'Error calculating ADR for {symbol}: {e}')
-        traceback.print_exc()
-        return None
-
-def calculate_gap_percentage(ib: IB, symbol: str, current_price: float) -> float | None:
-    """
-    Calculate the gap percentage from previous day's close to current price.
-    Gap = ((current_price - yesterday_close) / yesterday_close) * 100
-    Only returns positive gaps (gap up). Returns None for negative gaps or if calculation fails.
-    
-    Args_:
-        ib: IB connection instance
-        symbol: Stock symbol to calculate gap for
-        current_price: Current market price (used instead of today's open for pre-market trading)
-    
-    Returns_:
-        float | None: Gap percentage as float (positive for gap up only), or None if calculation fails or gap is negative
-    """
-    try:
-        # Create and qualify contract
-        contract = Stock(symbol, 'SMART', ACCOUNT_CURRENCY)
-        ib.qualifyContracts(contract)
-        
-        # Request 2 days of daily bars to get yesterday's close
-        bars = ib.reqHistoricalData(
-            contract,
-            endDateTime='',
-            durationStr='2 D',
-            barSizeSetting='1 day',
-            whatToShow='TRADES',
-            useRTH=True,
-            formatDate=1
-        )
-        
-        if not bars or len(bars) < 2:
-            # Need at least 2 days of data (yesterday and today)
-            return None
-        
-        # Get yesterday's close (second-to-last bar)
-        yesterday_bar = bars[-2]
-        yesterday_close = yesterday_bar.close
-        
-        if yesterday_close is None or yesterday_close <= 0:
-            return None
-        
-        # Calculate gap percentage using current price instead of today's open
-        gap_percentage = ((current_price - yesterday_close) / yesterday_close) * 100
-        
-        # Only return positive gaps (gap up)
-        if gap_percentage > 0:
-            return float(gap_percentage)
-        else:
-            # Negative gap or no gap - return None
-            return None
-        
-    except Exception as e:
-        print(f'Error calculating gap percentage for {symbol}: {e}')
-        traceback.print_exc()
-        return None
-
 
 # =========================================================
 # normalization and summarization
@@ -1539,7 +1179,7 @@ def process_execution_change(
                             # No completed 15-min bar: use day's low (long) or day's high (short) with $0.02 offset
                             todays_range = get_todays_range(ib, underlying)
                             if todays_range:
-                                day_low, day_high = todays_range
+                                day_low, day_high = todays_range.low, todays_range.high
                                 if is_long:
                                     stop_price = round(day_low - STOP_OFFSET, 2)
                                 else:

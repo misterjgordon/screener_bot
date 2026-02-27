@@ -83,8 +83,8 @@ def get_ib_connection():
             # Connection might be stale
             _investigation_ib_connection = None
     
-    # Get connection settings from smb_screener (just the constants, not the connection)
-    from smb_screener import IB_HOST, IB_PORT, IB_CLIENT_ID, ACTIVE_TRADING
+    # Get connection settings from config
+    from trading.config import ACTIVE_TRADING, IB_HOST, IB_PORT, IB_CLIENT_ID
     
     if _in_notebook:
         # In notebook: Jupyter's event loop conflicts with ib_async's async operations
@@ -447,7 +447,8 @@ Examples:
         args = parser.parse_args()
         investigate_position(args.trader, args.ticker)
 #%%
-from smb_screener import IB_HOST, IB_PORT, ACTIVE_TRADING, calculate_adr
+from trading.config import ACTIVE_TRADING, IB_HOST, IB_PORT
+from smb_screener import calculate_adr
 from ib_async import IB
 
 # Use a different client ID to avoid conflicts with smb_screener (which uses client ID 2)

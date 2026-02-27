@@ -1,13 +1,5 @@
-from smb_screener import run_once_mode
-from smb_screener import run_polling_mode
-
-# "once"  -> run the workflow a single time and exit
-# "poll"  -> keep running every INTERVAL_SECONDS
-# "off"   -> do nothing (handy when you temporarily disable the script)
-RUN_MODE = 'poll'  # poll or once
-# *******************************************
-# Interval between API calls when in polling mode (in seconds) SMB updates every 10 seconds.
-INTERVAL_SECONDS = 10  # 20 seconds
+from trading.config import INTERVAL_SECONDS, RUN_MODE
+from smb_screener import run_once_mode, run_polling_mode
 
 
 def main():

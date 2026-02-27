@@ -470,8 +470,8 @@ class OpenToCloseAnalyzer:
                 return None
 
             adr = sum(daily_ranges) / len(daily_ranges)
-            adr_value = float(adr)
-            
+            adr_value = round(float(adr), 2)
+
             # Cache the result
             self._adr_cache[symbol] = adr_value
             return adr_value

@@ -1,0 +1,3 @@
+timestamp,trader,symbol,change_type,net_side,delta_magnitude,entry_price,stop_price,take_profit_price,order_id
+2026-02-26 18:00:46,Jeff Holden,FIG,NEW,long,60,29.85,30.02,32.09,
+2026-02-26 18:00:48,Justin Spero,FSLY,NEW,long,60,,,,
