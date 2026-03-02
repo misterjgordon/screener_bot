@@ -7,20 +7,15 @@
     
     <key>ProgramArguments</key>
     <array>
-        <!-- Sleep to 7th second of the minute, then run (launchd has no seconds in StartCalendarInterval) -->
+        <!-- Sleep to 7th second of the minute, then run (launchd has no seconds in StartCalendarInterval). -->
+        <!-- Logs go to logs/screener_log/YYYY/MM/YYYY-MM-DD.log (and .error.log) -->
         <string>/bin/bash</string>
         <string>-c</string>
-        <string>sleep 7 &amp;&amp; exec /usr/bin/caffeinate -i -m /Users/joel/.local/bin/uv run trading/smb_screener.py</string>
+        <string>cd __REPO_ROOT__ &amp;&amp; LOGDIR="logs/screener_log/$(date +%Y/%m)" &amp;&amp; mkdir -p "$LOGDIR" &amp;&amp; LOGFILE="$LOGDIR/$(date +%Y-%m-%d).log" &amp;&amp; ERRFILE="$LOGDIR/$(date +%Y-%m-%d).error.log" &amp;&amp; sleep 7 &amp;&amp; exec /usr/bin/caffeinate -i -m /Users/joel/.local/bin/uv run python -m trading.smb_screener &gt;&gt; "$LOGFILE" 2&gt;&gt; "$ERRFILE"</string>
     </array>
     
     <key>WorkingDirectory</key>
-    <string>/Users/joel/Github/trading</string>
-    
-    <key>StandardOutPath</key>
-    <string>/Users/joel/Github/trading/logs/smb_screener.log</string>
-    
-    <key>StandardErrorPath</key>
-    <string>/Users/joel/Github/trading/logs/smb_screener.error.log</string>
+    <string>__REPO_ROOT__</string>
     
     <!-- Start script at 6:30 AM local time on weekdays (script handles weekday checking internally) -->
     <!-- Note: This uses your Mac's local time zone (make sure it's set to PST/PDT) -->

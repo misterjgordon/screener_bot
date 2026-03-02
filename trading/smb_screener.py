@@ -3,6 +3,7 @@
 # and execute trades in IB (interactive brokers live account). For educational purposes only. 
 # =========================================================
 import os
+import threading
 from pathlib import Path
 from dotenv import load_dotenv
 import requests
@@ -19,21 +20,32 @@ import csv
 # IB imports - need event loop setup before importing ib_async
 import asyncio
 asyncio.set_event_loop(asyncio.new_event_loop())
-from ib_async import IB, Stock, LimitOrder, MarketOrder, StopOrder  # noqa: E402
+from ib_async import IB  # noqa: E402
 
 from trading.config import (  # noqa: E402
-    ACCOUNT_CURRENCY,
-    ACTIVE_ORDER_STATUSES,
     ACTIVE_TRADING,
     DAILY_STOP,
-    IB_CLIENT_ID,
     IB_HOST,
     IB_PORT,
     INTERVAL_SECONDS,
-    ORDER_TAG,
     RUN_MODE,
     STOP_OFFSET,
     TRADER_ENABLED,
+)
+from trading.ib_trading import (  # noqa: E402
+    cancel_all_orders_for_position,
+    calculate_num_shares_from_risk,
+    send_bracket_order,
+    send_entry_only_order,
+    send_market_order,
+    send_scaling_order,
+    update_child_orders_for_position,
+)
+from trading.trade_data import (  # noqa: E402
+    get_available_funds,
+    get_position_size,
+    has_open_orders,
+    has_open_orders_for_trader,
 )
 from trading.market_data import (  # noqa: E402
     calculate_adr,
@@ -43,11 +55,7 @@ from trading.market_data import (  # noqa: E402
     get_market_price,
     get_todays_range,
 )
-
-
-def _order_tag(trader: str = '') -> str:
-    """Return order ref string for tagging IB orders (trader name optional)."""
-    return f'{ORDER_TAG}-{trader}' if trader else ORDER_TAG
+from trading.models import NormalizedRecord, PositionSummary  # noqa: E402
 
 
 # =========================================================
@@ -73,10 +81,11 @@ LOGIN_URL = 'https://rt.smbtraining.com/api/auth/callback/credentials'
 CALLBACK_URL = 'https://rt.smbtraining.com/auth/signin?callbackUrl=https%3A%2F%2Frt.smbtraining.com%2Fcalendar'
 SESSION_URL = 'https://rt.smbtraining.com/api/auth/session'
 POSITIONS_URL = 'https://rt.smbtraining.com/api/external-positions'
-# NEW: module-level constant (a string variable) for where we store the snapshot
-SNAPSHOT_FILE = 'position_snapshot.json'
-COOKIES_FILE = 'smb_cookies.pkl'
-EXECUTIONS_DIR = 'smb_trader_executions'
+# Paths relative to repo root so they are consistent regardless of cwd
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+SNAPSHOT_FILE = str(_REPO_ROOT / 'resources' / 'positions' / 'position_snapshot.json')
+COOKIES_FILE = str(_REPO_ROOT / 'resources' / 'cookies' / 'smb_cookies.pkl')
+EXECUTIONS_DIR = str(_REPO_ROOT / 'smb_trader_executions')
 
 # Auth / HTTP helpers
 def create_authenticated_session() -> requests.Session:
@@ -90,7 +99,7 @@ def create_authenticated_session() -> requests.Session:
     csrf_token = csrf_data.get('csrfToken')
     if not csrf_token:
         raise RuntimeError('No csrfToken in CSRF response')
-        # print("Got CSRF token:", csrf_token[:12], "...")
+
     payload = {
         'email': SMB_USERNAME,       # matches DevTools
         'password': SMB_PASSWORD,    # from .env, request for access
@@ -152,7 +161,9 @@ def save_cookies(session: requests.Session, path: str = COOKIES_FILE) -> None:
     """Save the session cookies to a file using pickle.
     session (requests.Session_): the session whose cookies to save via path (str) file path where we write the cookies.
     """
-    with Path(path).open('wb') as f:
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    with p.open('wb') as f:
         pickle.dump(session.cookies, f) # pickle.dump(obj, file) this serializes 
         # the cookies object to bytes & writes to disk
 
@@ -210,8 +221,14 @@ def get_session() -> requests.Session:
 # =========================================================
 # IB Connection and Market Data
 # =========================================================
+# Client IDs 2 and 3 are reserved (market_data standalone, check_trade). We rotate among
+# 1, 4, 5, 6, 7, 8, 9, 10 on reconnect so TWS doesn't reject us with "client id already
+# in use" when the previous session hasn't been released yet (e.g. after disconnect).
 
 _ib_connection: IB | None = None  # Module-level IB connection
+_ib_connect_lock = threading.Lock()
+_SCREENER_CLIENT_IDS = (1, 4, 5, 6, 7, 8, 9, 10)  # skip 2, 3
+_ib_reconnect_attempt = 0
 
 def reset_ib_connection():
     """Reset the IB connection, forcing a reconnect on next use."""
@@ -229,9 +246,11 @@ def get_ib_connection() -> IB | None:
     Get or create a persistent IB connection.
     Establishes connection for market data even if ACTIVE_TRADING is False.
     Returns None if connection fails (allows script to continue without trading).
+    Uses rotating client IDs on reconnect to avoid 'client id already in use' when
+    TWS hasn't released the previous session yet.
     """
-    global _ib_connection
-    
+    global _ib_connection, _ib_reconnect_attempt
+
     # Return existing connection if valid - but verify it's actually working
     if _ib_connection is not None:
         try:
@@ -250,30 +269,42 @@ def get_ib_connection() -> IB | None:
             # Connection is broken, reset it
             print(f'IB connection lost: {type(e).__name__}: {e}')
             reset_ib_connection()
-    
-    # Create new connection (always try to connect for market data, even if trading is disabled)
-    print(f'Attempting IB connection to {IB_HOST}:{IB_PORT} with client ID {IB_CLIENT_ID}...')
-    try:
-        ib = IB()
-        # Use readonly=True if ACTIVE_TRADING is False, readonly=False if trading is enabled
-        readonly_mode = not ACTIVE_TRADING
-        ib.connect(IB_HOST, IB_PORT, clientId=IB_CLIENT_ID, readonly=readonly_mode)
-        if ib.isConnected():
-            _ib_connection = ib
-            mode_str = 'readonly' if readonly_mode else 'trading'
-            print(f'✓ IB connected: {IB_HOST}:{IB_PORT} ({mode_str} mode, client ID {IB_CLIENT_ID})')
-            if readonly_mode:
-                print('⚠️  Orders will not be sent: connection is readonly (ACTIVE_TRADING is False). Set ACTIVE_TRADING = True and restart to enable trading.')
-            return ib
-        else:
+
+    # Create new connection: one attempt at a time, rotating client ID to avoid
+    # "client id already in use" when reconnecting before TWS released the old session
+    with _ib_connect_lock:
+        # Re-check after acquiring lock (another thread may have connected)
+        if _ib_connection is not None and _ib_connection.isConnected():
+            try:
+                if _ib_connection.client.isConnected():
+                    return _ib_connection
+            except Exception:
+                pass
+            reset_ib_connection()
+
+        client_id = _SCREENER_CLIENT_IDS[_ib_reconnect_attempt % len(_SCREENER_CLIENT_IDS)]
+        _ib_reconnect_attempt += 1
+        print(f'Attempting IB connection to {IB_HOST}:{IB_PORT} with client ID {client_id}...')
+        try:
+            ib = IB()
+            readonly_mode = not ACTIVE_TRADING
+            ib.connect(IB_HOST, IB_PORT, clientId=client_id, readonly=readonly_mode)
+            if ib.isConnected():
+                _ib_connection = ib
+                mode_str = 'readonly' if readonly_mode else 'trading'
+                print(f'✓ IB connected: {IB_HOST}:{IB_PORT} ({mode_str} mode, client ID {client_id})')
+                if readonly_mode:
+                    print('⚠️  Orders will not be sent: connection is readonly (ACTIVE_TRADING is False). Set ACTIVE_TRADING = True and restart to enable trading.')
+                return ib
             print('✗ Warning: IB connection failed - isConnected() returned False')
             print('  Check TWS/Gateway: API enabled, correct port, and "Allow localhost" or this machine in Trusted IPs')
+            _ib_connection = None
             return None
-    except Exception as e:
-        print(f'✗ Warning: IB connection error: {e}')
-        print('  Check TWS/Gateway: API enabled, correct port, and "Allow localhost" or this machine in Trusted IPs')
-        traceback.print_exc()
-        _ib_connection = None
+        except Exception as e:
+            print(f'✗ Warning: IB connection error: {e}')
+            print('  Check TWS/Gateway: API enabled, correct port, and "Allow localhost" or this machine in Trusted IPs')
+            traceback.print_exc()
+            _ib_connection = None
         return None
 
 def close_ib_connection():
@@ -283,17 +314,12 @@ def close_ib_connection():
 
 # =========================================================
 # normalization and summarization
-def normalize_record(rec: dict) -> dict:
+def normalize_record(rec: dict) -> NormalizedRecord:
     """
-    Convert a raw external-positions record into a normalized dict with:
-    - trader name
-    - long-term flag
-    - symbol info (equity vs option, underlying, expiry, strike, C/P)
-    - side (long/short/flat)
-    - magnitude
-    
-    Returns_:
-        dict: The normalized record
+    Convert a raw external-positions record into a NormalizedRecord.
+
+    Extracts trader name, long-term flag, symbol info (equity vs option),
+    side (long/short/flat), and magnitude.
     """
     account_name = rec['account_name']  # e.g. "VC Jeff Holden" or "VC Justin Spero LT"
 
@@ -331,39 +357,35 @@ def normalize_record(rec: dict) -> dict:
 
     # Normalize side into long/short/flat
     if side not in ('long', 'short', 'flat'):
-        # just in case they add something weird
         normalized_side = 'unknown'
     else:
         normalized_side = side
 
-    return {
-        'trader': trader_name,          # e.g. "Jeff Holden"
-        'is_long_term': is_long_term,   # True for LT accounts
-        'symbol_raw': symbol_raw,       # as given by API
-        'side': normalized_side,        # "long" "short" "flat"
-        'magnitude': magnitude,         # position size / weight
-        'last_updated': rec['last_updated'],
-        'created_at': rec['created_at'],'instrument_type': instrument_type,  # equity/option
-        'underlying': underlying,       # equity ticker or option underlying
-        'expiry': expiry,               # option expiry as string, or None
-        'strike': strike,               # option strike as float, or None
-        'option_type': opt_type,        # "C" or "P" for options
-        # "account_name": account_name,   # full SMB account name
-    }
+    return NormalizedRecord(
+        trader=trader_name,
+        is_long_term=is_long_term,
+        symbol_raw=symbol_raw,
+        side=normalized_side,
+        magnitude=magnitude,
+        last_updated=rec['last_updated'],
+        created_at=rec['created_at'],
+        instrument_type=instrument_type,
+        underlying=underlying,
+        expiry=expiry,
+        strike=strike, # "C" or "P" for options
+        option_type=opt_type,# full SMB account name
+    )
 
     
-def summarize_group(records: list[dict]) -> dict:
+def summarize_group(records: list[NormalizedRecord]) -> PositionSummary:
     """
     Determine the trader's *net* position for one symbol.
-    Args_:
-        records: list[dict]: The list of normalized records
-    
-    Returns_:
-        dict: The summarized record
+
+    Args:
+        records: The list of normalized records for one (trader, symbol) group.
     """
-    has_long =  any(r['side'] == 'long' and r['magnitude'] > 0 for r in records)
-    has_short = any(r['side'] == 'short' and r['magnitude'] > 0 for r in records)
-    has_activity = any(r['magnitude'] > 0 for r in records)
+    has_long = any(r.side == 'long' and r.magnitude > 0 for r in records)
+    has_short = any(r.side == 'short' and r.magnitude > 0 for r in records)
 
     if has_long and has_short:
         net_side = 'conflict'
@@ -378,51 +400,37 @@ def summarize_group(records: list[dict]) -> dict:
         net_side = 'flat'
         conflict = False
     base = records[0]
-    return {
-        'trader': base['trader'],
-        'is_long_term': base['is_long_term'],
-        'symbol': base['symbol_raw'],
-        'instrument_type': base['instrument_type'],
-        'underlying': base['underlying'],
-        'expiry': base['expiry'],
-        'strike': base['strike'],
-        'option_type': base['option_type'],
-        'net_side': net_side,            # long / short / flat / conflict
-        'conflict': conflict,
-        'total_magnitude': sum(r['magnitude'] for r in records),
-    }
+    return PositionSummary(
+        trader=base.trader,
+        is_long_term=base.is_long_term,
+        symbol=base.symbol_raw,
+        instrument_type=base.instrument_type,
+        underlying=base.underlying,
+        expiry=base.expiry,
+        strike=base.strike,
+        option_type=base.option_type,
+        net_side=net_side,
+        conflict=conflict,
+        total_magnitude=sum(r.magnitude for r in records),
+    )
 
 
 
 
 
-def save_snapshot(summary_rows: list[dict], path: str = SNAPSHOT_FILE) -> None:
+def save_snapshot(summary_rows: list[PositionSummary], path: str = SNAPSHOT_FILE) -> None:
     """
     Save the current summarized positions to disk as JSON.
-    Args:
-        summary_rows: list[dict]: the list of position summaries produced
-                                   by summarize_group (one per symbol/trader).
-        path: str: file path where the JSON will be written.
-    Returns_:
-        dict: The list of position summaries as saved to JSON.
     """
-    # json.dump converts Python objects -> JSON and writes them to a file.
-    # indent=2 keeps it readable if you open it manually.
-    with Path(path).open('w', encoding='utf-8') as f:
-        json.dump(summary_rows, f, indent=2)
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    with p.open('w', encoding='utf-8') as f:
+        json.dump([r.to_dict() for r in summary_rows], f, indent=2)
 
 
-def load_snapshot(path: str = SNAPSHOT_FILE) -> list[dict] | None:
+def load_snapshot(path: str = SNAPSHOT_FILE) -> list[PositionSummary] | None:
     """
     Load a previously saved snapshot of summarized positions from disk.
-
-    Args:
-        path: str: file path where the JSON snapshot is stored.
-
-    Returns
-    -------
-        list[dict] | None: The list of position summaries as loaded from JSON,
-        or None if the file does not exist or the contents are not a list of dicts.
     """
     if not Path(path).exists():
         print(f'Snapshot file not found: {path}')
@@ -432,7 +440,7 @@ def load_snapshot(path: str = SNAPSHOT_FILE) -> list[dict] | None:
     if not isinstance(data, list) or not all(isinstance(row, dict) for row in data):
         print(f'Snapshot file has invalid format (expected list of dicts): {path}')
         return None
-    return data
+    return [PositionSummary.from_dict(row) for row in data]
 
 
 # =========================================================
@@ -532,561 +540,10 @@ def save_execution_to_csv(
         })
 
 
-# =========================================================
-# Order Execution
-# =========================================================
-
-def get_available_funds(ib: IB, currency: str = ACCOUNT_CURRENCY) -> float:
-    """Get available funds for the specified currency."""
-    try:
-        for av in ib.accountValues():
-            if av.tag == 'AvailableFunds' and av.currency == currency:
-                try:
-                    return float(av.value)
-                except ValueError:
-                    pass
-    except Exception:
-        pass
-    return 0.0
-
-def calculate_num_shares_from_risk(
-    trade_stop_amount: float,
-    entry_price: float,
-    stop_loss_price: float,
-    is_long: bool,
-    available_funds: float,
-) -> int:
-    """
-    Calculate number of shares from risk, capped by available capital.
-
-    Uses magnitude * daily_stop (trade_stop_amount) and entry/stop to get a
-    risk-based share count. When there are not enough available funds for that
-    size, the script designates available_funds to the trade and sizes down:
-    same entry and stop price, fewer shares. Effectively replaces the
-    risk-based size with an affordable size when capital is insufficient.
-
-    Args:
-        trade_stop_amount: Maximum dollar amount to risk (magnitude * daily stop).
-        entry_price: Entry price.
-        stop_loss_price: Stop loss price.
-        is_long: True for long positions, False for short.
-        available_funds: Available funds in account (used as notional cap when insufficient).
-
-    Returns_:
-        int: Number of shares (floored), or 0 if calculation not possible.
-    """
-    # Risk per share (same entry/stop for full or reduced size)
-    if is_long:
-        risk_per_share = entry_price - stop_loss_price
-    else:
-        risk_per_share = stop_loss_price - entry_price
-
-    if risk_per_share <= 0:
-        return 0
-
-    # Shares from risk (magnitude * daily stop)
-    shares_from_risk = int(trade_stop_amount / risk_per_share)
-
-    # Shares we can afford: designate available funds to this trade (notional cap)
-    shares_from_funds = int(available_funds / entry_price)
-
-    # Use the smaller: full risk size or what we can afford (same entry/stop)
-    num_shares = min(shares_from_risk, shares_from_funds)
-
-    return max(0, num_shares)
-
-def get_position_size(ib: IB, symbol: str) -> int:
-    """
-    Get current position size for a symbol.
-    
-    Returns_:
-        int: Positive number for long positions, negative for short positions, 0 if no position
-    """
-    try:
-        positions = ib.positions()
-        for pos in positions:
-            if pos.contract.symbol == symbol and pos.contract.secType == 'STK':
-                return int(pos.position)
-        return 0
-    except Exception:
-        return 0
-
-def has_open_orders(ib: IB, symbol: str, is_long: bool | None = None) -> bool:
-    """
-    Check if there are open orders for a symbol.
-    
-    Args:
-        ib: IB connection
-        symbol: Symbol to check
-        is_long: If provided, only check for orders in this direction (True for BUY, False for SELL)
-                 If None, check for any open orders
-    
-    Returns_:
-        bool: True if there are open orders, False otherwise
-    """
-    try:
-        open_trades = ib.openTrades()
-        for trade in open_trades:
-            contract = trade.contract
-            order = trade.order
-            status = trade.orderStatus
-            
-            # Check symbol, active status, and direction (if is_long specified)
-            if (
-                contract.symbol == symbol
-                and contract.secType == 'STK'
-                and status.status in ACTIVE_ORDER_STATUSES
-                and (is_long is None or (order.action.upper() == 'BUY') == is_long)
-            ):
-                return True
-        return False
-    except Exception:
-        return False
-
-
-def has_open_orders_for_trader(ib: IB, symbol: str, is_long: bool, trader: str) -> bool:
-    """
-    Check if this trader already has an open order for the symbol in the given direction.
-    Used for NEW orders so we do not skip when another trader has an order for the same symbol.
-    """
-    matching = find_orders_for_symbol_trader(ib, symbol, trader)
-    for trade in matching:
-        order = trade.order
-        order_is_buy = order.action.upper() == 'BUY'
-        if order_is_buy == is_long:
-            return True
-    return False
-
-def find_orders_for_symbol_trader(ib: IB, symbol: str, trader: str = '') -> list:
-    """
-    Find all open orders for a specific symbol and trader.
-    
-    Args:
-        ib: IB connection
-        symbol: Symbol to find orders for
-        trader: Trader name (optional)
-    
-    Returns_:
-        list: List of Trade objects matching the criteria
-    """
-    matching_trades = []
-    try:
-        order_tag = _order_tag(trader)
-        open_trades = ib.openTrades()
-        
-        for trade in open_trades:
-            contract = trade.contract
-            order = trade.order
-            status = trade.orderStatus
-            
-            # Check symbol, orderRef match, and active order status
-            if (
-                contract.symbol == symbol
-                and contract.secType == 'STK'
-                and order.orderRef == order_tag
-                and status.status in ACTIVE_ORDER_STATUSES
-            ):
-                matching_trades.append(trade)
-        
-        return matching_trades
-    except Exception as e:
-        print(f'Error finding orders for {symbol} ({trader}): {e}')
-        return []
-
-def cancel_all_orders_for_position(ib: IB, symbol: str, trader: str = '') -> int:
-    """
-    Cancel all open orders for a specific symbol and trader.
-    
-    Args:
-        ib: IB connection
-        symbol: Symbol to cancel orders for
-        trader: Trader name (optional)
-    
-    Returns_:
-        int: Number of orders cancelled
-    """
-    cancelled_count = 0
-    try:
-        matching_trades = find_orders_for_symbol_trader(ib, symbol, trader)
-        
-        for trade in matching_trades:
-            order = trade.order
-            status = trade.orderStatus
-            
-            # Only cancel active orders
-            if status.status in ACTIVE_ORDER_STATUSES:
-                try:
-                    ib.cancelOrder(order)
-                    cancelled_count += 1
-                    print(f'   ✓ Cancelled order {order.orderId} ({order.action} {order.totalQuantity} {symbol})')
-                except Exception as e:
-                    print(f'Error cancelling order {order.orderId}: {e}')
-        
-        if cancelled_count > 0:
-            print(f'   ✓ Cancelled {cancelled_count} order(s) for {symbol}')
-        
-        return cancelled_count
-    except Exception as e:
-        print(f'Error cancelling orders for {symbol} ({trader}): {e}')
-        return 0
-
-def update_child_orders_for_position(ib: IB, symbol: str, trader: str, share_delta: int) -> bool:
-    """
-    Update existing child orders (stop loss and take profit) for a position.
-    
-    Args:
-        ib: IB connection
-        symbol: Symbol to update orders for
-        trader: Trader name
-        share_delta: Change in shares (positive for ADD, negative for TRIM)
-    
-    Returns_:
-        bool: True if orders were updated, False if no child orders found (fallback to current behavior)
-    """
-    try:
-        matching_trades = find_orders_for_symbol_trader(ib, symbol, trader)
-        
-        # Filter for child orders (orders with parentId set)
-        child_orders = []
-        for trade in matching_trades:
-            order = trade.order
-            if order.parentId > 0:
-                child_orders.append(trade)
-        
-        if not child_orders:
-            # No child orders found - fallback to current behavior
-            return False
-        
-        # Update each child order
-        updated_count = 0
-        for trade in child_orders:
-            order = trade.order
-            status = trade.orderStatus
-            
-            # Only update active orders
-            if status.status in ACTIVE_ORDER_STATUSES:
-                current_quantity = order.totalQuantity
-                new_quantity = current_quantity + share_delta
-                
-                # If new quantity would be 0 or negative, cancel the order instead
-                if new_quantity <= 0:
-                    try:
-                        ib.cancelOrder(order)
-                        print(f'   ✓ Cancelled child order {order.orderId} (would be {new_quantity} shares)')
-                    except Exception as e:
-                        print(f'Error cancelling child order {order.orderId}: {e}')
-                else:
-                    # Modify the order with new quantity
-                    try:
-                        order.totalQuantity = new_quantity
-                        # Re-qualify contract to ensure it's valid
-                        ib.qualifyContracts(trade.contract)
-                        ib.placeOrder(trade.contract, order)
-                        ib.sleep(0.2)  # Small delay to ensure order modification is processed
-                        updated_count += 1
-                        print(f'   ✓ Updated child order {order.orderId}: {current_quantity} -> {new_quantity} shares')
-                    except Exception as e:
-                        print(f'Error updating child order {order.orderId}: {e}')
-        
-        if updated_count > 0:
-            print(f'   ✓ Updated {updated_count} child order(s) for {symbol}')
-            return True
-        
-        return False
-    except Exception as e:
-        print(f'Error updating child orders for {symbol} ({trader}): {e}')
-        traceback.print_exc()
-        return False
-
-
-def send_scaling_order(
-    ib: IB,
-    symbol: str,
-    is_long: bool,
-    entry_price: float,
-    num_shares: int,
-    trader: str = ''
-) -> str | None:
-    """
-    Send a stop order to scale into an existing position (for ADD changes).
-    Uses a stop entry order to add shares to an existing position.
-    
-    Args:
-        ib: IB connection instance
-        symbol: Stock symbol
-        is_long: True for long, False for short
-        entry_price: Entry/stop trigger price
-        num_shares: Number of shares to add
-    
-    Returns_:
-        str | None: Order ID string if successful, None otherwise
-    """
-    try:
-        if num_shares <= 0:
-            print(f'Error: Invalid share quantity {num_shares} for {symbol}')
-            return None
-        
-        # Determine action
-        action = 'BUY' if is_long else 'SELL'
-        
-        # Create and qualify contract
-        contract = Stock(symbol, 'SMART', ACCOUNT_CURRENCY)
-        ib.qualifyContracts(contract)
-        
-        # Create order tag with trader name if provided
-        order_tag = _order_tag(trader)
-        
-        # Create stop entry order (simple order to add to position)
-        order = StopOrder(action, num_shares, entry_price)
-        order.tif = 'GTC'  # Good-Til-Canceled (default to avoid Error 10349)
-        order.orderRef = order_tag  # Tag the order with trader
-        
-        # Place order
-        trade = ib.placeOrder(contract, order)
-        ib.sleep(0.2)
-        
-        order_id = str(order.orderId) if order.orderId else 'pending'
-        print(f'Scaling order placed for {symbol}: {action} {num_shares} shares @ ${entry_price:.2f} (STOP-ENTRY)')
-        return order_id
-        
-    except Exception as e:
-        print(f'Error placing scaling order for {symbol}: {e}')
-        traceback.print_exc()
-        return None
-
-def send_bracket_order(
-    ib: IB,
-    symbol: str,
-    is_long: bool,
-    entry_price: float,
-    stop_price: float,
-    take_profit_price: float,
-    magnitude: float,
-    trader: str = ''
-) -> str | None:
-    """
-    Send a bracket order to IB for NEW/ADD positions.
-    
-    Args:
-        ib: IB connection instance
-        symbol: Stock symbol
-        is_long: True for long, False for short
-        entry_price: Entry/stop trigger price (midpoint)
-        stop_price: Stop loss price
-        take_profit_price: Take profit price
-        magnitude: Position magnitude (used to calculate trade_stop_percent)
-    
-    Returns_:
-        str | None: Order ID string if successful, None otherwise
-    """
-    try:
-        # Calculate trade stop amount: magnitude = % of daily stop
-        trade_stop_percent = magnitude / 100.0
-        trade_stop_amount = DAILY_STOP * trade_stop_percent
-        
-        # Get available funds
-        available_funds = get_available_funds(ib)
-        if available_funds <= 0:
-            print(f'Error: Insufficient available funds: ${available_funds:.2f}')
-            return None
-        
-        # Calculate number of shares
-        num_shares = calculate_num_shares_from_risk(
-            trade_stop_amount=trade_stop_amount,
-            entry_price=entry_price,
-            stop_loss_price=stop_price,
-            is_long=is_long,
-            available_funds=available_funds
-        )
-        
-        if num_shares == 0:
-            print(f'Error: Calculated share quantity is zero for {symbol}')
-            return None
-        
-        # Create and qualify contract
-        contract = Stock(symbol, 'SMART', ACCOUNT_CURRENCY)
-        ib.qualifyContracts(contract)
-        
-        # Determine actions
-        if is_long:
-            entry_action = 'BUY'
-            stop_action = 'SELL'
-            take_profit_action = 'SELL'
-        else:
-            entry_action = 'SELL'
-            stop_action = 'BUY'
-            take_profit_action = 'BUY'
-        
-        # Create order tag with trader name if provided
-        order_tag = _order_tag(trader)
-        
-        # Create parent order (stop entry)
-        parent_order = StopOrder(entry_action, num_shares, entry_price)
-        parent_order.tif = 'GTC'  # Good-Til-Canceled (default to avoid Error 10349)
-        parent_order.transmit = False
-        parent_order.orderRef = order_tag  # Tag the order with trader
-        
-        # Place parent order
-        parent_trade = ib.placeOrder(contract, parent_order)
-        ib.sleep(0.5)
-        
-        # Get parent order ID (Trade.order is the Order; Order.orderId is set by placeOrder)
-        parent_order_id = parent_order.orderId
-        if parent_order_id is None:
-            parent_order_id = parent_trade.order.orderId
-        
-        if parent_order_id is None:
-            print(f'Error: Could not obtain parent order ID for {symbol}')
-            return None
-        
-        # Create take profit order (child)
-        take_profit_order = LimitOrder(take_profit_action, num_shares, take_profit_price)
-        take_profit_order.tif = 'GTC'  # Good-Til-Canceled (default to avoid Error 10349)
-        take_profit_order.parentId = parent_order_id
-        take_profit_order.transmit = False
-        take_profit_order.orderRef = order_tag  # Tag the order with trader
-        
-        # Create stop loss order (child)
-        stop_order = StopOrder(stop_action, num_shares, stop_price)
-        stop_order.tif = 'GTC'  # Good-Til-Canceled (default to avoid Error 10349)
-        stop_order.parentId = parent_order_id
-        stop_order.transmit = True  # This sends the whole bracket
-        stop_order.orderRef = order_tag  # Tag the order with trader
-        
-        # Place child orders
-        ib.placeOrder(contract, take_profit_order)
-        stop_trade = ib.placeOrder(contract, stop_order)
-        ib.sleep(0.5)
-        
-        # Get stop order ID as the main order ID
-        order_id = str(parent_order_id)
-        print(f'Bracket order placed for {symbol}: {entry_action} {num_shares} @ ${entry_price:.2f} (STOP-ENTRY), Stop Loss @ ${stop_price:.2f}, TP @ ${take_profit_price:.2f}')
-        return order_id
-        
-    except Exception as e:
-        print(f'Error placing bracket order for {symbol}: {e}')
-        traceback.print_exc()
-        return None
-
-def send_entry_only_order(
-    ib: IB,
-    symbol: str,
-    is_long: bool,
-    entry_price: float,
-    magnitude: float,
-    trader: str = ''
-) -> str | None:
-    """
-    Send an entry order without stop loss (when trailing stop and ADR both fail).
-    
-    Args:
-        ib: IB connection instance
-        symbol: Stock symbol
-        is_long: True for long, False for short
-        entry_price: Entry/stop trigger price
-        magnitude: Position magnitude (used to calculate trade_stop_percent)
-    
-    Returns_:
-        str | None: Order ID string if successful, None otherwise
-    """
-    try:
-        # Calculate trade stop amount: magnitude = % of daily stop
-        trade_stop_percent = magnitude / 100.0
-        trade_stop_amount = DAILY_STOP * trade_stop_percent
-        
-        # Get available funds
-        available_funds = get_available_funds(ib)
-        if available_funds <= 0:
-            print(f'Error: Insufficient available funds: ${available_funds:.2f}')
-            return None
-        
-        # Use a conservative risk calculation (assume 2% stop for sizing)
-        # This is a fallback when we don't have a real stop price
-        assumed_risk_percent = 0.02  # 2% assumed risk
-        num_shares = int((available_funds * trade_stop_percent) / (entry_price * assumed_risk_percent))
-        
-        if num_shares == 0:
-            print(f'Error: Calculated share quantity is zero for {symbol}')
-            return None
-        
-        # Create and qualify contract
-        contract = Stock(symbol, 'SMART', ACCOUNT_CURRENCY)
-        ib.qualifyContracts(contract)
-        
-        # Determine action
-        action = 'BUY' if is_long else 'SELL'
-        
-        # Create order tag with trader name if provided
-        order_tag = _order_tag(trader)
-        
-        # Create stop entry order (no stop loss attached)
-        order = StopOrder(action, num_shares, entry_price)
-        order.tif = 'GTC'  # Good-Til-Canceled (default to avoid Error 10349)
-        order.orderRef = order_tag  # Tag the order with trader
-        
-        # Place order
-        trade = ib.placeOrder(contract, order)
-        ib.sleep(1)
-        
-        order_id = str(order.orderId) if order.orderId else 'pending'
-        print(f'⚠️  WARNING: Entry-only order placed for {symbol}: {action} {num_shares} @ ${entry_price:.2f} (NO STOP LOSS)')
-        return order_id
-        
-    except Exception as e:
-        print(f'Error placing entry-only order for {symbol}: {e}')
-        traceback.print_exc()
-        return None
-
-def send_market_order(ib: IB, symbol: str, is_long: bool, position_size: int, trader: str = '') -> str | None:
-    """
-    Send a market order to IB for TRIM positions (exit).
-    
-    Args:
-        ib: IB connection instance
-        symbol: Stock symbol
-        is_long: True if currently long (so we SELL), False if short (so we BUY)
-        position_size: Number of shares to exit
-        trader: Trader name for order tagging (optional)
-    
-    Returns_:
-        str | None: Order ID string if successful, None otherwise
-    """
-    try:
-        if position_size <= 0:
-            print(f'Error: Invalid position size {position_size} for {symbol}')
-            return None
-        
-        # Determine action: if long, sell to exit; if short, buy to exit
-        action = 'SELL' if is_long else 'BUY'
-        
-        # Create and qualify contract
-        contract = Stock(symbol, 'SMART', ACCOUNT_CURRENCY)
-        ib.qualifyContracts(contract)
-        
-        # Create order tag with trader name if provided
-        order_tag = _order_tag(trader)
-        
-        # Create market order
-        order = MarketOrder(action, position_size)
-        order.tif = 'GTC'  # Good-Til-Canceled (default to avoid Error 10349)
-        order.orderRef = order_tag  # Tag the order with trader
-        
-        # Place order
-        trade = ib.placeOrder(contract, order)
-        ib.sleep(0.5)
-        
-        order_id = str(order.orderId) if order.orderId else 'pending'
-        print(f'Market order placed for {symbol}: {action} {position_size} shares (exit)')
-        return order_id
-        
-    except Exception as e:
-        print(f'Error placing market order for {symbol}: {e}')
-        traceback.print_exc()
-        return None
 
 def process_execution_change(
     ib: IB | None,
-    row: dict,
+    row: PositionSummary,
     change_type: str
 ) -> None:
     """
@@ -1097,12 +554,11 @@ def process_execution_change(
         row: Position summary row with change annotations
         change_type: Change type (NEW, ADD, TRIM, CLOSE)
     """
-    trader = row.get('trader')
-    symbol = row.get('symbol')
-    net_side = row.get('net_side')
-    delta_magnitude = row.get('delta_magnitude', 0)
-    
-    # Validate required fields
+    trader = row.trader
+    symbol = row.symbol
+    net_side = row.net_side
+    delta_magnitude = row.delta_magnitude or 0
+
     if not trader or not symbol or not net_side:
         return
     
@@ -1116,11 +572,11 @@ def process_execution_change(
         return
     
     # Only process equity instruments
-    if row.get('instrument_type') != 'equity':
+    if row.instrument_type != 'equity':
         return
     
     # Extract underlying symbol (should be same as symbol for equity)
-    underlying = row.get('underlying') or symbol
+    underlying = row.underlying or symbol
    
     timestamp = format_timestamp()
     entry_price = None
@@ -1129,7 +585,7 @@ def process_execution_change(
     order_id = None
     no_place_reason: str | None = None  # Set when we skip or fail so we can log why order wasn't placed
     if change_type in ['NEW', 'ADD']:
-        row['order_placed'] = False
+        row.order_placed = False
 
     # Process based on change type
     if change_type in ['NEW', 'ADD']:
@@ -1340,7 +796,7 @@ def process_execution_change(
                 print(f'IB not connected - skipping market data for {underlying}')
 
             if change_type in ['NEW', 'ADD'] and order_id is not None:
-                row['order_placed'] = True
+                row.order_placed = True
             if change_type in ['NEW', 'ADD'] and order_id is None:
                 if not no_place_reason:
                     no_place_reason = 'order_placement_failed_or_returned_none'
@@ -1468,113 +924,121 @@ def process_execution_change(
             timestamp=timestamp
         )
 
-def make_position_key(row: dict) -> tuple[str, bool, str, str]:
-    """
-    Create a unique key for a position summary row based on trader, LT flag, symbol, and side
-    """
-    return (row['trader'], row['is_long_term'], row['symbol'], row['net_side'])
+def make_position_key(row: PositionSummary) -> tuple[str, bool, str, str]:
+    """Create a unique key for a position summary row based on trader, LT flag, symbol, and side."""
+    return (row.trader, row.is_long_term, row.symbol, row.net_side)
 
-def make_position_key_no_side(row: dict) -> tuple[str, bool, str]:
-    """
-    Create a key for a position without the side (used to detect position closures)
-    """
-    return (row['trader'], row['is_long_term'], row['symbol'])
 
-def annotate_with_changes(current_rows: list[dict], previous_snapshot: list[dict] | None) -> list[dict]:
+def make_position_key_no_side(row: PositionSummary) -> tuple[str, bool, str]:
+    """Create a key for a position without the side (used to detect position closures)."""
+    return (row.trader, row.is_long_term, row.symbol)
+
+
+def _inject_closed_position_rows(
+    current_rows: list[PositionSummary],
+    previous_snapshot: list[PositionSummary] | None,
+) -> list[PositionSummary]:
+    """
+    When a trader exits a position, the API omits that symbol (no row returned).
+    Add synthetic flat rows for (trader, symbol) that were in the previous
+    snapshot (non-flat) but missing from current so we detect CLOSE and place
+    the exit order.
+    """
+    if not previous_snapshot:
+        return current_rows
+    current_keys = {make_position_key_no_side(row) for row in current_rows}
+    synthetic: list[PositionSummary] = []
+    for prev in previous_snapshot:
+        if prev.net_side == 'flat' or (prev.total_magnitude or 0) <= 0:
+            continue
+        key = make_position_key_no_side(prev)
+        if key in current_keys:
+            continue
+        synthetic.append(PositionSummary(
+            trader=prev.trader,
+            is_long_term=prev.is_long_term,
+            symbol=prev.symbol,
+            instrument_type=prev.instrument_type,
+            underlying=prev.underlying or prev.symbol,
+            expiry=prev.expiry,
+            strike=prev.strike,
+            option_type=prev.option_type,
+            net_side='flat',
+            conflict=False,
+            total_magnitude=0,
+        ))
+    return current_rows + synthetic
+
+
+def annotate_with_changes(
+    current_rows: list[PositionSummary],
+    previous_snapshot: list[PositionSummary] | None,
+) -> list[PositionSummary]:
     """
     Given the current summary rows and the previously saved snapshot,
-    add:
-      - prev_magnitude
-      - delta_magnitude
-      - change_type  (NEW / ADD / TRIM / CLOSE / FLIP / UNCHANGED / NONE)
-
-    Returns_:
-        list[dict]: The same list, but each dict is enriched with change info.
+    enrich each row with prev_magnitude, delta_magnitude, and change_type.
     """
-    # First run: no previous snapshot everything is treated as NEW from 0
     if previous_snapshot is None:
         for row in current_rows:
-            row['prev_magnitude'] = 0
-            row['delta_magnitude'] = row['total_magnitude']
-            row['change_type'] = 'NEW' if row['total_magnitude'] != 0 else 'NONE'
+            row.prev_magnitude = 0
+            row.delta_magnitude = row.total_magnitude
+            row.change_type = 'NEW' if row.total_magnitude != 0 else 'NONE'
         return current_rows
-    # Build a lookup from previous snapshot using a tuple key (with side)
-    prev_index = {}
+    prev_index: dict[tuple[str, bool, str, str], PositionSummary] = {}
     for prev_row in previous_snapshot:
         key = make_position_key(prev_row)
         prev_index[key] = prev_row
-    
-    # Build a lookup by key without side (to detect position closures)
-    prev_index_no_side = {}
+    prev_index_no_side: dict[tuple[str, bool, str], list[PositionSummary]] = {}
     for prev_row in previous_snapshot:
         key_no_side = make_position_key_no_side(prev_row)
         if key_no_side not in prev_index_no_side:
             prev_index_no_side[key_no_side] = []
         prev_index_no_side[key_no_side].append(prev_row)
-    
-    # Now annotate current rows
     for row in current_rows:
         key = make_position_key(row)
         prev_row = prev_index.get(key)
-
-        prev_mag = prev_row['total_magnitude'] if prev_row else 0
-        curr_mag = row['total_magnitude']
-
-        prev_side = prev_row['net_side'] if prev_row else 'flat'
-        curr_side = row['net_side']
-
-        row['prev_magnitude'] = prev_mag
-        row['delta_magnitude'] = curr_mag - prev_mag
-
-        # Determine change type (similar to a switch TRUE function in Excel)
-        # First check for CLOSE: position went from long/short to flat
+        prev_mag = prev_row.total_magnitude if prev_row else 0
+        curr_mag = row.total_magnitude
+        prev_side = prev_row.net_side if prev_row else 'flat'
+        curr_side = row.net_side
+        row.prev_magnitude = prev_mag
+        row.delta_magnitude = curr_mag - prev_mag
         if prev_side != 'flat' and curr_side == 'flat':
-            change = 'CLOSE'  # Position was closed (went flat)
+            change = 'CLOSE'
         elif prev_row is None and curr_mag > 0:
             change = 'NEW'
         elif prev_row is None and curr_mag == 0:
-            # Check if this position was closed (went from long/short to flat)
             key_no_side = make_position_key_no_side(row)
             prev_rows_same_symbol = prev_index_no_side.get(key_no_side, [])
-            # Check if there was a previous position with non-flat side
-            had_non_flat_position = any(p['net_side'] != 'flat' and p['total_magnitude'] > 0 
-                                       for p in prev_rows_same_symbol)
-            if had_non_flat_position:
-                change = 'CLOSE'  # Position was closed (went flat)
-            else:
-                change = 'FLAT'  # Always been flat
+            had_non_flat_position = any(
+                p.net_side != 'flat' and p.total_magnitude > 0 for p in prev_rows_same_symbol
+            )
+            change = 'CLOSE' if had_non_flat_position else 'FLAT'
         elif prev_side != curr_side and prev_side != 'flat' and curr_side != 'flat':
             change = 'FLIP'
-        elif row['delta_magnitude'] > 0:
+        elif (row.delta_magnitude or 0) > 0:
             change = 'ADD'
-        elif row['delta_magnitude'] < 0:
+        elif (row.delta_magnitude or 0) < 0:
             change = 'TRIM'
         else:
             change = None
-        row['change_type'] = change
+        row.change_type = change
     return current_rows
 
-def print_position_table(summary_rows: list[dict], hide_flat: bool = True) -> None:
-    """
-    Args:
-     print a table of positions:
-    Returns_:
-    Trader | LT | Symbol | Type | Side | Mag | MagChg | Change
-    """
-    # Optionally hide fully flat positions with zero size
-    # BUT show flat positions when they have a change_type (e.g., CLOSE) - show them at least once
-    rows_to_show = []
+def _get_field(r: PositionSummary, field: str) -> str | int | float | bool | None:
+    """Get field value from PositionSummary by name."""
+    return getattr(r, field, '')
+
+
+def print_position_table(summary_rows: list[PositionSummary], hide_flat: bool = True) -> None:
+    """Print a table of positions: Trader | LT | Symbol | Type | Side | Mag | MagChg | Change."""
+    rows_to_show: list[PositionSummary] = []
     for r in summary_rows:
-        if hide_flat and r['net_side'] == 'flat' and r['total_magnitude'] == 0:
-            # Show flat positions if they have a change_type (they're being processed)
-            change_type = r.get('change_type')
-            if change_type and change_type in ['CLOSE', 'NEW', 'ADD', 'TRIM', 'FLIP']:
+        if hide_flat and r.net_side == 'flat' and r.total_magnitude == 0:
+            if r.change_type and r.change_type in ['CLOSE', 'NEW', 'ADD', 'TRIM', 'FLIP']:
                 rows_to_show.append(r)
-            # Skip other flat positions
         else:
             rows_to_show.append(r)
-
-    # Column definitions (order is easy to change)
     column_specs = [
         {'header': 'Trader',  'field': 'trader',           'width': 25, 'align': '<'},
         {'header': 'LT',      'field': 'is_long_term',     'width': 3,  'align': '<'},
@@ -1582,14 +1046,11 @@ def print_position_table(summary_rows: list[dict], hide_flat: bool = True) -> No
         {'header': 'Type',    'field': 'instrument_type',  'width': 8,  'align': '<'},
         {'header': 'Side',    'field': 'net_side',         'width': 6,  'align': '<'},
         {'header': 'Mag',     'field': 'total_magnitude',  'width': 6,  'align': '>'},
-        {'header': 'MagChg',    'field': 'delta_magnitude',  'width': 6,  'align': '>'},
-        {'header': 'Change', 'field': 'change_type',     'width': 8,  'align': '<'},
+        {'header': 'MagChg',  'field': 'delta_magnitude',  'width': 6,  'align': '>'},
+        {'header': 'Change',  'field': 'change_type',      'width': 8,  'align': '<'},
     ]
 
     def format_cell(value: str | int | float | bool | None, spec: dict) -> str:
-        """Format one cell value according to spec
-        """
-    # special cases
         if spec['field'] == 'is_long_term':
             return 'LT' if value else '  '
         if spec['field'] == 'change_type' and value is None:
@@ -1597,28 +1058,18 @@ def print_position_table(summary_rows: list[dict], hide_flat: bool = True) -> No
         if value is None:
             return 'NA'
         return f'{str(value):{spec["align"]}{spec["width"]}}'
-    def build_header_line() -> str:
-        """Build the header row using the column specs."""
-        cells = [f'{col["header"]:{col["align"]}{col["width"]}}' for col in column_specs]
-        return ' '.join(cells)
 
+    def build_header_line() -> str:
+        return ' '.join(f'{col["header"]:{col["align"]}{col["width"]}}' for col in column_specs)
 
     def build_divider() -> str:
-        """Build divider line using column_specs."""
-        total_width = sum(int(col['width']) + 1 for col in column_specs) - 1  # Account for spaces
-        return '-' * total_width
+        return '-' * (sum(int(col['width']) + 1 for col in column_specs) - 1)
 
-    # Print header
+    print(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
     print(build_header_line())
     print(build_divider())
-
-
-    # Print rows
     for r in rows_to_show:
-        cells = []
-        for spec in column_specs:
-            value = r.get(spec['field'], '')
-            cells.append(format_cell(value, spec))
+        cells = [format_cell(_get_field(r, str(spec['field'])), spec) for spec in column_specs]
         print(' '.join(cells))
 
 
@@ -1627,7 +1078,7 @@ def print_position_table(summary_rows: list[dict], hide_flat: bool = True) -> No
 def run_single_cycle(
     session: requests.Session | None = None,
     ib: IB | None = None,
-) -> tuple[requests.Session, list[dict], IB | None]:
+) -> tuple[requests.Session, list[PositionSummary], IB | None]:
     """Log in and create session and fetch positions."""
     if session is None:
         session = get_session()
@@ -1637,24 +1088,25 @@ def run_single_cycle(
     normalized_positions = [normalize_record(r) for r in positions_data]
     
     # group
-    groups = defaultdict(list)
+    groups: defaultdict[tuple[str, bool, str], list[NormalizedRecord]] = defaultdict(list)
     for p in normalized_positions:
-        key = (p['trader'], p['is_long_term'], p['symbol_raw'])
+        key = (p.trader, p.is_long_term, p.symbol_raw)
         groups[key].append(p)
     
     # ***************build summary_rows from groups from def summarize_group(records)***************
     summary_rows = [summarize_group(recs) for recs in groups.values()]
     
-    #load Previoius Snapshot    
+    # Load previous snapshot
     previous_snapshot = load_snapshot()
-    
+
     if previous_snapshot is None:
         print(f'No previous snapshot found at {SNAPSHOT_FILE}')
     else:
-        # print (f"Loaded previous snapshot from {SNAPSHOT_FILE}, {len(previous_snapshot)} records.")
-        pass
-    
-    # *************** Annotate current summary with prev/delta/change_type ****************
+        # Inject synthetic flat rows for symbols that disappeared from the API
+        # (trader exited) so we detect CLOSE and place the exit order
+        summary_rows = _inject_closed_position_rows(summary_rows, previous_snapshot)
+
+    # Annotate current summary with prev/delta/change_type
     summary_rows = annotate_with_changes(summary_rows, previous_snapshot)
     
     # Get IB connection if needed (for market data and execution tracking)
@@ -1674,13 +1126,22 @@ def run_single_cycle(
     
     # Process execution changes (NEW, ADD, TRIM, CLOSE, FLIP)
     change_types_to_process = ['NEW', 'ADD', 'TRIM', 'CLOSE', 'FLIP']
-    changes_to_run: list[tuple[dict, str]] = []
+    changes_to_run: list[tuple[PositionSummary, str]] = []
     for row in summary_rows:
-        ct = row.get('change_type')
+        ct = row.change_type
         if ct in change_types_to_process:
             changes_to_run.append((row, ct))
     if changes_to_run:
         print(f'Execution: processing {len(changes_to_run)} change(s) (ACTIVE_TRADING={ACTIVE_TRADING}, IB connected={ib is not None and ib.isConnected() if ib else False})')
+        # Refresh positions and open orders from TWS before processing
+        # (avoids stale cache after connectivity hiccups like 1100/1102)
+        if ib is not None and ib.isConnected():
+            try:
+                ib.run(ib.reqPositionsAsync())
+                if ACTIVE_TRADING:
+                    ib.run(ib.reqOpenOrdersAsync())
+            except Exception as e:
+                print(f'Warning: Failed to refresh positions/orders from TWS: {e}')
     for row, change_type in changes_to_run:
         process_execution_change(ib, row, change_type)
     
@@ -1688,25 +1149,21 @@ def run_single_cycle(
     save_snapshot(summary_rows)
 
     # look for conflicts
-    conflicts = [r for r in summary_rows if r['conflict']]
+    conflicts = [r for r in summary_rows if r.conflict]
     print('\nConflicts detected:', len(conflicts))
     for c in conflicts:
-        print('CONFLICT:', c['trader'], c['symbol'])
-    
-    # filter summary_rows to not inlcude trader name Steven Wang and then sort by trader name
-    summary_rows = [r for r in summary_rows if r['trader'] != 'Steven Wang']
-    
+        print('CONFLICT:', c.trader, c.symbol)
+    summary_rows = [r for r in summary_rows if r.trader != 'Steven Wang']
     trader_order = {
         'Justin Spero': 0,
         'Jeff Holden': 1,
         'Steve Spencer': 2,
         'Kenneth Sharkness': 3,
     }
-    # Sort by: trader order (primary), is_long_term (non-LT first, then LT), magnitude descending
     summary_rows.sort(key=lambda r: (
-        trader_order.get(r['trader'], 99),
-        r['is_long_term'],  # False (non-LT) comes before True (LT)
-        -r.get('total_magnitude', 0)  # descending order (negate to reverse)
+        trader_order.get(r.trader, 99),
+        r.is_long_term,
+        -(r.total_magnitude or 0),
     ))
     
     # Print the final position table

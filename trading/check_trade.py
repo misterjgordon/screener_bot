@@ -40,10 +40,16 @@ except (ImportError, NameError):
 
 # Now import smb_screener (it may create a new event loop)
 from smb_screener import (
-    get_session, fetch_positions, normalize_record, summarize_group,
-    load_snapshot, make_position_key, make_position_key_no_side,
-    get_position_size, has_open_orders, TRADER_ENABLED
+    fetch_positions,
+    get_session,
+    load_snapshot,
+    make_position_key,
+    make_position_key_no_side,
+    normalize_record,
+    summarize_group,
+    TRADER_ENABLED,
 )
+from trading.trade_data import get_position_size, has_open_orders
 from collections import defaultdict
 
 # Import IB classes - needed for both notebook and terminal
@@ -83,15 +89,15 @@ def get_ib_connection():
             # Connection might be stale
             _investigation_ib_connection = None
     
-    # Get connection settings from config
-    from trading.config import ACTIVE_TRADING, IB_HOST, IB_PORT, IB_CLIENT_ID
-    
+    # Get connection settings from config (use dedicated ID so we don't conflict with screener)
+    from trading.config import ACTIVE_TRADING, IB_HOST, IB_PORT, IB_CLIENT_ID_CHECK_TRADE
+
     if _in_notebook:
         # In notebook: Jupyter's event loop conflicts with ib_async's async operations
         # Solution: Always use a separate thread with its own event loop
         # This is the most reliable approach for notebooks
         try:
-            print(f"Attempting IB connection to {IB_HOST}:{IB_PORT} with client ID {IB_CLIENT_ID}...")
+            print(f"Attempting IB connection to {IB_HOST}:{IB_PORT} with client ID {IB_CLIENT_ID_CHECK_TRADE}...")
             print("(Using thread-based connection for notebook compatibility)")
             
             import threading
@@ -112,7 +118,7 @@ def get_ib_connection():
                     ib = IB()
                     
                     # Connect using synchronous method (works fine in isolated thread)
-                    ib.connect(IB_HOST, IB_PORT, clientId=IB_CLIENT_ID, readonly=readonly_mode)
+                    ib.connect(IB_HOST, IB_PORT, clientId=IB_CLIENT_ID_CHECK_TRADE, readonly=readonly_mode)
                     
                     if ib.isConnected():
                         connection_result = ib
@@ -135,7 +141,7 @@ def get_ib_connection():
                 if connection_result and connection_result.isConnected():
                     _investigation_ib_connection = connection_result
                     mode_str = "readonly" if readonly_mode else "trading"
-                    print(f"IB connected: {IB_HOST}:{IB_PORT} ({mode_str} mode, client ID {IB_CLIENT_ID})")
+                    print(f"IB connected: {IB_HOST}:{IB_PORT} ({mode_str} mode, client ID {IB_CLIENT_ID_CHECK_TRADE})")
                     return connection_result
                 else:
                     print(f"Warning: IB connection failed - isConnected() returned False")
@@ -153,17 +159,17 @@ def get_ib_connection():
             print("   3. The correct port must be open (7497 for paper trading)")
             return None
     else:
-        # Not in notebook: create a simple connection (smb_screener's approach works fine here)
+        # Not in notebook: create a simple connection (use dedicated ID so we don't conflict with screener)
         try:
-            print(f"Attempting IB connection to {IB_HOST}:{IB_PORT} with client ID {IB_CLIENT_ID}...")
+            print(f"Attempting IB connection to {IB_HOST}:{IB_PORT} with client ID {IB_CLIENT_ID_CHECK_TRADE}...")
             ib = IB()
             readonly_mode = not ACTIVE_TRADING
-            ib.connect(IB_HOST, IB_PORT, clientId=IB_CLIENT_ID, readonly=readonly_mode)
-            
+            ib.connect(IB_HOST, IB_PORT, clientId=IB_CLIENT_ID_CHECK_TRADE, readonly=readonly_mode)
+
             if ib.isConnected():
                 _investigation_ib_connection = ib
                 mode_str = "readonly" if readonly_mode else "trading"
-                print(f"IB connected: {IB_HOST}:{IB_PORT} ({mode_str} mode, client ID {IB_CLIENT_ID})")
+                print(f"IB connected: {IB_HOST}:{IB_PORT} ({mode_str} mode, client ID {IB_CLIENT_ID_CHECK_TRADE})")
                 return ib
             else:
                 print(f"Warning: IB connection failed - isConnected() returned False")
@@ -447,18 +453,15 @@ Examples:
         args = parser.parse_args()
         investigate_position(args.trader, args.ticker)
 #%%
-from trading.config import ACTIVE_TRADING, IB_HOST, IB_PORT
-from smb_screener import calculate_adr
+from trading.config import ACTIVE_TRADING, IB_CLIENT_ID_CHECK_TRADE, IB_HOST, IB_PORT
+from trading.market_data import calculate_adr
 from ib_async import IB
 
-# Use a different client ID to avoid conflicts with smb_screener (which uses client ID 2)
-CHECK_TRADE_CLIENT_ID = 3
-
-# Create connection with unique client ID
+# Create connection with unique client ID (avoids conflict with screener which uses 1)
 ib = IB()
 readonly_mode = not ACTIVE_TRADING
 try:
-    ib.connect(IB_HOST, IB_PORT, clientId=CHECK_TRADE_CLIENT_ID, readonly=readonly_mode)
+    ib.connect(IB_HOST, IB_PORT, clientId=IB_CLIENT_ID_CHECK_TRADE, readonly=readonly_mode)
 except Exception as e:
     print(f"Connection error: {e}")
     ib = None
@@ -466,7 +469,7 @@ except Exception as e:
 ticker = "ACHR"  # Change this to test other tickers
 
 if ib and ib.isConnected():
-    print(f"Connected to IB with client ID {CHECK_TRADE_CLIENT_ID}")
+    print(f"Connected to IB with client ID {IB_CLIENT_ID_CHECK_TRADE}")
     adr = calculate_adr(ib, ticker, days=20)  # 20 days is default
     if adr:
         print(f"{ticker} ADR (20 days): ${adr:.2f}")

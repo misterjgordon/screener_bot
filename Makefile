@@ -69,17 +69,17 @@ type-check-file:
 	fi
 	uv run --frozen ty check $(FILE)
 
-# Run main script
+# Run main script (uv run + -m so trading package is found from repo root)
 run:
-	python trading/smb_screener.py
+	uv run python -m trading.smb_screener
 
 # Run check_trade script
 check-trade:
-	python trading/check_trade.py
+	uv run python -m trading.check_trade
 
 # Run screener script
 smb:
-	python trading/smb_screener.py
+	uv run python -m trading.smb_screener
 
 # Clean Python cache files
 clean:
@@ -89,10 +89,13 @@ clean:
 	@echo "Cleaned Python cache files"
 
 # SMB Screener LaunchAgent management
+# Plists use __REPO_ROOT__; we substitute with $(CURDIR) so they work after moving the repo.
+REPO_ROOT := $(CURDIR)
 smb-install:
-	@echo "Installing SMB Screener LaunchAgents..."
-	@cp com.smb.screener.start.plist ~/Library/LaunchAgents/
-	@cp com.smb.screener.stop.plist ~/Library/LaunchAgents/
+	@echo "Installing SMB Screener LaunchAgents (repo root: $(REPO_ROOT))..."
+	@mkdir -p logs
+	@sed 's|__REPO_ROOT__|$(REPO_ROOT)|g' com.smb.screener.start.plist > ~/Library/LaunchAgents/com.smb.screener.start.plist
+	@sed 's|__REPO_ROOT__|$(REPO_ROOT)|g' com.smb.screener.stop.plist > ~/Library/LaunchAgents/com.smb.screener.stop.plist
 	@launchctl load ~/Library/LaunchAgents/com.smb.screener.start.plist 2>/dev/null || true
 	@launchctl load ~/Library/LaunchAgents/com.smb.screener.stop.plist 2>/dev/null || true
 	@echo "✓ LaunchAgents installed and loaded"
@@ -102,11 +105,12 @@ smb-install:
 	@echo "  - Make sure RUN_MODE is set to 'poll' in trading/smb_screener.py"
 
 smb-reload:
-	@echo "Reloading SMB Screener LaunchAgents..."
+	@echo "Reloading SMB Screener LaunchAgents (repo root: $(REPO_ROOT))..."
 	@launchctl unload ~/Library/LaunchAgents/com.smb.screener.start.plist 2>/dev/null || true
 	@launchctl unload ~/Library/LaunchAgents/com.smb.screener.stop.plist 2>/dev/null || true
-	@cp com.smb.screener.start.plist ~/Library/LaunchAgents/
-	@cp com.smb.screener.stop.plist ~/Library/LaunchAgents/
+	@mkdir -p logs
+	@sed 's|__REPO_ROOT__|$(REPO_ROOT)|g' com.smb.screener.start.plist > ~/Library/LaunchAgents/com.smb.screener.start.plist
+	@sed 's|__REPO_ROOT__|$(REPO_ROOT)|g' com.smb.screener.stop.plist > ~/Library/LaunchAgents/com.smb.screener.stop.plist
 	@launchctl load ~/Library/LaunchAgents/com.smb.screener.start.plist 2>/dev/null || true
 	@launchctl load ~/Library/LaunchAgents/com.smb.screener.stop.plist 2>/dev/null || true
 	@echo "✓ LaunchAgents reloaded"
@@ -137,14 +141,14 @@ smb-status:
 	}' || echo "  Not loaded"
 	@echo ""
 	@echo "Last screener activity:"
-	@if [ -f logs/smb_screener.log ]; then \
-		echo "  Log last modified: $$(stat -f '%Sm' -t '%Y-%m-%d %H:%M:%S' logs/smb_screener.log 2>/dev/null || stat -c '%y' logs/smb_screener.log 2>/dev/null | cut -d. -f1)"; \
-		last_line=$$(grep -E "Running in (polling|once)|Attempting IB|✓ IB connected|Execution: processing" logs/smb_screener.log | tail -1); \
-		if [ -n "$$last_line" ]; then \
-			echo "  Last startup/activity: $$last_line"; \
-		fi; \
+	@LATEST_LOG=$$(find logs/screener_log -name "*.log" ! -name "*.error.log" -type f 2>/dev/null | xargs ls -t 2>/dev/null | head -1); \
+	if [ -n "$$LATEST_LOG" ] && [ -f "$$LATEST_LOG" ]; then \
+		echo "  Log: $$LATEST_LOG"; \
+		echo "  Last modified: $$(stat -f '%Sm' -t '%Y-%m-%d %H:%M:%S' "$$LATEST_LOG" 2>/dev/null || stat -c '%y' "$$LATEST_LOG" 2>/dev/null | cut -d. -f1)"; \
+		last_line=$$(grep -E "Running in (polling|once)|Attempting IB|✓ IB connected|Execution: processing" "$$LATEST_LOG" | tail -1); \
+		if [ -n "$$last_line" ]; then echo "  Last startup/activity: $$last_line"; fi; \
 	else \
-		echo "  Log file not found (screener has not run or log path wrong)"; \
+		echo "  No screener logs found under logs/screener_log/ (screener has not run or log path wrong)"; \
 	fi
 	@echo ""
 	@echo "TWS/IB Gateway Connection Status:"
@@ -183,20 +187,25 @@ smb-status:
 	fi
 	@echo ""
 	@echo "Recent IB Connection Status (from logs):"
-	@if [ -f logs/smb_screener.log ]; then \
-		last_conn=$$(grep -E "(Attempting IB|IB connected|✓ IB)" logs/smb_screener.log | tail -1); \
-		if [ -n "$$last_conn" ]; then \
-			echo "  $$last_conn"; \
-		else \
-			echo "  No connection attempts found in logs"; \
-		fi; \
+	@LATEST_LOG=$$(find logs/screener_log -name "*.log" ! -name "*.error.log" -type f 2>/dev/null | xargs ls -t 2>/dev/null | head -1); \
+	if [ -n "$$LATEST_LOG" ] && [ -f "$$LATEST_LOG" ]; then \
+		last_conn=$$(grep -E "(Attempting IB|IB connected|✓ IB)" "$$LATEST_LOG" | tail -1); \
+		if [ -n "$$last_conn" ]; then echo "  $$last_conn"; else echo "  No connection attempts found in logs"; fi; \
 	else \
-		echo "  Log file not found"; \
+		echo "  No screener logs found"; \
 	fi
 
 smb-logs:
 	@echo "Following SMB Screener logs (Ctrl+C to exit)..."
-	@tail -f logs/smb_screener.log
+	@TODAY_LOG="logs/screener_log/$$(date +%Y/%m)/$$(date +%Y-%m-%d).log"; \
+	if [ ! -f "$$TODAY_LOG" ]; then \
+		echo "Today's log not yet created: $$TODAY_LOG"; \
+		echo "Creating directory; run the screener or wait for schedule. Tailing most recent log if any."; \
+		RECENT=$$(find logs/screener_log -name "*.log" ! -name "*.error.log" -type f 2>/dev/null | xargs ls -t 2>/dev/null | head -1); \
+		if [ -n "$$RECENT" ]; then tail -f "$$RECENT"; else exit 1; fi; \
+	else \
+		tail -f "$$TODAY_LOG"; \
+	fi
 
 smb-unload:
 	@echo "Unloading SMB Screener LaunchAgents..."

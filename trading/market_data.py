@@ -1,15 +1,14 @@
 """Single entry point for IB market data.
 
 Provides get_* functions for ticker quotes, bars, market price, trailing stop,
-today's range, ADR, and gap percentage. Can be run and tested independently
-of the main screener.
+today's range, ADR, and gap percentage. When used by the screener, all calls
+receive the screener's IB connection (single entry point to IB). Can be run
+and tested independently via python -m trading.market_data <SYMBOL>.
 """
 
-import asyncio
 from datetime import date, datetime
 
-asyncio.set_event_loop(asyncio.new_event_loop())
-from ib_async import IB, Stock  # noqa: E402
+from ib_async import IB, Stock
 
 from trading.config import (  # noqa: E402
     ACCOUNT_CURRENCY,
@@ -221,7 +220,9 @@ def diagnose_market_price(ib: IB | None, symbol: str) -> None:
 
 
 if __name__ == '__main__':
+    import asyncio
     import sys
+    asyncio.set_event_loop(asyncio.new_event_loop())
     symbol = sys.argv[1] if len(sys.argv) > 1 else None
     if not symbol:
         print('Usage: python -m trading.market_data <SYMBOL>')

@@ -35,6 +35,7 @@ IB_HOST = '127.0.0.1'
 IB_PORT = 7496
 IB_CLIENT_ID = 1  # smb screener (use different ID from jobot)
 IB_CLIENT_ID_MARKET_DATA = 2  # market_data standalone/tests (1 reserved for screener)
+IB_CLIENT_ID_CHECK_TRADE = 3  # check_trade / notebooks (avoid conflict with screener)
 
 # =========================================================
 # Risk management

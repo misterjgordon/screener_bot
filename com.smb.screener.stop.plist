@@ -13,7 +13,7 @@
     </array>
     
     <key>WorkingDirectory</key>
-    <string>/Users/joel/Github/trading</string>
+    <string>__REPO_ROOT__</string>
     
     <!-- Stop the screener at 1:00 PM on weekdays -->
     <key>StartCalendarInterval</key>

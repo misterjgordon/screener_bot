@@ -1,10 +1,10 @@
-"""Data models for trading - structured types for IB market data and related info.
+"""Data models for trading - structured types for IB market data and SMB positions.
 
-These models represent IB (ib_async) data in typed form. Market data functions
-in smb_screener transform raw IB Ticker/Bar responses into these models.
+IB models: Bar, BarSeries, TickerQuote, etc. represent ib_async data in typed form.
+SMB models: NormalizedRecord, PositionSummary represent SMB API positions (not dicts).
 """
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime
 
 
@@ -139,3 +139,80 @@ class AccountValue:
             return float(self.value)
         except (ValueError, TypeError):
             return None
+
+
+# -----------------------------------------------------------------------------
+# SMB Position models (from SMB external-positions API, not IB)
+# -----------------------------------------------------------------------------
+
+
+@dataclass
+class NormalizedRecord:
+    """One SMB external-positions record after normalization.
+
+    Represents a single position line from the SMB API, parsed and typed.
+    """
+
+    trader: str              # e.g. "Jeff Holden"
+    is_long_term: bool       # True for LT accounts
+    symbol_raw: str          # as given by API
+    side: str                # "long" "short" "flat"
+    magnitude: float          # position size / weight
+    last_updated: str
+    created_at: str
+    instrument_type: str     # equity/option
+    underlying: str          # equity ticker or option underlying
+    expiry: str | None       # option expiry as string, or None
+    strike: float | None     # option strike as float, or None
+    option_type: str | None  # "C" or "P" for options
+
+
+@dataclass
+class PositionSummary:
+    """Aggregated position per (trader, symbol) - the position table row.
+
+    Produced by summarize_group, optionally enriched with prev_magnitude,
+    delta_magnitude, change_type. Used for save/load snapshot, print table,
+    and execution logic.
+    """
+
+    trader: str              # e.g. "Jeff Holden"
+    is_long_term: bool       # True for LT accounts
+    symbol: str              # as given by API
+    instrument_type: str     # equity/option
+    underlying: str          # equity ticker or option underlying
+    expiry: str | None       # option expiry as string, or None
+    strike: float | None     # option strike as float, or None
+    option_type: str | None  # "C" or "P" for options
+    net_side: str            # long, short, flat, conflict
+    conflict: bool
+    total_magnitude: float
+    prev_magnitude: float | None = None
+    delta_magnitude: float | None = None
+    change_type: str | None = None
+    order_placed: bool | None = None
+
+    def to_dict(self) -> dict:
+        """Convert to dict for JSON serialization."""
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, d: dict) -> 'PositionSummary':
+        """Build from dict (e.g. from load_snapshot JSON)."""
+        return cls(
+            trader=d['trader'],
+            is_long_term=d['is_long_term'],
+            symbol=d['symbol'],
+            instrument_type=d.get('instrument_type', 'equity'),
+            underlying=d.get('underlying') or d['symbol'],
+            expiry=d.get('expiry'),
+            strike=d.get('strike'),
+            option_type=d.get('option_type'),
+            net_side=d['net_side'],
+            conflict=d.get('conflict', False),
+            total_magnitude=d['total_magnitude'],
+            prev_magnitude=d.get('prev_magnitude'),
+            delta_magnitude=d.get('delta_magnitude'),
+            change_type=d.get('change_type'),
+            order_placed=d.get('order_placed'),
+        )
