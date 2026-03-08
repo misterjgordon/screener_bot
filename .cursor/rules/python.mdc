@@ -1,0 +1,68 @@
+---
+description: General rules for python code
+globs: *.py
+alwaysApply: true
+---
+
+# Python Rules
+The following rules ALWAYS apply when working with python code.
+
+## Code Style
+- use `p_<path_name>` syntax for `Path` objects
+- use single quotes for strings whenever possible, except for docstrings
+- Variable names should match class names in snake_case: `my_class = MyClass()`, not `obj = MyClass()`
+- if you're writing code in a working file (anything in /notebooks) code can be more "rough" - don't worry about docstrings. this is code to be tested out in an interactive interpreter. don't create new notebook files.
+
+## Code Structure
+- ALWAYS ensure your code is clean and DRY
+- **NEVER put imports inside functions/methods** - ALL imports go at the top of the file. The ONLY exception is circular import avoidance with TYPE_CHECKING blocks.
+- Put all imports on their own line, always use absolute imports
+- Never use `__all__` - always import from explicit paths (e.g., `from pkg.module import Thing` not re-exports)
+- If function arguments are long (>3 args), left-indent with each arg on its own line
+- Keep code readable with blank lines between logical sections (before/after returns, after loops/conditionals)
+- Don't overuse try/except - sometimes it's okay for code to fail and propagate errors
+- never export things in an `__ini__.py` file, just import them directly where needed.
+
+## File Structure
+- Define functions above where they're called so code reads top-to-bottom
+- Prefer fewer classes per file when appropriate
+- avoid generic names like `base.py`. Eg for a class `MyBase` call the file `my_base.py`
+
+## Type Annotations
+- Use modern syntax: `list[dict]` not `List[Dict]`
+- Use `**kw` instead of `**kwargs`
+- Don't use `Any` unless absolutely necessary
+- Never use `from __future__ import annotations`
+- use `@override` if a method is overriding its superclass' function
+- if type errors happen in multiple places, attempt to fix them in a generic base class so they can be fixed/ignored in a single place only.
+
+## Comments & Documentation
+- Be concise: "Thing to do" not "The thing to do"
+- Comments should describe the code, not reference the conversation
+- Use numpy style docstrings
+
+## Pandas
+- Name dataframes `df_<name>` not `<name>_df`
+- Access columns with dot notation: `df.my_col` not `df['my_col']`
+- Use method chaining with `\`, new functions on their own line
+- Create new columns with `.assign`
+
+## Linting & Type Checking
+After completing changes, run linting and type checking:
+```bash
+scripts/format_python_code.sh <file_paths>        # lint + type check (fail on errors only)
+scripts/format_python_code.sh --strict <file_paths>  # also fail on warnings
+```
+
+- Both ERRORS and WARNINGS must ALWAYS be fixed. no exceptions. ever.
+- Fix type issues by correcting types, adding annotations, or restructuring code. Don't remove existing `# ty: ignore` comments unless fixing the underlying issue.
+- You must fix type errors in files you modify, even if unrelated to your main task.
+
+## Running Python
+- Use `uv run --frozen python -m <module>` to run scripts
+
+## General
+- NEVER create markdown summaries unless explicitly requested
+
+## Codebase Patterns
+

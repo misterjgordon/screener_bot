@@ -5,9 +5,14 @@ open order status. All functions take an IB connection; connection lifecycle
 is managed by the screener or check_trade.
 """
 
-from ib_async import IB
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from trading.config import ACCOUNT_CURRENCY, ACTIVE_ORDER_STATUSES, ORDER_TAG
+
+if TYPE_CHECKING:
+    from ib_async import IB
 
 
 def order_tag(trader: str = '') -> str:

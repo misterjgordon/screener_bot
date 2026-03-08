@@ -2,6 +2,7 @@
 
 IB models: Bar, BarSeries, TickerQuote, etc. represent ib_async data in typed form.
 SMB models: NormalizedRecord, PositionSummary represent SMB API positions (not dicts).
+Execution: one row of the executions CSV (order/execution log).
 """
 
 from dataclasses import asdict, dataclass
@@ -216,3 +217,62 @@ class PositionSummary:
             change_type=d.get('change_type'),
             order_placed=d.get('order_placed'),
         )
+
+
+@dataclass
+class Execution:
+    """One execution log row (CSV schema for executions_YYYY-MM-DD.csv).
+
+    Shares come from calculate_num_shares_from_risk; total_risk is trade_stop_amount
+    (magnitude * daily stop); risk_per_share = total_risk / shares when applicable.
+    """
+
+    timestamp: str
+    trader: str
+    symbol: str
+    change_type: str
+    net_side: str
+    delta_magnitude: float
+    entry_price: float | None = None
+    stop_price: float | None = None
+    take_profit_price: float | None = None
+    order_id: str | None = None
+    shares: int | None = None
+    total_risk: float | None = None
+    risk_per_share: float | None = None
+
+    @property
+    def value(self) -> float | None:
+        """Notional value at entry: shares * entry_price."""
+        if self.shares is not None and self.entry_price is not None:
+            return self.shares * self.entry_price
+        return None
+
+    @classmethod
+    def csv_fieldnames(cls) -> list[str]:
+        """Column names for csv.DictWriter (single source of truth for CSV schema)."""
+        return [
+            'timestamp', 'trader', 'symbol', 'change_type', 'net_side', 'delta_magnitude',
+            'entry_price', 'stop_price', 'take_profit_price', 'order_id',
+            'shares', 'total_risk', 'risk_per_share', 'value',
+        ]
+
+    def to_csv_row(self) -> dict[str, str | int | float]:
+        """Dict for csv.DictWriter.writerow; None values become empty string."""
+        val = self.value
+        return {
+            'timestamp': self.timestamp,
+            'trader': self.trader,
+            'symbol': self.symbol,
+            'change_type': self.change_type,
+            'net_side': self.net_side,
+            'delta_magnitude': self.delta_magnitude,
+            'entry_price': self.entry_price if self.entry_price is not None else '',
+            'stop_price': self.stop_price if self.stop_price is not None else '',
+            'take_profit_price': self.take_profit_price if self.take_profit_price is not None else '',
+            'order_id': self.order_id if self.order_id is not None else '',
+            'shares': self.shares if self.shares is not None else '',
+            'total_risk': self.total_risk if self.total_risk is not None else '',
+            'risk_per_share': round(self.risk_per_share, 2) if self.risk_per_share is not None else '',
+            'value': val if val is not None else '',
+        }

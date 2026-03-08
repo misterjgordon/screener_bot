@@ -31,7 +31,7 @@ dev = [
 default-groups = ["dev"]
 
 [tool.ty.src]
-include = ["jambot", "jambotweb", "tests", "trading", "notebooks"]
+include = ["smb", "smbweb", "tests", "trading"]
 [tool.ty.rules]
 invalid-argument-type = "warn"
 

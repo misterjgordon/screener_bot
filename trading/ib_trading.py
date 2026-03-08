@@ -7,11 +7,30 @@ screener or check_trade.
 """
 
 import traceback
+from dataclasses import dataclass
 
-from ib_async import IB, LimitOrder, MarketOrder, Stock, StopOrder
+from ib_async import IB
+from ib_async import LimitOrder
+from ib_async import MarketOrder
+from ib_async import Stock
+from ib_async import StopOrder
 
-from trading.config import ACCOUNT_CURRENCY, ACTIVE_ORDER_STATUSES, DAILY_STOP
-from trading.trade_data import find_orders_for_symbol_trader, get_available_funds, order_tag
+from trading.config import ACCOUNT_CURRENCY
+from trading.config import ACTIVE_ORDER_STATUSES
+from trading.config import DAILY_STOP
+from trading.trade_data import find_orders_for_symbol_trader
+from trading.trade_data import get_available_funds
+from trading.trade_data import order_tag
+
+
+@dataclass
+class OrderEntry:
+    """Result of placing an entry order; used for CSV logging."""
+
+    order_id: str | None
+    num_shares: int | None
+    total_risk: float | None
+    risk_per_share: float | None
 
 
 def calculate_num_shares_from_risk(
@@ -214,7 +233,8 @@ def send_bracket_order(
     take_profit_price: float,
     magnitude: float,
     trader: str = '',
-) -> str | None:
+    entry_order_type: str = 'stop',
+) -> OrderEntry:
     """
     Send a bracket order to IB for NEW/ADD positions.
 
@@ -222,14 +242,16 @@ def send_bracket_order(
         ib: IB connection instance
         symbol: Stock symbol
         is_long: True for long, False for short
-        entry_price: Entry/stop trigger price (midpoint)
+        entry_price: Entry trigger price (stop trigger or limit price)
         stop_price: Stop loss price
         take_profit_price: Take profit price
         magnitude: Position magnitude (used to calculate trade_stop_percent)
+        entry_order_type: 'stop' for StopOrder at entry_price, 'limit' for LimitOrder at entry_price
 
     Returns:
-        str | None: Order ID string if successful, None otherwise
+        OrderEntry: order_id and sizing (num_shares, total_risk, risk_per_share) for CSV logging.
     """
+    order_result = OrderEntry(None, None, None, None)
     try:
         trade_stop_percent = magnitude / 100.0
         trade_stop_amount = DAILY_STOP * trade_stop_percent
@@ -237,7 +259,7 @@ def send_bracket_order(
         available_funds = get_available_funds(ib)
         if available_funds <= 0:
             print(f'Error: Insufficient available funds: ${available_funds:.2f}')
-            return None
+            return order_result
 
         num_shares = calculate_num_shares_from_risk(
             trade_stop_amount=trade_stop_amount,
@@ -249,7 +271,7 @@ def send_bracket_order(
 
         if num_shares == 0:
             print(f'Error: Calculated share quantity is zero for {symbol}')
-            return None
+            return order_result
 
         contract = Stock(symbol, 'SMART', ACCOUNT_CURRENCY)
         ib.qualifyContracts(contract)
@@ -265,7 +287,10 @@ def send_bracket_order(
 
         ref = order_tag(trader)
 
-        parent_order = StopOrder(entry_action, num_shares, entry_price)
+        if entry_order_type == 'limit':
+            parent_order = LimitOrder(entry_action, num_shares, entry_price)
+        else:
+            parent_order = StopOrder(entry_action, num_shares, entry_price)
         parent_order.tif = 'GTC'
         parent_order.transmit = False
         parent_order.orderRef = ref
@@ -279,7 +304,7 @@ def send_bracket_order(
 
         if parent_order_id is None:
             print(f'Error: Could not obtain parent order ID for {symbol}')
-            return None
+            return order_result
 
         take_profit_order = LimitOrder(take_profit_action, num_shares, take_profit_price)
         take_profit_order.tif = 'GTC'
@@ -298,13 +323,19 @@ def send_bracket_order(
         ib.sleep(0.5)
 
         order_id = str(parent_order_id)
-        print(f'Bracket order placed for {symbol}: {entry_action} {num_shares} @ ${entry_price:.2f} (STOP-ENTRY), Stop Loss @ ${stop_price:.2f}, TP @ ${take_profit_price:.2f}')
-        return order_id
+        risk_per_share = trade_stop_amount / num_shares if num_shares else None
+        entry_type_str = 'LIMIT' if entry_order_type == 'limit' else 'STOP-ENTRY'
+        print(
+            f'Bracket order placed for {symbol}: {entry_action} {num_shares} @ ${
+                entry_price:.2f} ({entry_type_str}), Stop Loss @ ${
+                stop_price:.2f}, TP @ ${
+                take_profit_price:.2f}')
+        return OrderEntry(order_id, num_shares, trade_stop_amount, risk_per_share)
 
     except Exception as e:
         print(f'Error placing bracket order for {symbol}: {e}')
         traceback.print_exc()
-        return None
+        return order_result
 
 
 def send_entry_only_order(
@@ -314,7 +345,8 @@ def send_entry_only_order(
     entry_price: float,
     magnitude: float,
     trader: str = '',
-) -> str | None:
+    entry_order_type: str = 'stop',
+) -> OrderEntry:
     """
     Send an entry order without stop loss (when trailing stop and ADR both fail).
 
@@ -322,12 +354,14 @@ def send_entry_only_order(
         ib: IB connection instance
         symbol: Stock symbol
         is_long: True for long, False for short
-        entry_price: Entry/stop trigger price
+        entry_price: Entry trigger price (stop trigger or limit price)
         magnitude: Position magnitude (used to calculate trade_stop_percent)
+        entry_order_type: 'stop' for StopOrder, 'limit' for LimitOrder at entry_price
 
     Returns:
-        str | None: Order ID string if successful, None otherwise
+        OrderEntry: order_id and sizing (num_shares, total_risk, risk_per_share) for CSV logging.
     """
+    order_result = OrderEntry(None, None, None, None)
     try:
         trade_stop_percent = magnitude / 100.0
         trade_stop_amount = DAILY_STOP * trade_stop_percent
@@ -335,14 +369,14 @@ def send_entry_only_order(
         available_funds = get_available_funds(ib)
         if available_funds <= 0:
             print(f'Error: Insufficient available funds: ${available_funds:.2f}')
-            return None
+            return order_result
 
         assumed_risk_percent = 0.02
         num_shares = int((available_funds * trade_stop_percent) / (entry_price * assumed_risk_percent))
 
         if num_shares == 0:
             print(f'Error: Calculated share quantity is zero for {symbol}')
-            return None
+            return order_result
 
         contract = Stock(symbol, 'SMART', ACCOUNT_CURRENCY)
         ib.qualifyContracts(contract)
@@ -351,7 +385,10 @@ def send_entry_only_order(
 
         ref = order_tag(trader)
 
-        order = StopOrder(action, num_shares, entry_price)
+        if entry_order_type == 'limit':
+            order = LimitOrder(action, num_shares, entry_price)
+        else:
+            order = StopOrder(action, num_shares, entry_price)
         order.tif = 'GTC'
         order.orderRef = ref
 
@@ -359,13 +396,16 @@ def send_entry_only_order(
         ib.sleep(1)
 
         order_id = str(order.orderId) if order.orderId else 'pending'
-        print(f'⚠️  WARNING: Entry-only order placed for {symbol}: {action} {num_shares} @ ${entry_price:.2f} (NO STOP LOSS)')
-        return order_id
+        risk_per_share = trade_stop_amount / num_shares if num_shares else None
+        entry_type_str = 'LIMIT' if entry_order_type == 'limit' else 'STOP'
+        print(
+            f'WARNING: Entry-only order placed for {symbol}: {action} {num_shares} @ ${entry_price:.2f} ({entry_type_str}, NO STOP LOSS)')
+        return OrderEntry(order_id, num_shares, trade_stop_amount, risk_per_share)
 
     except Exception as e:
         print(f'Error placing entry-only order for {symbol}: {e}')
         traceback.print_exc()
-        return None
+        return order_result
 
 
 def send_market_order(ib: IB, symbol: str, is_long: bool, position_size: int, trader: str = '') -> str | None:

@@ -1,0 +1,97 @@
+---
+alwaysApply: true
+---
+# General Code Guidelines
+
+## Understand Before Modifying
+
+- Don't change code you don't understand.
+- Trace data flow: where does it come from, where does it go?
+- Check callers and callees before changing function contracts.
+- When something breaks, understand WHY before fixing. What structural issue _allowed_ the failure to be possible.
+
+## Consistency
+
+Apply at all levels: variable naming → code style → function signatures → component patterns → architecture.
+
+- Before writing, check how similar code is written. Match it or note to user why yours is better.
+- When modifying related places, update all identically.
+- Proactively look for inconsistencies at any level - from naming to architectural patterns. These are often complex and systemic, not just simple fixes. Note them to user with assessment of scope and effort.
+- Watch for naming mismatches across stack . Fix if trivial, otherwise note to user.
+
+## Reuse vs New
+
+1. Check if it already exists - function, pattern, endpoint, component, approach.
+2. If found, tell user and propose using/extending it before creating anything new.
+3. If not, create it in the file where it's used.
+4. Move to shared location only with 2+ usages and clear abstraction.
+
+Avoid creating multiple pathways for same operation.
+
+## Single Responsibility
+
+- One file = one responsibility.
+- One function = one task.
+- One class/component = one concept.
+
+## Naming
+
+- Names describe purpose, not implementation.
+- Avoid generic names (`data`, `result`, `temp`, `utils`, `out`).
+
+## Comments
+
+- Prefer docstrings/comments almost everywhere, but match complexity to code. Trivial code = trivial comment.
+- Explain *why*, not *what* - code shows what, comments explain intent.
+- Be concise but maximally clear. Information dense, no filler.
+- For complex data structures, include examples.
+- No conversational filler ("now we do X", "this is where we...").
+- Do not reference the user's conversation in comments
+- Do not reference changes from old code (don't say "now we do it this way instead of the old way..." etc)
+- Do not remove or change existing comments unless necessary for a change in behavior.
+- No banner/divider comments (`// ========`, `# --------`)
+
+## Verbosity Awareness
+
+- More code = more tokens = slower and more expensive.
+- Prefer concise patterns achieving same result.
+- Avoid unnecessary wrappers, conversions, or intermediaries.
+
+## Edge Cases
+
+- Consider: null, empty, zero, negative, boundary values.
+- What happens when this fails? Is the error clear?
+- If handling happy path, consider what sad paths are.
+
+## Types Reflect Intent
+
+Types should tightly match business reality. Proactively narrow them:
+
+- Value always present? Make type required, not optional "just in case".
+- Adding null or None checks? Ask if null or None is valid. If not, fix type upstream.
+- Validate at boundaries, trust data downstream.
+- Prefer `'active' | 'inactive'` over `string`.
+
+Don't contradict types with defensive code:
+- No `.get()`, `?.`, `??` , '.getattr()' for required fields.
+- No null guards for non-nullable types.
+- No defaults masking missing data.
+
+Loose types? Fix them. Defensive code hiding bad types is dishonest.
+
+## Continuous Re-evaluation
+
+- Code valid yesterday may need refactoring today.
+- When touching old code, assess if it fits current patterns.
+- Don't preserve bad patterns just because they exist.
+
+## Default Behavior
+
+When multiple approaches are valid:
+- Choose simplest correct solution.
+- Prefer clarity over cleverness.
+- Prefer explicit over implicit.
+
+## Violations
+
+If a change violates these principles, don't implement it. Explain conflict and propose alternative.

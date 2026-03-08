@@ -1,221 +1,64 @@
 # =========================================================
-# Purpose: This script is used to screen for positions from the SMB API 
-# and execute trades in IB (interactive brokers live account). For educational purposes only. 
+# Purpose: This script is used to screen for positions from the SMB API
+# and execute trades in IB (interactive brokers live account). For educational purposes only.
 # =========================================================
-import os
-import threading
-from pathlib import Path
-from dotenv import load_dotenv
-import requests
-import re
-from collections import defaultdict
-import json
-import time
-import pickle
-import traceback
-from datetime import datetime, date
-import csv
-# from bs4 import BeautifulSoup dont need this since it's JSON
-
 # IB imports - need event loop setup before importing ib_async
 import asyncio
+import csv
+import json
+import re
+import threading
+import time
+import traceback
+from collections import defaultdict
+from datetime import date
+from datetime import datetime
+from pathlib import Path
+
+import requests
+
 asyncio.set_event_loop(asyncio.new_event_loop())
 from ib_async import IB  # noqa: E402
 
-from trading.config import (  # noqa: E402
-    ACTIVE_TRADING,
-    DAILY_STOP,
-    IB_HOST,
-    IB_PORT,
-    INTERVAL_SECONDS,
-    RUN_MODE,
-    STOP_OFFSET,
-    TRADER_ENABLED,
-)
-from trading.ib_trading import (  # noqa: E402
-    cancel_all_orders_for_position,
-    calculate_num_shares_from_risk,
-    send_bracket_order,
-    send_entry_only_order,
-    send_market_order,
-    send_scaling_order,
-    update_child_orders_for_position,
-)
-from trading.trade_data import (  # noqa: E402
-    get_available_funds,
-    get_position_size,
-    has_open_orders,
-    has_open_orders_for_trader,
-)
-from trading.market_data import (  # noqa: E402
-    calculate_adr,
-    calculate_gap_percentage,
-    calculate_trailing_stop,
-    diagnose_market_price,
-    get_market_price,
-    get_todays_range,
-)
-from trading.models import NormalizedRecord, PositionSummary  # noqa: E402
-
+from trading.config import ACTIVE_TRADING  # noqa: E402
+from trading.config import DAILY_STOP  # noqa: E402
+from trading.config import IB_HOST  # noqa: E402
+from trading.config import IB_PORT  # noqa: E402
+from trading.config import INTERVAL_SECONDS  # noqa: E402
+from trading.config import RUN_MODE  # noqa: E402
+from trading.config import STOP_OFFSET  # noqa: E402
+from trading.config import TRADER_ENABLED  # noqa: E402
+from trading.entry_mode import get_entry_mode  # noqa: E402
+from trading.ib_trading import calculate_num_shares_from_risk  # noqa: E402
+from trading.ib_trading import cancel_all_orders_for_position  # noqa: E402
+from trading.ib_trading import send_bracket_order  # noqa: E402
+from trading.ib_trading import send_entry_only_order  # noqa: E402
+from trading.ib_trading import send_market_order  # noqa: E402
+from trading.ib_trading import send_scaling_order  # noqa: E402
+from trading.ib_trading import update_child_orders_for_position  # noqa: E402
+from trading.bar_loader import load_bars  # noqa: E402
+from trading.market_data import calculate_adr  # noqa: E402
+from trading.market_data import calculate_gap_percentage  # noqa: E402
+from trading.market_data import calculate_trailing_stop  # noqa: E402
+from trading.market_data import diagnose_market_price  # noqa: E402
+from trading.market_data import get_market_price  # noqa: E402
+from trading.market_data import get_todays_range  # noqa: E402
+from trading.models import Execution  # noqa: E402
+from trading.models import NormalizedRecord  # noqa: E402
+from trading.models import PositionSummary  # noqa: E402
+from trading.smb_api import fetch_positions  # noqa: E402
+from trading.smb_api import get_session  # noqa: E402
+from trading.trade_data import get_available_funds  # noqa: E402
+from trading.trade_data import get_position_size  # noqa: E402
+from trading.trade_data import has_open_orders  # noqa: E402
+from trading.trade_data import has_open_orders_for_trader  # noqa: E402
 
 # =========================================================
-# Environment and constants
+# Paths (position snapshots, executions)
 # =========================================================
-load_dotenv()
-
-SMB_USERNAME = os.getenv('SMB_USERNAME')
-SMB_PASSWORD = os.getenv('SMB_PASSWORD')
-
-
-if not SMB_USERNAME or not SMB_PASSWORD:
-    raise ValueError('Missing SMB_USERNAME or SMB_PASSWORD in .env')
-
-# session = requests.Session() # creating an instance (object) of the class requests.Session
-
-
-# =========================================================
-# Auth / HTTP constants
-# =========================================================
-CSRF_URL = 'https://rt.smbtraining.com/api/auth/csrf'
-LOGIN_URL = 'https://rt.smbtraining.com/api/auth/callback/credentials'
-CALLBACK_URL = 'https://rt.smbtraining.com/auth/signin?callbackUrl=https%3A%2F%2Frt.smbtraining.com%2Fcalendar'
-SESSION_URL = 'https://rt.smbtraining.com/api/auth/session'
-POSITIONS_URL = 'https://rt.smbtraining.com/api/external-positions'
-# Paths relative to repo root so they are consistent regardless of cwd
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 SNAPSHOT_FILE = str(_REPO_ROOT / 'resources' / 'positions' / 'position_snapshot.json')
-COOKIES_FILE = str(_REPO_ROOT / 'resources' / 'cookies' / 'smb_cookies.pkl')
 EXECUTIONS_DIR = str(_REPO_ROOT / 'smb_trader_executions')
-
-# Auth / HTTP helpers
-def create_authenticated_session() -> requests.Session:
-    """Create a logged-in requests.Session and return it. called when no valid
-    session exists from get_session using smb_ookies.pkl
-    """
-    session = requests.Session()  # creating an instance (object) of the class requests.Session
-
-    csrf_resp = session.get(CSRF_URL)
-    csrf_data = csrf_resp.json()
-    csrf_token = csrf_data.get('csrfToken')
-    if not csrf_token:
-        raise RuntimeError('No csrfToken in CSRF response')
-
-    payload = {
-        'email': SMB_USERNAME,       # matches DevTools
-        'password': SMB_PASSWORD,    # from .env, request for access
-        'redirect': 'false',         # string, just like DevTools
-        'csrfToken': csrf_token,
-        'callbackUrl': CALLBACK_URL, # hardcoded for now
-        'json': 'true',
-    }
-    # optional but can help: send the same Origin/Referer as browser
-    headers = {
-        'Origin': 'https://rt.smbtraining.com',
-        'Referer': CALLBACK_URL,
-        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 '
-                    '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    }
-
-    # login request to SMB API
-    login_resp = session.post(LOGIN_URL, data=payload, headers=headers)
-    login_resp.raise_for_status()
-    # print("Login status code:", login_resp.status_code)
-    # print("Login response snippet:", login_resp.text[:300])
-
-    # 3 Check session should now return user info, not {}
-    session_resp = session.get(SESSION_URL)
-    session_resp.raise_for_status()
-    # print("Session status code:", session_resp.status_code)
-    # print("Session response snippet:", session_resp.text[:300])
-    
-    # 4. Fetch positions from JSON endpoint
-    positions_resp = session.get(POSITIONS_URL)
-    # print("Positions status code:", positions_resp.status_code)
-
-    positions_data = positions_resp.json()
-    # print(f"Total raw records: {len(positions_data)}")
-    # print("Sample raw record:", positions_data[0])
-    return session
-
-def is_session_valid(session: requests.Session) -> bool:
-    resp = session.get(SESSION_URL)
-    if not resp.ok:
-        print('Session check status:', resp.status_code)
-        return False
-
-    data = resp.json()
-    # print("Session check payload:", data) # will print the session URL data if session is not valid
-    # if logged out, this might be {} instead of user details
-    return bool(data)
-
-def fetch_positions(session: requests.Session) -> dict: 
-    """Fetch raw positions JSON using an already authenticated session.
-    session (requests.Session_): the session whose cookies to save via path (str) file path where we write the cookies.
-    """
-    resp = session.get(POSITIONS_URL)
-    resp.raise_for_status()
-    return resp.json()
-
-# funcions to save/load cookies
-def save_cookies(session: requests.Session, path: str = COOKIES_FILE) -> None:
-    """Save the session cookies to a file using pickle.
-    session (requests.Session_): the session whose cookies to save via path (str) file path where we write the cookies.
-    """
-    p = Path(path)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    with p.open('wb') as f:
-        pickle.dump(session.cookies, f) # pickle.dump(obj, file) this serializes 
-        # the cookies object to bytes & writes to disk
-
-def load_cookies(session: requests.Session, path: str = COOKIES_FILE) -> bool:
-    """
-    Load cookies from disk into the given session, if the cookie file exists.
-
-    Parameters_:
-        session (requests.Session): the session we want to attach cookies to.
-        path (str): file path where the cookies are stored.
-        
-    Returns_:
-        bool: True if cookies were loaded, False if file did not exist.
-    """
-    if not Path(path).exists():
-        return False
-
-    with Path(path).open('rb') as f:
-        loaded_cookies = pickle.load(f)
-
-    # session.cookies is a RequestsCookieJar; update merges cookies in
-    session.cookies.update(loaded_cookies)
-    return True
-
-def get_session() -> requests.Session:
-    """
-    Return a requests.Session that is authenticated if possible.
-    Logic:
-      1 Create a new session.
-      2 Try to load cookies from disk into this session.
-      3 If cookies loaded, check if the session is still valid.If valid, reuse this session.
-      4 If not valid (or no cookie file), perform a fresh login
-         and save the new cookies to disk.
-    """
-    # Step 1: always start with a fresh Session object
-    session = requests.Session()
-
-    # Step 2: try loading cookies from file
-    cookies_loaded = load_cookies(session)
-    if cookies_loaded:
-        if is_session_valid(session):
-            # print("Reused session from cookies.")
-            return session
-        else:
-            print('Loaded cookies but session is invalid, performing fresh login.')
-    else:
-        print('No cookies loaded, performing fresh login.')
-    # perform fresh login
-    fresh_session = create_authenticated_session()
-    save_cookies(fresh_session)
-    # save cookies from the newly athenticated session
-    return fresh_session
 
 
 # =========================================================
@@ -230,6 +73,7 @@ _ib_connect_lock = threading.Lock()
 _SCREENER_CLIENT_IDS = (1, 4, 5, 6, 7, 8, 9, 10)  # skip 2, 3
 _ib_reconnect_attempt = 0
 
+
 def reset_ib_connection():
     """Reset the IB connection, forcing a reconnect on next use."""
     global _ib_connection
@@ -240,6 +84,7 @@ def reset_ib_connection():
         except Exception:
             pass  # Ignore errors when disconnecting a broken connection
     _ib_connection = None
+
 
 def get_ib_connection() -> IB | None:
     """
@@ -307,6 +152,7 @@ def get_ib_connection() -> IB | None:
             _ib_connection = None
         return None
 
+
 def close_ib_connection():
     """Close the IB connection if it exists."""
     reset_ib_connection()
@@ -314,6 +160,8 @@ def close_ib_connection():
 
 # =========================================================
 # normalization and summarization
+
+
 def normalize_record(rec: dict) -> NormalizedRecord:
     """
     Convert a raw external-positions record into a NormalizedRecord.
@@ -372,11 +220,11 @@ def normalize_record(rec: dict) -> NormalizedRecord:
         instrument_type=instrument_type,
         underlying=underlying,
         expiry=expiry,
-        strike=strike, # "C" or "P" for options
-        option_type=opt_type,# full SMB account name
+        strike=strike,  # "C" or "P" for options
+        option_type=opt_type,  # full SMB account name
     )
 
-    
+
 def summarize_group(records: list[NormalizedRecord]) -> PositionSummary:
     """
     Determine the trader's *net* position for one symbol.
@@ -415,9 +263,6 @@ def summarize_group(records: list[NormalizedRecord]) -> PositionSummary:
     )
 
 
-
-
-
 def save_snapshot(summary_rows: list[PositionSummary], path: str = SNAPSHOT_FILE) -> None:
     """
     Save the current summarized positions to disk as JSON.
@@ -450,22 +295,23 @@ def load_snapshot(path: str = SNAPSHOT_FILE) -> list[PositionSummary] | None:
 def format_timestamp(dt: datetime | None = None) -> str:
     """
     Format datetime as a database and Excel-friendly timestamp string.
-    
+
     Format: YYYY-MM-DD HH:MM:SS (space-separated, seconds precision)
     This format is:
     - Recognized by Excel when importing CSV
     - Compatible with most databases (PostgreSQL, MySQL, SQLite, etc.)
     - Sortable and filterable in both Excel and databases
-    
+
     Args:
         dt: datetime object (defaults to current time if None)
-    
+
     Returns_:
         str: Formatted timestamp string
     """
     if dt is None:
         dt = datetime.now()
     return dt.strftime('%Y-%m-%d %H:%M:%S')
+
 
 def ensure_executions_dir():
     """Ensure the executions directory exists."""
@@ -478,6 +324,7 @@ def get_executions_filename() -> str:
     filename = f"executions_{today.strftime('%Y-%m-%d')}.csv"
     return str(Path(EXECUTIONS_DIR) / filename)
 
+
 def save_execution_to_csv(
     trader: str,
     symbol: str,
@@ -488,57 +335,37 @@ def save_execution_to_csv(
     stop_price: float | None = None,
     take_profit_price: float | None = None,
     order_id: str | None = None,
-    timestamp: str | None = None
-):
-    """
-    Save execution data to CSV file.
-    
-    Args:
-        trader: Trader name
-        symbol: Symbol/ticker
-        change_type: NEW, ADD, TRIM, FLIP, etc.
-        net_side: long, short, flat
-        delta_magnitude: Change in magnitude
-        entry_price: Entry/limit price (optional)
-        stop_price: Stop loss price (optional)
-        take_profit_price: Take profit price (optional)
-        order_id: IB order ID if order was placed (optional)
-        timestamp: Timestamp string (defaults to current time)
-    """
+    timestamp: str | None = None,
+    shares: int | None = None,
+    total_risk: float | None = None,
+    risk_per_share: float | None = None,
+) -> None:
+    """Save execution data to CSV file using Execution schema."""
     ensure_executions_dir()
     filename = get_executions_filename()
-    
     if timestamp is None:
         timestamp = format_timestamp()
-    
-    # Check if file exists to determine if we need to write header
     file_exists = Path(filename).exists()
-    
-    # CSV columns: timestamp, trader, symbol, change_type, net_side, delta_magnitude, 
-    #              entry_price, stop_price, take_profit_price, order_id
-    fieldnames = [
-        'timestamp', 'trader', 'symbol', 'change_type', 'net_side', 'delta_magnitude',
-        'entry_price', 'stop_price', 'take_profit_price', 'order_id'
-    ]
-    
+    execution = Execution(
+        timestamp=timestamp,
+        trader=trader,
+        symbol=symbol,
+        change_type=change_type,
+        net_side=net_side,
+        delta_magnitude=delta_magnitude,
+        entry_price=entry_price,
+        stop_price=stop_price,
+        take_profit_price=take_profit_price,
+        order_id=order_id,
+        shares=shares,
+        total_risk=total_risk,
+        risk_per_share=risk_per_share,
+    )
     with Path(filename).open('a', newline='', encoding='utf-8') as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer = csv.DictWriter(f, fieldnames=Execution.csv_fieldnames())
         if not file_exists:
             writer.writeheader()
-        
-        writer.writerow({
-            'timestamp': timestamp,
-            'trader': trader,
-            'symbol': symbol,
-            'change_type': change_type,
-            'net_side': net_side,
-            'delta_magnitude': delta_magnitude,
-            'entry_price': entry_price if entry_price is not None else '',
-            'stop_price': stop_price if stop_price is not None else '',
-            'take_profit_price': take_profit_price if take_profit_price is not None else '',
-            'order_id': order_id if order_id is not None else '',
-        })
-
+        writer.writerow(execution.to_csv_row())
 
 
 def process_execution_change(
@@ -548,7 +375,7 @@ def process_execution_change(
 ) -> None:
     """
     Process a position change and execute orders if active_trading is enabled.
-    
+
     Args:
         ib: IB connection (None if not connected)
         row: Position summary row with change annotations
@@ -561,29 +388,32 @@ def process_execution_change(
 
     if not trader or not symbol or not net_side:
         return
-    
+
     # Skip if there's no magnitude change (delta_magnitude == 0)
     # EXCEPT for CLOSE - we need to process CLOSE even if delta is 0 because we need to exit the position
     if delta_magnitude == 0 and change_type != 'CLOSE':
         return
-    
+
     # Check if trader is enabled
     if not TRADER_ENABLED.get(trader, False):
         return
-    
+
     # Only process equity instruments
     if row.instrument_type != 'equity':
         return
-    
+
     # Extract underlying symbol (should be same as symbol for equity)
     underlying = row.underlying or symbol
-   
+
     timestamp = format_timestamp()
     entry_price = None
     stop_price = None
     take_profit_price = None
     order_id = None
     no_place_reason: str | None = None  # Set when we skip or fail so we can log why order wasn't placed
+    csv_shares: int | None = None
+    csv_total_risk: float | None = None
+    csv_risk_per_share: float | None = None
     if change_type in ['NEW', 'ADD']:
         row.order_placed = False
 
@@ -591,56 +421,70 @@ def process_execution_change(
     if change_type in ['NEW', 'ADD']:
         if net_side == 'long' or net_side == 'short':
             is_long = (net_side == 'long')
-            
+
             # Get market data if IB is connected
             if ib is not None and ib.isConnected():
                 # For NEW changes, run diagnostic first (before trying to get price)
                 if change_type == 'NEW':
                     diagnose_market_price(ib, underlying)
-                
+
                 entry_price = get_market_price(ib, underlying)
                 if entry_price:
                     entry_price = round(entry_price, 2)
                     stop_price = None
                     take_profit_price = None
-                    
-                    # Initialize adjusted magnitude (may be reduced for large gap up positions)
+
+                    bundle = load_bars(ib, underlying)
                     adjusted_magnitude = abs(delta_magnitude)
-                    
-                    # For NEW positions, check gap percentage and adjust position size if gap > 99%
+
                     if change_type == 'NEW':
-                        gap_percentage = calculate_gap_percentage(ib, underlying, entry_price)
+                        gap_percentage = calculate_gap_percentage(
+                            ib, underlying, entry_price, bundle=bundle
+                        )
                         if gap_percentage and gap_percentage > 99:
                             adjusted_magnitude = abs(delta_magnitude) / 10
-                            print(f'⚠️  WARNING: {underlying} gapped up {gap_percentage:.2f}% (>99%) - reducing position size from {abs(delta_magnitude)} to {adjusted_magnitude:.2f}')
-                    
-                    # First, check if ADR is available (required for take profit)
-                    adr = calculate_adr(ib, underlying)
-                    
+                            print(
+                                f'⚠️  WARNING: {underlying} gapped up {
+                                    gap_percentage:.2f}% (>99%) - reducing position size from {
+                                    abs(delta_magnitude)} to {
+                                    adjusted_magnitude:.2f}')
+
+                    adr = calculate_adr(ib, underlying, bundle=bundle)
+
                     if not adr:
                         # ADR not available - cannot use trailing stop, will send entry-only order
-                        print(f'⚠️  WARNING: ADR not available for {underlying} - cannot calculate take profit, will send entry-only order')
+                        print(
+                            f'⚠️  WARNING: ADR not available for {underlying} - cannot calculate take profit, will send entry-only order')
                         stop_price = None
                         take_profit_price = None
                     else:
-                        # ADR available - now try trailing stop as primary
                         position_side_str = 'long' if is_long else 'short'
-                        trailing_stop = calculate_trailing_stop(ib, underlying, prior_bars=3, position_side=position_side_str)
-                        
+                        trailing_stop = calculate_trailing_stop(
+                            ib, underlying,
+                            prior_bars=7,
+                            position_side=position_side_str,
+                            bundle=bundle,
+                        )
+
                         if trailing_stop:
-                            # PRIMARY: Use trailing stop (15-min bar lows/highs)
                             stop_price = round(trailing_stop, 2)
                             print(f'✓ Using trailing stop for {underlying}: ${stop_price:.2f}')
                         else:
-                            # No completed 15-min bar: use day's low (long) or day's high (short) with $0.02 offset
-                            todays_range = get_todays_range(ib, underlying)
+                            todays_range = get_todays_range(
+                                ib, underlying, bundle=bundle
+                            )
                             if todays_range:
                                 day_low, day_high = todays_range.low, todays_range.high
                                 if is_long:
                                     stop_price = round(day_low - STOP_OFFSET, 2)
                                 else:
                                     stop_price = round(day_high + STOP_OFFSET, 2)
-                                print(f'✓ Using day range stop for {underlying}: ${stop_price:.2f} (day low ${day_low:.2f} / high ${day_high:.2f}, ${STOP_OFFSET:.2f} offset)')
+                                print(
+                                    f'✓ Using day range stop for {underlying}: ${
+                                        stop_price:.2f} (day low ${
+                                        day_low:.2f} / high ${
+                                        day_high:.2f}, ${
+                                        STOP_OFFSET:.2f} offset)')
                             else:
                                 # FALLBACK: Use ADR for stop if day range also unavailable
                                 if is_long:
@@ -649,144 +493,174 @@ def process_execution_change(
                                     stop_price = entry_price + (0.5 * adr)
                                 stop_price = round(stop_price, 2)
                                 print(f'✓ Using ADR stop for {underlying}: ${stop_price:.2f} (ADR: ${adr:.2f})')
-                        
+
                         # Calculate take profit using ADR (required)
                         if stop_price:
                             if is_long:
-                                take_profit_price = entry_price + (1.0 * adr)
+                                take_profit_price = entry_price + (0.6 * adr)
                             else:
-                                take_profit_price = entry_price - (1.0 * adr)
+                                take_profit_price = entry_price - (0.6 * adr)
                             take_profit_price = round(take_profit_price, 2)
-                    
+
                     # Send orders if active trading is enabled
                     if ACTIVE_TRADING:
-                            # For NEW changes, check if there's already an order or position
-                            if change_type == 'NEW':
-                                # Check for existing position (account-level; one position per symbol)
-                                current_position = get_position_size(ib, underlying)
-                                has_position = current_position != 0
-                                # Only skip if this trader already has an open order (not another trader's)
-                                has_open_order = has_open_orders_for_trader(ib, underlying, is_long, trader)
+                        # For NEW changes, check if there's already an order or position
+                        if change_type == 'NEW':
+                            # Check for existing position (account-level; one position per symbol)
+                            current_position = get_position_size(ib, underlying)
+                            has_position = current_position != 0
+                            # Only skip if this trader already has an open order (not another trader's)
+                            has_open_order = has_open_orders_for_trader(ib, underlying, is_long, trader)
 
-                                if has_position or has_open_order:
-                                    no_place_reason = f'existing_position_or_order (position={current_position}, open_order={has_open_order})'
-                                    print(f'Skipping NEW order for {underlying} ({trader}): {no_place_reason}')
-                                else:
-                                    # Check if we have both stop price and take profit (ADR required)
-                                    if stop_price and take_profit_price:
-                                        order_id = send_bracket_order(
-                                            ib, underlying, is_long, entry_price,
-                                            stop_price, take_profit_price, adjusted_magnitude, trader
-                                        )
-                                    else:
-                                        # No stop available or ADR failed - send entry-only order with warning
-                                        if not stop_price:
-                                            print(f'⚠️  WARNING: No stop loss available for {underlying} (trailing stop and ADR both failed)')
-                                        else:
-                                            print(f'WARNING: ADR not available for {underlying} - cannot calculate take profit, sending entry-only order')
-                                        order_id = send_entry_only_order(
-                                            ib, underlying, is_long, entry_price, adjusted_magnitude, trader
-                                        )
-                                        # Set stop_price to None for CSV logging
-                                        stop_price = None
-                                        take_profit_price = None
-                            # For ADD changes, check if we already have a position
-                            elif change_type == 'ADD':
-                                current_position = get_position_size(ib, underlying)
-                                # Check if position exists and is in the same direction
-                                has_existing_position = (
-                                    (is_long and current_position > 0) or 
-                                    (not is_long and current_position < 0)
+                            if has_position or has_open_order:
+                                no_place_reason = f'existing_position_or_order (position={current_position}, open_order={has_open_order})'
+                                print(f'Skipping NEW order for {underlying} ({trader}): {no_place_reason}')
+                            else:
+                                entry_mode = get_entry_mode(
+                                    ib, underlying, entry_price, bundle=bundle
                                 )
-                                
-                                if has_existing_position:
-                                    # First, try to update existing child orders (stop loss and take profit)
-                                    # Calculate shares to add based on delta_magnitude
-                                    trade_stop_percent = abs(delta_magnitude) / 100.0
-                                    trade_stop_amount = DAILY_STOP * trade_stop_percent
-                                    available_funds = get_available_funds(ib)
-                                    
-                                    # For scaling, we need a stop price for sizing calculation
-                                    # Use stop_price if available, otherwise calculate from ADR
-                                    scaling_stop_price = stop_price
-                                    if not scaling_stop_price:
-                                        # Recalculate ADR for sizing purposes
-                                        scaling_adr = calculate_adr(ib, underlying)
-                                        if scaling_adr:
-                                            if is_long:
-                                                scaling_stop_price = entry_price - (0.5 * scaling_adr)
-                                            else:
-                                                scaling_stop_price = entry_price + (0.5 * scaling_adr)
-                                        else:
-                                            # No ADR available - use conservative 2% stop for sizing
-                                            scaling_stop_price = entry_price * (0.98 if is_long else 1.02)
-                                            print(f'Using assumed 2% stop for scaling order sizing: ${scaling_stop_price:.2f}')
-                                    
-                                    if available_funds <= 0:
-                                        no_place_reason = 'no_available_funds'
-                                    if available_funds > 0:
-                                        num_shares_to_add = calculate_num_shares_from_risk(
-                                            trade_stop_amount=trade_stop_amount,
-                                            entry_price=entry_price,
-                                            stop_loss_price=scaling_stop_price,
-                                            is_long=is_long,
-                                            available_funds=available_funds
-                                        )
-                                        
-                                        if num_shares_to_add > 0:
-                                            # Try to update existing child orders first
-                                            child_orders_updated = update_child_orders_for_position(
-                                                ib, underlying, trader, num_shares_to_add
-                                            )
-
-                                            if not child_orders_updated:
-                                                # No child orders found - fall back to current behavior (scaling order)
-                                                # Check if there's already an open order (to avoid duplicate scaling orders)
-                                                has_open_order = has_open_orders(ib, underlying, is_long)
-                                                if has_open_order:
-                                                    no_place_reason = 'open_order_already_exists (ADD scaling)'
-                                                    print(f'Skipping ADD scaling order for {underlying}: {no_place_reason}')
-                                                else:
-                                                    # Scale into existing position with a simple stop order
-                                                    order_id = send_scaling_order(
-                                                        ib, underlying, is_long, entry_price, num_shares_to_add, trader
-                                                    )
-                                                    # For scaling, we don't set stop/take_profit in CSV (existing position has them)
-                                                    stop_price = None
-                                                    take_profit_price = None
-                                            else:
-                                                # Child orders were updated - no need to create new order
-                                                no_place_reason = 'add_child_orders_updated_no_new_order'
-                                                stop_price = None
-                                                take_profit_price = None
-                                        else:
-                                            no_place_reason = 'num_shares_to_add_zero'
+                                if entry_mode.skip:
+                                    no_place_reason = 'entry_mode_skip'
+                                    print(f'Skipping NEW order for {underlying} ({trader}): {no_place_reason}')
+                                elif stop_price and take_profit_price:
+                                    result = send_bracket_order(
+                                        ib, underlying, is_long, entry_mode.entry_price,
+                                        stop_price, take_profit_price, adjusted_magnitude, trader,
+                                        entry_order_type=entry_mode.order_type,
+                                    )
+                                    order_id = result.order_id
+                                    csv_shares = result.num_shares
+                                    csv_total_risk = result.total_risk
+                                    csv_risk_per_share = result.risk_per_share
                                 else:
-                                    # No existing position, check for open orders before creating new bracket
-                                    has_open_order = has_open_orders(ib, underlying, is_long)
-                                    if has_open_order:
-                                        no_place_reason = 'open_order_already_exists (ADD bracket)'
-                                        print(f'Skipping ADD bracket order for {underlying}: {no_place_reason}')
+                                    if not stop_price:
+                                        print(
+                                            f'⚠️  WARNING: No stop loss available for {underlying} (trailing stop and ADR both failed)')
                                     else:
-                                        # No existing position or order, create bracket order (treat like NEW)
-                                        if stop_price and take_profit_price:
-                                            # Create bracket order with stop
-                                            order_id = send_bracket_order(
-                                                ib, underlying, is_long, entry_price,
-                                                stop_price, take_profit_price, abs(delta_magnitude), trader
-                                            )
+                                        print(
+                                            f'WARNING: ADR not available for {underlying} - cannot calculate take profit, sending entry-only order')
+                                    result = send_entry_only_order(
+                                        ib, underlying, is_long, entry_mode.entry_price,
+                                        adjusted_magnitude, trader,
+                                        entry_order_type=entry_mode.order_type,
+                                    )
+                                    order_id = result.order_id
+                                    csv_shares = result.num_shares
+                                    csv_total_risk = result.total_risk
+                                    csv_risk_per_share = result.risk_per_share
+                        elif change_type == 'ADD':
+                            current_position = get_position_size(ib, underlying)
+                            # Check if position exists and is in the same direction
+                            has_existing_position = (
+                                (is_long and current_position > 0) or
+                                (not is_long and current_position < 0)
+                            )
+
+                            if has_existing_position:
+                                # First, try to update existing child orders (stop loss and take profit)
+                                # Calculate shares to add based on delta_magnitude
+                                trade_stop_percent = abs(delta_magnitude) / 100.0
+                                trade_stop_amount = DAILY_STOP * trade_stop_percent
+                                available_funds = get_available_funds(ib)
+
+                                # For scaling, we need a stop price for sizing calculation
+                                # Use stop_price if available, otherwise calculate from ADR
+                                scaling_stop_price = stop_price
+                                if not scaling_stop_price:
+                                    scaling_adr = calculate_adr(
+                                        ib, underlying, bundle=bundle
+                                    )
+                                    if scaling_adr:
+                                        if is_long:
+                                            scaling_stop_price = entry_price - (0.5 * scaling_adr)
                                         else:
-                                            # No stop available or ADR failed - send entry-only order with warning
-                                            if not stop_price:
-                                                print(f' WARNING: No stop loss available for {underlying} (trailing stop and ADR both failed)')
+                                            scaling_stop_price = entry_price + (0.5 * scaling_adr)
+                                    else:
+                                        # No ADR available - use conservative 2% stop for sizing
+                                        scaling_stop_price = entry_price * (0.98 if is_long else 1.02)
+                                        print(
+                                            f'Using assumed 2% stop for scaling order sizing: ${
+                                                scaling_stop_price:.2f}')
+
+                                if available_funds <= 0:
+                                    no_place_reason = 'no_available_funds'
+                                if available_funds > 0:
+                                    num_shares_to_add = calculate_num_shares_from_risk(
+                                        trade_stop_amount=trade_stop_amount,
+                                        entry_price=entry_price,
+                                        stop_loss_price=scaling_stop_price,
+                                        is_long=is_long,
+                                        available_funds=available_funds
+                                    )
+                                    csv_shares = num_shares_to_add
+                                    csv_total_risk = trade_stop_amount
+                                    csv_risk_per_share = (
+                                        trade_stop_amount / num_shares_to_add
+                                        if num_shares_to_add else None
+                                    )
+                                    if num_shares_to_add > 0:
+                                        # Try to update existing child orders first
+                                        child_orders_updated = update_child_orders_for_position(
+                                            ib, underlying, trader, num_shares_to_add
+                                        )
+
+                                        if not child_orders_updated:
+                                            # No child orders found - fall back to current behavior (scaling order)
+                                            # Check if there's already an open order (to avoid duplicate scaling orders)
+                                            has_open_order = has_open_orders(ib, underlying, is_long)
+                                            if has_open_order:
+                                                no_place_reason = 'open_order_already_exists (ADD scaling)'
+                                                print(f'Skipping ADD scaling order for {underlying}: {no_place_reason}')
                                             else:
-                                                print(f'WARNING: ADR not available for {underlying} - cannot calculate take profit, sending entry-only order')
-                                            order_id = send_entry_only_order(
-                                                ib, underlying, is_long, entry_price, abs(delta_magnitude), trader
-                                            )
-                                            # Set stop_price to None for CSV logging
-                                            stop_price = None
-                                            take_profit_price = None
+                                                # Scale into existing position with a simple stop order
+                                                order_id = send_scaling_order(
+                                                    ib, underlying, is_long, entry_price, num_shares_to_add, trader
+                                                )
+                                        else:
+                                            # Child orders were updated - no need to create new order
+                                            no_place_reason = 'add_child_orders_updated_no_new_order'
+                                    else:
+                                        no_place_reason = 'num_shares_to_add_zero'
+                            else:
+                                # No existing position, check for open orders before creating new bracket
+                                has_open_order = has_open_orders(ib, underlying, is_long)
+                                if has_open_order:
+                                    no_place_reason = 'open_order_already_exists (ADD bracket)'
+                                    print(f'Skipping ADD bracket order for {underlying}: {no_place_reason}')
+                                else:
+                                    entry_mode = get_entry_mode(
+                                        ib, underlying, entry_price, bundle=bundle
+                                    )
+                                    if entry_mode.skip:
+                                        no_place_reason = 'entry_mode_skip'
+                                        print(
+                                            f'Skipping ADD bracket order for {underlying} ({trader}): {no_place_reason}')
+                                    elif stop_price and take_profit_price:
+                                        result = send_bracket_order(
+                                            ib, underlying, is_long, entry_mode.entry_price,
+                                            stop_price, take_profit_price, abs(delta_magnitude), trader,
+                                            entry_order_type=entry_mode.order_type,
+                                        )
+                                        order_id = result.order_id
+                                        csv_shares = result.num_shares
+                                        csv_total_risk = result.total_risk
+                                        csv_risk_per_share = result.risk_per_share
+                                    else:
+                                        if not stop_price:
+                                            print(
+                                                f' WARNING: No stop loss available for {underlying} (trailing stop and ADR both failed)')
+                                        else:
+                                            print(
+                                                f'WARNING: ADR not available for {underlying} - cannot calculate take profit, sending entry-only order')
+                                        result = send_entry_only_order(
+                                            ib, underlying, is_long, entry_mode.entry_price,
+                                            abs(delta_magnitude), trader,
+                                            entry_order_type=entry_mode.order_type,
+                                        )
+                                        order_id = result.order_id
+                                        csv_shares = result.num_shares
+                                        csv_total_risk = result.total_risk
+                                        csv_risk_per_share = result.risk_per_share
                 else:
                     # No entry price available
                     no_place_reason = 'no_market_price'
@@ -803,7 +677,8 @@ def process_execution_change(
                 print(f'Order not placed for {underlying} ({trader}): {no_place_reason}')
             # Save to CSV (always save, even if order failed)
             if change_type in ['NEW', 'ADD'] and order_id is None:
-                print(f'Recording {change_type} for {underlying} ({trader}) with no order_id (skipped or order placement failed)')
+                print(
+                    f'Recording {change_type} for {underlying} ({trader}) with no order_id (skipped or order placement failed)')
             save_execution_to_csv(
                 trader=trader,
                 symbol=underlying,
@@ -814,28 +689,33 @@ def process_execution_change(
                 stop_price=stop_price,
                 take_profit_price=take_profit_price,
                 order_id=order_id,
-                timestamp=timestamp
+                timestamp=timestamp,
+                shares=csv_shares,
+                total_risk=csv_total_risk,
+                risk_per_share=csv_risk_per_share,
             )
-    
+
     elif change_type == 'TRIM':
         if net_side in ['long', 'short']:
             is_long = (net_side == 'long')
-            
+
             if ib is not None and ib.isConnected():
                 # Get current position size from IB
                 try:
                     current_position = get_position_size(ib, underlying)
-                    
+
                     if current_position != 0:
                         # Calculate shares to trim based on delta_magnitude
                         # This is approximate - real implementation would track position sizes
                         exit_size = abs(int(current_position * (abs(delta_magnitude) / 100.0)))
-                        
+
                         if exit_size > 0 and ACTIVE_TRADING:
                             # Check if the TRIM would result in closing the position
                             # If exit_size >= abs(current_position), we should CLOSE instead
                             if exit_size >= abs(current_position):
-                                print(f'⚠️  TRIM ({exit_size} shares) >= position size ({abs(current_position)} shares) - converting to CLOSE')
+                                print(
+                                    f'⚠️  TRIM ({exit_size} shares) >= position size ({
+                                        abs(current_position)} shares) - converting to CLOSE')
                                 # Cancel all orders and exit entire position (same as CLOSE)
                                 cancel_all_orders_for_position(ib, underlying, trader)
                                 order_id = send_market_order(ib, underlying, is_long, abs(current_position), trader)
@@ -846,7 +726,7 @@ def process_execution_change(
                                 # Always send market order to reduce the actual position
                                 order_id = send_market_order(ib, underlying, is_long, exit_size, trader)
                                 print(f'   ✓ Market order placed to trim {exit_size} shares: order_id={order_id}')
-                                
+
                                 # Also update child orders to match the new position size
                                 # This keeps stop loss and take profit in sync with the reduced position
                                 child_orders_updated = update_child_orders_for_position(
@@ -859,7 +739,7 @@ def process_execution_change(
                 except Exception as e:
                     print(f'Error getting position for {underlying}: {e}')
                     traceback.print_exc()
-            
+
             # Save to CSV
             save_execution_to_csv(
                 trader=trader,
@@ -870,7 +750,7 @@ def process_execution_change(
                 order_id=order_id,
                 timestamp=timestamp
             )
-    
+
     elif change_type == 'CLOSE':
         # CLOSE: Position went flat - exit the entire position
         print(f'🔄 CLOSE detected for {underlying} ({trader})')
@@ -879,7 +759,7 @@ def process_execution_change(
                 # First, cancel all open orders (stop loss, take profit, entry orders) for this position
                 print(f'   Cancelling all open orders for {underlying}...')
                 cancelled_count = cancel_all_orders_for_position(ib, underlying, trader)
-                
+
                 # Get current position size from IB
                 current_position = get_position_size(ib, underlying)
                 print(f'   Current position in IB: {current_position} shares')
@@ -900,7 +780,7 @@ def process_execution_change(
                 traceback.print_exc()
         else:
             print('   ❌ IB not connected - cannot check position or place order')
-        
+
         # Save to CSV
         save_execution_to_csv(
             trader=trader,
@@ -911,7 +791,7 @@ def process_execution_change(
             order_id=order_id,
             timestamp=timestamp
         )
-    
+
     elif change_type == 'FLIP':
         # FLIP: exit old position and enter new position
         # This is complex - for now, just track it
@@ -923,6 +803,7 @@ def process_execution_change(
             delta_magnitude=delta_magnitude,
             timestamp=timestamp
         )
+
 
 def make_position_key(row: PositionSummary) -> tuple[str, bool, str, str]:
     """Create a unique key for a position summary row based on trader, LT flag, symbol, and side."""
@@ -1025,9 +906,10 @@ def annotate_with_changes(
         row.change_type = change
     return current_rows
 
+
 def _get_field(r: PositionSummary, field: str) -> str | int | float | bool | None:
     """Get field value from PositionSummary by name."""
-    return getattr(r, field, '')
+    return getattr(r, field, '')  # using getattr because the column name is know only as a string at runtime.
 
 
 def print_position_table(summary_rows: list[PositionSummary], hide_flat: bool = True) -> None:
@@ -1040,14 +922,14 @@ def print_position_table(summary_rows: list[PositionSummary], hide_flat: bool = 
         else:
             rows_to_show.append(r)
     column_specs = [
-        {'header': 'Trader',  'field': 'trader',           'width': 25, 'align': '<'},
-        {'header': 'LT',      'field': 'is_long_term',     'width': 3,  'align': '<'},
-        {'header': 'Symbol',  'field': 'symbol',           'width': 30, 'align': '<'},
-        {'header': 'Type',    'field': 'instrument_type',  'width': 8,  'align': '<'},
-        {'header': 'Side',    'field': 'net_side',         'width': 6,  'align': '<'},
-        {'header': 'Mag',     'field': 'total_magnitude',  'width': 6,  'align': '>'},
-        {'header': 'MagChg',  'field': 'delta_magnitude',  'width': 6,  'align': '>'},
-        {'header': 'Change',  'field': 'change_type',      'width': 8,  'align': '<'},
+        {'header': 'Trader', 'field': 'trader', 'width': 25, 'align': '<'},
+        {'header': 'LT', 'field': 'is_long_term', 'width': 3, 'align': '<'},
+        {'header': 'Symbol', 'field': 'symbol', 'width': 30, 'align': '<'},
+        {'header': 'Type', 'field': 'instrument_type', 'width': 8, 'align': '<'},
+        {'header': 'Side', 'field': 'net_side', 'width': 6, 'align': '<'},
+        {'header': 'Mag', 'field': 'total_magnitude', 'width': 6, 'align': '>'},
+        {'header': 'MagChg', 'field': 'delta_magnitude', 'width': 6, 'align': '>'},
+        {'header': 'Change', 'field': 'change_type', 'width': 8, 'align': '<'},
     ]
 
     def format_cell(value: str | int | float | bool | None, spec: dict) -> str:
@@ -1073,8 +955,6 @@ def print_position_table(summary_rows: list[PositionSummary], hide_flat: bool = 
         print(' '.join(cells))
 
 
-
-
 def run_single_cycle(
     session: requests.Session | None = None,
     ib: IB | None = None,
@@ -1083,19 +963,19 @@ def run_single_cycle(
     if session is None:
         session = get_session()
     positions_data = fetch_positions(session)
-    
+
     # Normalize all raw records
     normalized_positions = [normalize_record(r) for r in positions_data]
-    
+
     # group
     groups: defaultdict[tuple[str, bool, str], list[NormalizedRecord]] = defaultdict(list)
     for p in normalized_positions:
         key = (p.trader, p.is_long_term, p.symbol_raw)
         groups[key].append(p)
-    
+
     # ***************build summary_rows from groups from def summarize_group(records)***************
     summary_rows = [summarize_group(recs) for recs in groups.values()]
-    
+
     # Load previous snapshot
     previous_snapshot = load_snapshot()
 
@@ -1108,7 +988,7 @@ def run_single_cycle(
 
     # Annotate current summary with prev/delta/change_type
     summary_rows = annotate_with_changes(summary_rows, previous_snapshot)
-    
+
     # Get IB connection if needed (for market data and execution tracking)
     # Always try to connect for market data, even if trading is disabled
     if ib is None:
@@ -1123,7 +1003,7 @@ def run_single_cycle(
         except Exception as e:
             print(f'Warning: IB connection check failed: {e}')
             ib = get_ib_connection()  # Try to reconnect
-    
+
     # Process execution changes (NEW, ADD, TRIM, CLOSE, FLIP)
     change_types_to_process = ['NEW', 'ADD', 'TRIM', 'CLOSE', 'FLIP']
     changes_to_run: list[tuple[PositionSummary, str]] = []
@@ -1132,7 +1012,10 @@ def run_single_cycle(
         if ct in change_types_to_process:
             changes_to_run.append((row, ct))
     if changes_to_run:
-        print(f'Execution: processing {len(changes_to_run)} change(s) (ACTIVE_TRADING={ACTIVE_TRADING}, IB connected={ib is not None and ib.isConnected() if ib else False})')
+        print(
+            f'Execution: processing {
+                len(changes_to_run)} change(s) (ACTIVE_TRADING={ACTIVE_TRADING}, IB connected={
+                ib is not None and ib.isConnected() if ib else False})')
         # Refresh positions and open orders from TWS before processing
         # (avoids stale cache after connectivity hiccups like 1100/1102)
         if ib is not None and ib.isConnected():
@@ -1144,7 +1027,7 @@ def run_single_cycle(
                 print(f'Warning: Failed to refresh positions/orders from TWS: {e}')
     for row, change_type in changes_to_run:
         process_execution_change(ib, row, change_type)
-    
+
     # Always persist full snapshot so we never retry by omitting; diagnose real causes when orders aren't placed.
     save_snapshot(summary_rows)
 
@@ -1165,14 +1048,14 @@ def run_single_cycle(
         r.is_long_term,
         -(r.total_magnitude or 0),
     ))
-    
+
     # Print the final position table
     # print("\n== table of current positions ==")
     print_position_table(summary_rows, hide_flat=True)
     return session, summary_rows, ib
 
 
-#polling configuration, either once, polling internal, or off
+# polling configuration, either once, polling internal, or off
 def run_once_mode():
     # Polling configuration, either once, polling interval, or off
     print('Running in once mode')
@@ -1183,8 +1066,9 @@ def run_once_mode():
         if ib is not None:
             close_ib_connection()
 
+
 def run_polling_mode(interval_seconds: int):
-    #placeholder
+    # placeholder
     print(f'Running in polling mode every {interval_seconds} seconds')
     session = None
     ib = None
@@ -1214,17 +1098,18 @@ def run_polling_mode(interval_seconds: int):
         if ib is not None:
             close_ib_connection()
 
+
 def main():
-    if RUN_MODE =='once':
+    if RUN_MODE == 'once':
         run_once_mode()
-    elif RUN_MODE =='poll':
+    elif RUN_MODE == 'poll':
         run_polling_mode(INTERVAL_SECONDS)
     else:
         print('RUN_MODE is \'off\', exiting.')
+
 
 if __name__ == '__main__':
     try:
         main()
     except KeyboardInterrupt:
         print('Stopped by user.')
-

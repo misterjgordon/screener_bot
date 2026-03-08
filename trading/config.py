@@ -22,7 +22,7 @@ ACTIVE_TRADING = True  # Set True to enable order execution to IB
 TRADER_ENABLED = {
     'Justin Spero': True,
     'Jeff Holden': True,
-    'Steve Spencer': False,
+    'Steve Spencer': False, # does not show options so trades can be misleading on his direction
     'Kenneth Sharkness': False,
 }
 
@@ -40,7 +40,7 @@ IB_CLIENT_ID_CHECK_TRADE = 3  # check_trade / notebooks (avoid conflict with scr
 # =========================================================
 # Risk management
 # =========================================================
-DAILY_STOP = 400  # USD - maximum daily loss allowed
+DAILY_STOP = 250  # USD - maximum daily loss allowed
 STOP_OFFSET = 0.02  # USD - buffer below day low (long) or above day high (short)
 ACCOUNT_CURRENCY = 'USD'
 

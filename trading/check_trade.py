@@ -7,7 +7,6 @@ Usage:
     python trading/check_trade.py --trader "Justin Spero" --ticker AMD
     python trading/check_trade.py -t "Jeff Holden" -s GOOGL
 """
-#%%
 import json
 import csv
 import argparse

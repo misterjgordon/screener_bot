@@ -4,12 +4,18 @@ Provides get_* functions for ticker quotes, bars, market price, trailing stop,
 today's range, ADR, and gap percentage. When used by the screener, all calls
 receive the screener's IB connection (single entry point to IB). Can be run
 and tested independently via python -m trading.market_data <SYMBOL>.
+
+When bundle is provided (from bar_loader.load_bars), uses pre-fetched bars
+to avoid duplicate IB requests. When bundle is None, fetches via bar_loader.get_bars.
 """
 
-from datetime import date, datetime
+from typing import TYPE_CHECKING
 
 from ib_async import IB, Stock
 
+from strategies.utils import is_rth_session_bar
+from strategies.utils import last_trading_day
+from trading.bar_loader import get_bars
 from trading.config import (  # noqa: E402
     ACCOUNT_CURRENCY,
     IB_CLIENT_ID_MARKET_DATA,
@@ -17,6 +23,9 @@ from trading.config import (  # noqa: E402
     IB_PORT,
 )
 from trading.models import DayRange, TickerQuote  # noqa: E402
+
+if TYPE_CHECKING:
+    from trading.bar_loader import BarSeries
 
 
 def _to_float(val: object) -> float | None:
@@ -84,75 +93,46 @@ def get_market_price(ib: IB | None, symbol: str) -> float | None:
     return quote.best_price() if quote else None
 
 
-def get_bars(
-    ib: IB | None,
-    symbol: str,
-    duration_str: str,
-    bar_size: str,
-    what_to_show: str = 'TRADES',
-    use_rth: bool = True,
-) -> list | None:
-    """Get historical bars for symbol. Returns raw ib_async BarData objects."""
-    if ib is None or not ib.isConnected():
-        return None
-    try:
-        contract = Stock(symbol, 'SMART', ACCOUNT_CURRENCY)
-        ib.qualifyContracts(contract)
-        return ib.reqHistoricalData(
-            contract,
-            endDateTime='',
-            durationStr=duration_str,
-            barSizeSetting=bar_size,
-            whatToShow=what_to_show,
-            useRTH=use_rth,
-            formatDate=1,
-        )
-    except Exception:
-        return None
-
-
 def calculate_trailing_stop(
     ib: IB | None,
     symbol: str,
-    prior_bars: int = 3,
+    prior_bars: int = 7,
     position_side: str = 'long',
+    bundle: 'BarSeries | None' = None,
 ) -> float | None:
-    """Trailing stop from last N 15-min RTH bars (min low for long, max high for short)."""
-    duration_seconds = (prior_bars * 15 * 60) + (15 * 60)
-    bars = get_bars(
-        ib,
-        symbol,
-        duration_str=f'{duration_seconds} S',
-        bar_size='15 mins',
-    )
+    """Trailing stop from last N 2-min RTH bars (min low for long, max high for short)."""
+    if bundle is not None and bundle.bars_2min:
+        bars = bundle.bars_2min
+    else:
+        bars = get_bars(ib, symbol, duration_str='1 D', bar_size='2 mins', use_rth=True)
     if not bars:
         return None
-    today = date.today()
-    bar_date = lambda b: b.date.date() if isinstance(b.date, datetime) else b.date
-    session_bars = [b for b in bars if bar_date(b) == today]
+    session_date = last_trading_day()
+    session_bars = [b for b in bars if is_rth_session_bar(b.date, session_date)]
     if not session_bars:
         return None
     bars = session_bars[-prior_bars:] if len(session_bars) >= prior_bars else session_bars
     if not bars:
         return None
     if position_side.lower() == 'long':
-        return float(min(b.low for b in bars))
-    return float(max(b.high for b in bars))
+        return float(min(b.low for b in bars if b.low is not None))
+    return float(max(b.high for b in bars if b.high is not None))
 
 
-def get_todays_range(ib: IB | None, symbol: str) -> DayRange | None:
-    """Today's RTH low and high from 1-min bars."""
-    bars = get_bars(
-        ib,
-        symbol,
-        duration_str='1 D',
-        bar_size='1 min',
-    )
+def get_todays_range(
+    ib: IB | None,
+    symbol: str,
+    bundle: 'BarSeries | None' = None,
+) -> DayRange | None:
+    """Today's RTH low and high from 2-min bars."""
+    if bundle is not None and bundle.bars_2min:
+        bars = bundle.bars_2min
+    else:
+        bars = get_bars(ib, symbol, duration_str='1 D', bar_size='2 mins', use_rth=True)
     if not bars:
         return None
-    today = date.today()
-    bar_date = lambda b: b.date.date() if isinstance(b.date, datetime) else b.date
-    session = [b for b in bars if bar_date(b) == today and b.low is not None and b.high is not None]
+    session_date = last_trading_day()
+    session = [b for b in bars if is_rth_session_bar(b.date, session_date) and b.low is not None and b.high is not None]
     if not session:
         return None
     return DayRange(
@@ -161,14 +141,17 @@ def get_todays_range(ib: IB | None, symbol: str) -> DayRange | None:
     )
 
 
-def calculate_adr(ib: IB | None, symbol: str, days: int = 20) -> float | None:
+def calculate_adr(
+    ib: IB | None,
+    symbol: str,
+    days: int = 20,
+    bundle: 'BarSeries | None' = None,
+) -> float | None:
     """Average Daily Range over specified days."""
-    bars = get_bars(
-        ib,
-        symbol,
-        duration_str=f'{days} D',
-        bar_size='1 day',
-    )
+    if bundle is not None and bundle.bars_1d:
+        bars = bundle.bars_1d[-days:] if len(bundle.bars_1d) >= days else bundle.bars_1d
+    else:
+        bars = get_bars(ib, symbol, duration_str=f'{days} D', bar_size='1 day')
     if not bars:
         return None
     ranges = [b.high - b.low for b in bars if b.high is not None and b.low is not None]
@@ -181,14 +164,13 @@ def calculate_gap_percentage(
     ib: IB | None,
     symbol: str,
     current_price: float,
+    bundle: 'BarSeries | None' = None,
 ) -> float | None:
     """Gap up % from yesterday's close. Returns None for negative or no gap."""
-    bars = get_bars(
-        ib,
-        symbol,
-        duration_str='2 D',
-        bar_size='1 day',
-    )
+    if bundle is not None and len(bundle.bars_1d) >= 2:
+        bars = bundle.bars_1d
+    else:
+        bars = get_bars(ib, symbol, duration_str='2 D', bar_size='1 day')
     if not bars or len(bars) < 2:
         return None
     yesterday_close = bars[-2].close
@@ -204,8 +186,10 @@ def diagnose_market_price(ib: IB | None, symbol: str) -> None:
     if quote is None:
         print(f'DIAGNOSTIC [{symbol}]: No quote (IB not connected or error)')
         return
+
     def _fmt(v: float | None) -> str:
         return f'{v:.2f}' if v is not None else 'N/A'
+
     print(f'DIAGNOSTIC [{symbol}]:')
     print(f'   Midpoint: {_fmt(quote.midpoint)}')
     print(f'   Close: {_fmt(quote.close)}')
@@ -216,17 +200,18 @@ def diagnose_market_price(ib: IB | None, symbol: str) -> None:
     if best:
         print(f'   ✓ Best price: ${best:.2f}')
     else:
-        print('   ❌ No valid price')
+        print('   ✖ No valid price')
 
 
 if __name__ == '__main__':
     import asyncio
     import sys
+
     asyncio.set_event_loop(asyncio.new_event_loop())
-    symbol = sys.argv[1] if len(sys.argv) > 1 else None
-    if not symbol:
+    if len(sys.argv) < 2 or not sys.argv[1].strip():
         print('Usage: python -m trading.market_data <SYMBOL>')
         sys.exit(1)
+    symbol = sys.argv[1].strip()
     ib = connect(readonly=True)
     if ib:
         get_market_price(ib, symbol)
