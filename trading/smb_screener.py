@@ -20,6 +20,7 @@ import requests
 asyncio.set_event_loop(asyncio.new_event_loop())
 from ib_async import IB  # noqa: E402
 
+from trading.bar_loader import load_bars  # noqa: E402
 from trading.config import ACTIVE_TRADING  # noqa: E402
 from trading.config import DAILY_STOP  # noqa: E402
 from trading.config import IB_HOST  # noqa: E402
@@ -36,7 +37,6 @@ from trading.ib_trading import send_entry_only_order  # noqa: E402
 from trading.ib_trading import send_market_order  # noqa: E402
 from trading.ib_trading import send_scaling_order  # noqa: E402
 from trading.ib_trading import update_child_orders_for_position  # noqa: E402
-from trading.bar_loader import load_bars  # noqa: E402
 from trading.market_data import calculate_adr  # noqa: E402
 from trading.market_data import calculate_gap_percentage  # noqa: E402
 from trading.market_data import calculate_trailing_stop  # noqa: E402
@@ -517,7 +517,7 @@ def process_execution_change(
                                 print(f'Skipping NEW order for {underlying} ({trader}): {no_place_reason}')
                             else:
                                 entry_mode = get_entry_mode(
-                                    ib, underlying, entry_price, bundle=bundle
+                                    ib, underlying, entry_price, is_long, bundle=bundle
                                 )
                                 if entry_mode.skip:
                                     no_place_reason = 'entry_mode_skip'
@@ -629,7 +629,7 @@ def process_execution_change(
                                     print(f'Skipping ADD bracket order for {underlying}: {no_place_reason}')
                                 else:
                                     entry_mode = get_entry_mode(
-                                        ib, underlying, entry_price, bundle=bundle
+                                        ib, underlying, entry_price, is_long, bundle=bundle
                                     )
                                     if entry_mode.skip:
                                         no_place_reason = 'entry_mode_skip'

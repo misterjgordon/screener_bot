@@ -5,8 +5,11 @@ SMB models: NormalizedRecord, PositionSummary represent SMB API positions (not d
 Execution: one row of the executions CSV (order/execution log).
 """
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict
+from dataclasses import dataclass
 from datetime import datetime
+
+from strategies.utils import bar_session
 
 
 @dataclass
@@ -40,46 +43,30 @@ class Bar:
 
 @dataclass
 class BarSeries:
-    """Collection of bars with calculation methods.
+    """Pre-fetched 1D and 2-min bars for a symbol.
 
-    Wraps bars from ib.reqHistoricalData for ADR, EMA, etc.
+    bars_1d: RTH daily bars only (no session tagging).
+    bars_2min: Intraday bars; session (PM|RTH|AH) computed from bar.date.
+    Views: bars_2min_rth, bars_2min_pm, bars_2min_ah for filtered retrieval.
     """
-    bars: list[Bar]
-    symbol: str
-    bar_size: str
+
+    bars_1d: list
+    bars_2min: list
 
     @property
-    def closes(self) -> list[float]:
-        """List of close prices."""
-        return [b.close for b in self.bars]
+    def bars_2min_rth(self) -> list:
+        """2-min bars in regular trading hours (9:30-16:00 ET)."""
+        return [b for b in self.bars_2min if bar_session(b.date) == 'RTH']
 
     @property
-    def ranges(self) -> list[float]:
-        """List of daily ranges (high - low)."""
-        return [b.range for b in self.bars]
+    def bars_2min_pm(self) -> list:
+        """2-min bars in pre-market (< 9:30 ET)."""
+        return [b for b in self.bars_2min if bar_session(b.date) == 'PM']
 
-    def adr(self, days: int | None = None) -> float | None:
-        """Average Daily Range over specified days (default: all bars)."""
-        bars_to_use = self.bars[-days:] if days else self.bars
-        if not bars_to_use:
-            return None
-        ranges = [b.range for b in bars_to_use]
-        return round(sum(ranges) / len(ranges), 2)
-
-    def ema(self, period: int) -> float | None:
-        """Exponential Moving Average."""
-        if len(self.bars) < period:
-            return None
-        closes = self.closes
-        ema = sum(closes[:period]) / period
-        k = 2.0 / (1.0 + period)
-        for c in closes[period:]:
-            ema = (c - ema) * k + ema
-        return ema
-
-    def last_bar(self) -> Bar | None:
-        """Most recent bar."""
-        return self.bars[-1] if self.bars else None
+    @property
+    def bars_2min_ah(self) -> list:
+        """2-min bars in after-hours (>= 16:00 ET)."""
+        return [b for b in self.bars_2min if bar_session(b.date) == 'AH']
 
 
 @dataclass

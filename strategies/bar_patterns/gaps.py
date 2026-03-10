@@ -1,29 +1,20 @@
-"""Daily bar pattern checks used by strategy setup scans."""
+"""Gap pattern checks used by strategy setup scans."""
 
-from collections.abc import Sequence
-from typing import Protocol
+from typing import TYPE_CHECKING
 
-
-class DailyBarLike(Protocol):
-    """Protocol for daily bars with gap/volume fields."""
-
-    open: float
-    close: float
-    volume: float
+if TYPE_CHECKING:
+    from trading.models import BarSeries
 
 
-def _is_gap_up(
-    prior_bar: DailyBarLike,
-    current_bar: DailyBarLike,
-) -> bool:
+def _is_gap_up(prior_bar: object, current_bar: object) -> bool:
     """Return True when current day opens above prior day close."""
-    return current_bar.open > prior_bar.close
+    return current_bar.open > prior_bar.close  # type: ignore[attr-defined]
 
 
-def day_3_gap(bars_daily: Sequence[DailyBarLike]) -> bool:
+def day_3_gap(bar_series: 'BarSeries') -> bool:
     """Check for third consecutive gap-up day and day 2 volume expansion.
 
-    Uses the most recent three daily bars in chronological order:
+    Uses bar_series.bars_1d. Uses the most recent three daily bars in chronological order:
     day_1, day_2, day_3.
 
     Conditions:
@@ -32,6 +23,7 @@ def day_3_gap(bars_daily: Sequence[DailyBarLike]) -> bool:
     - day_2 volume is at least 1.2x day_1 volume
     - no day_3 volume condition (day_3 volume may be incomplete intraday)
     """
+    bars_daily = bar_series.bars_1d
     if len(bars_daily) < 3:
         return False
 

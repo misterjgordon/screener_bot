@@ -1,11 +1,14 @@
-"""Two-minute bar pattern checks used by strategy setup scans."""
+"""Breakout bar pattern checks used by strategy setup scans."""
 
-from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Protocol
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from trading.models import BarSeries
 
 BREAK_OUT_LOOKBACK_BARS = 5  # max 195 bars
-BREAK_OUT_SIZE_MULTIPLIER = 4.0
+BREAK_OUT_SIZE_MULTIPLIER = 3.0
 
 
 @dataclass
@@ -18,28 +21,18 @@ class BreakOutBarStats:
     midpoint_of_breakout_bar: float | None
 
 
-class TwoMinuteBarLike(Protocol):
-    """Protocol for 2-minute bars with range fields."""
-
-    high: float
-    low: float
-
-
-def _bar_size(bar: TwoMinuteBarLike) -> float:
+def _bar_size(bar: object) -> float:
     """Return full bar range (high-low)."""
-    return bar.high - bar.low
+    return bar.high - bar.low  # type: ignore[attr-defined]
 
 
-def break_out_bar_stats(
-    bars_2min: Sequence[TwoMinuteBarLike],
-    lookback_bars: int = BREAK_OUT_LOOKBACK_BARS,
-) -> BreakOutBarStats:
+def break_out_bar_stats(bar_series: 'BarSeries', lookback_bars: int = BREAK_OUT_LOOKBACK_BARS) -> BreakOutBarStats:
     """Return breakout pattern result: flag, sizes, and midpoint of largest bar.
 
-    Uses bars from market open through current time (RTH session data).
-    breakout is True when largest bar in lookback window is > 4x the
-    average 2-minute bar size across the full open-to-now sample.
+    Uses bar_series.bars_2min_rth. breakout is True when largest bar in lookback window
+    is > 4x the average 2-minute bar size across the full open-to-now sample.
     """
+    bars_2min = bar_series.bars_2min_rth
     if lookback_bars <= 0:
         return BreakOutBarStats(False, None, None, None)
     if len(bars_2min) < lookback_bars:
@@ -72,9 +65,6 @@ def break_out_bar_stats(
     )
 
 
-def break_out_bar(
-    bars_2min: Sequence[TwoMinuteBarLike],
-    lookback_bars: int = BREAK_OUT_LOOKBACK_BARS,
-) -> bool:
+def break_out_bar(bar_series: 'BarSeries', lookback_bars: int = BREAK_OUT_LOOKBACK_BARS) -> bool:
     """Check for breakout bar in recent lookback window."""
-    return break_out_bar_stats(bars_2min, lookback_bars=lookback_bars).breakout
+    return break_out_bar_stats(bar_series, lookback_bars=lookback_bars).breakout

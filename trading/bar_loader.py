@@ -4,11 +4,11 @@ Single source for bar fetching: get_bars (raw IB request) and load_bars (daily +
 Consumers (market_data, entry_mode) use these and pass bundle when available to avoid duplicate IB calls.
 """
 
-from dataclasses import dataclass
-
-from ib_async import IB, Stock
+from ib_async import IB
+from ib_async import Stock
 
 from trading.config import ACCOUNT_CURRENCY
+from trading.models import BarSeries
 
 TRAILING_STOP_BARS_2MIN = 7  # 14 min trailing stop (7 * 2 min)
 ADR_DAYS = 20
@@ -42,14 +42,6 @@ def get_bars(
         return None
 
 
-@dataclass
-class BarSeries:
-    """Pre-fetched 1D and 2-min bars for a symbol."""
-
-    bars_1d: list
-    bars_2min: list
-
-
 def load_bars(ib: IB | None, symbol: str) -> BarSeries | None:
     """Fetch daily and 2-min bars for symbol. Returns None if either fetch fails."""
     if ib is None or not ib.isConnected():
@@ -64,12 +56,13 @@ def load_bars(ib: IB | None, symbol: str) -> BarSeries | None:
     if not bars_1d:
         return None
 
+    # use_rth=False so bars include PM; VWAP and session-based logic use PM start, RTH views filter as needed
     bars_2min = get_bars(
         ib,
         symbol,
         duration_str='1 D',
         bar_size='2 mins',
-        use_rth=True,
+        use_rth=False,
     )
     if not bars_2min:
         return None

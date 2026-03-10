@@ -25,7 +25,7 @@ from trading.config import (  # noqa: E402
 from trading.models import DayRange, TickerQuote  # noqa: E402
 
 if TYPE_CHECKING:
-    from trading.bar_loader import BarSeries
+    from trading.models import BarSeries
 
 
 def _to_float(val: object) -> float | None:

@@ -1,7 +1,9 @@
-"""Integration tests for daily bar pattern scans.
+"""Integration tests for gap pattern scans.
 
 Requires TWS or IB Gateway running with API enabled.
 Change SYMBOL to test a different ticker.
+shell cmd
+uv run python -m tests.test_gaps
 """
 
 import time
@@ -9,12 +11,12 @@ import unittest
 from datetime import date
 from datetime import datetime
 
-from strategies.bar_patterns.bars_daily import day_3_gap
+from strategies.bar_patterns.gaps import day_3_gap
 from trading.bar_loader import load_bars
 from trading.market_data import connect
 from trading.market_data import disconnect
 
-SYMBOL = 'AAPL'
+SYMBOL = 'USO'
 
 
 def _bar_date(bar_date_value: object) -> date | None:
@@ -26,7 +28,7 @@ def _bar_date(bar_date_value: object) -> date | None:
     return None
 
 
-class TestBarsDailyIntegration(unittest.TestCase):
+class TestGapsIntegration(unittest.TestCase):
     """Integration tests against real IB historical data."""
 
     ib = None
@@ -54,17 +56,17 @@ class TestBarsDailyIntegration(unittest.TestCase):
 
         if bundle is None or not bundle.bars_1d:
             self.skipTest('No daily bars returned')
-        bars_daily = bundle.bars_1d
+        assert bundle is not None
 
         function_start = time.perf_counter()
-        result = day_3_gap(bars_daily)
+        result = day_3_gap(bundle)
         function_seconds = time.perf_counter() - function_start
         total_seconds = retrieval_seconds + function_seconds
 
         self.assertIsInstance(result, bool)
-        latest_day = _bar_date(bars_daily[-1].date)
+        latest_day = _bar_date(bundle.bars_1d[-1].date)
         print(
-            f'{SYMBOL} day_3_gap={result} | bars={len(bars_daily)} | '
+            f'{SYMBOL} day_3_gap={result} | bars={len(bundle.bars_1d)} | '
             f'latest_day={latest_day} | retrieval_s={retrieval_seconds:.4f} | '
             f'function_s={function_seconds:.6f} | total_s={total_seconds:.4f}'
         )

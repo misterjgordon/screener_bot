@@ -4,8 +4,10 @@ from datetime import date
 from datetime import datetime
 from datetime import time
 from datetime import timedelta
+from typing import Literal
 
-# US equities RTH: 9:30 AM - 4:00 PM ET. Naive bar datetimes from IB are assumed ET.
+# US equities session bounds (ET). Naive bar datetimes from IB are assumed ET.
+# PM: before 9:30, RTH: 9:30-16:00, AH: 16:00+
 RTH_START = time(9, 30)
 RTH_END = time(16, 0)
 
@@ -32,6 +34,22 @@ def is_session_bar(bar_date_value: object, session_date: date) -> bool:
     """Return True when bar belongs to the given session date."""
     bd = bar_date(bar_date_value)
     return bd == session_date if bd is not None else False
+
+
+def bar_session(bar_date_value: object) -> Literal['PM', 'RTH', 'AH'] | None:
+    """Classify bar datetime as PM (< 9:30), RTH (9:30-16:00), or AH (>= 16:00) ET.
+
+    Returns None for date-only values (e.g. daily bars) or invalid input.
+    Assumes naive datetimes from IB are in ET for US equities.
+    """
+    if not isinstance(bar_date_value, datetime):
+        return None
+    t = bar_date_value.time()
+    if t < RTH_START:
+        return 'PM'
+    if t < RTH_END:
+        return 'RTH'
+    return 'AH'
 
 
 def is_rth_session_bar(bar_date_value: object, session_date: date) -> bool:

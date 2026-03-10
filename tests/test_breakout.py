@@ -1,30 +1,29 @@
-"""Integration tests for 2-minute bar pattern scans.
+"""Integration tests for breakout bar pattern scans.
 
 Requires TWS or IB Gateway running with API enabled.
 Change SYMBOL to test a different ticker.
 shell cmd
-uv run --frozen python -m tests.test_bars_2min
+uv run python -m tests.test_breakout
 """
 
 import time
 import unittest
 import warnings
 
-from strategies.bar_patterns.bars_2min import BREAK_OUT_LOOKBACK_BARS
-from strategies.bar_patterns.bars_2min import break_out_bar
-from strategies.bar_patterns.bars_2min import break_out_bar_stats
-from strategies.utils import is_session_bar
+from strategies.bar_patterns.breakout import BREAK_OUT_LOOKBACK_BARS
+from strategies.bar_patterns.breakout import break_out_bar
+from strategies.bar_patterns.breakout import break_out_bar_stats
 from strategies.utils import last_trading_day
 from trading.bar_loader import load_bars
 from trading.market_data import connect
 from trading.market_data import disconnect
 
-SYMBOL = 'ORCL'
+SYMBOL = 'IBIT'
 # Override for quick experiments; set to None to use strategy default.
-LOOKBACK_BARS_OVERRIDE: int | None = None
+LOOKBACK_BARS_OVERRIDE: int | None = 130
 
 
-class TestBars2MinIntegration(unittest.TestCase):
+class TestBreakoutIntegration(unittest.TestCase):
     """Integration tests against real IB historical data."""
 
     ib = None
@@ -54,18 +53,17 @@ class TestBars2MinIntegration(unittest.TestCase):
 
         if bundle is None or not bundle.bars_2min:
             self.skipTest('No 2-minute bars returned')
-        bars_2min = bundle.bars_2min
+        assert bundle is not None
 
-        session_bars = [bar for bar in bars_2min if is_session_bar(bar.date, session_date)]
-        if len(session_bars) < lookback_bars:
+        if len(bundle.bars_2min_rth) < lookback_bars:
             self.skipTest(
-                f'Need at least {lookback_bars} 2-minute RTH bars for session {session_date} but only got {
-                    len(session_bars)}'
+                f'Need at least {lookback_bars} 2-minute RTH bars for session {session_date} but only got '
+                f'{len(bundle.bars_2min_rth)}'
             )
 
         function_start = time.perf_counter()
-        result = break_out_bar(session_bars, lookback_bars=lookback_bars)
-        stats = break_out_bar_stats(session_bars, lookback_bars=lookback_bars)
+        result = break_out_bar(bundle, lookback_bars=lookback_bars)
+        stats = break_out_bar_stats(bundle, lookback_bars=lookback_bars)
         largest_bar_size = stats.largest_bar_size
         avg_bar_size = stats.avg_bar_size
         midpoint_largest = stats.midpoint_of_breakout_bar
@@ -80,7 +78,7 @@ class TestBars2MinIntegration(unittest.TestCase):
         print(
             f'{SYMBOL} break_out_bar={result} | session_date={session_date} | '
             f'avg_2min_bar_size={avg_bar_size:.2f} | largest_bar_size={largest_bar_size:.2f}{mid_str} | '
-            f'lookback_bars={lookback_bars} | bars_session={len(session_bars)} | '
+            f'lookback_bars={lookback_bars} | bars_session={len(bundle.bars_2min_rth)} | '
             f'total_s={total_seconds:.4f} | retrieval_s={retrieval_seconds:.4f} | function_s={function_seconds:.6f}'
         )
 
