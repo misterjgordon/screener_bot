@@ -64,16 +64,23 @@ This project demonstrates a complete trading automation workflow, from position 
 ## Project Structure
 
 ```
-├── trading/                 # Main bot and scripts
-│   ├── smb_screener.py     # Main monitoring and execution bot
-│   ├── run_screener.py     # Polling/once entrypoint
-│   └── check_trade.py      # Trade checker utility
+├── alerts/                  # Automation triggers (tracked in git)
+│   └── new_positions/       # One JSON per SMB NEW position
+├── docs/                    # Guides (PostgreSQL, GitHub, snapshot DB, etc.)
+├── resources/               # Gitignored: cookies, position snapshots
+├── scripts/                 # format_python_code.sh, etc.
 ├── smbweb/                  # Django web application
-│   ├── apps/executions/    # Execution tracking app
-│   └── views/              # API endpoints
-├── smb_trader_executions/  # Execution log files (CSV)
-├── pyproject.toml          # Project dependencies
-└── manage.py               # Django management script
+│   ├── apps/executions/     # Execution tracking app
+│   ├── views/               # API endpoints
+│   └── manage.py             # Django management script
+├── strategies/              # Indicators, bar patterns
+├── trading/                 # Main bot and scripts
+│   ├── smb_screener.py      # Main monitoring and execution bot
+│   └── run_screener.py      # Polling/once entrypoint
+├── tests/
+├── logs/                    # Gitignored
+├── smb_trader_executions/   # Gitignored execution CSVs
+└── pyproject.toml           # Project dependencies
 ```
 
 ## Technology Stack
@@ -110,6 +117,7 @@ Implemented multiple risk management approaches:
 - ADR-based stop loss and take profit
 - Position sizing from risk parameters
 - Gap detection and position adjustment
+- Breaout bar detection to avoid entering positions at the end of the candle
 
 ## Execution Tracking
 

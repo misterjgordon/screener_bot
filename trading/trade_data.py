@@ -2,14 +2,16 @@
 
 Single entry point for read-only IB data: available funds, position size, and
 open order status. All functions take an IB connection; connection lifecycle
-is managed by the screener or check_trade.
+is managed by the screener.
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from trading.config import ACCOUNT_CURRENCY, ACTIVE_ORDER_STATUSES, ORDER_TAG
+from trading.config import ACCOUNT_CURRENCY
+from trading.config import ACTIVE_ORDER_STATUSES
+from trading.config import ORDER_TAG
 
 if TYPE_CHECKING:
     from ib_async import IB

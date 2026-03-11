@@ -2,22 +2,24 @@
 Django management command to import execution data from CSV or Excel files.
 
 Usage:
-    python manage.py import_executions <file_path>
-    
+    python smbweb/manage.py import_executions <file_path>
+
 Examples:
     # Import from CSV file
-    python manage.py import_executions smb_trader_executions/executions_2026-01-23.csv
-    
+    python smbweb/manage.py import_executions smb_trader_executions/executions_2026-01-23.csv
+
     # Import from Excel file
-    python manage.py import_executions executions_2026-01-23.xlsx
-    
+    python smbweb/manage.py import_executions executions_2026-01-23.xlsx
+
     # Import with verbose output
-    python manage.py import_executions executions_2026-01-23.csv --verbose
+    python smbweb/manage.py import_executions executions_2026-01-23.csv --verbose
 """
+import argparse
 import csv
-import os
 from decimal import Decimal, InvalidOperation
-from datetime import datetime, timezone, timedelta
+from pathlib import Path
+from datetime import datetime
+from typing import cast
 from zoneinfo import ZoneInfo
 
 import pandas as pd
@@ -30,7 +32,7 @@ from smbweb.apps.executions.models import Execution
 class Command(BaseCommand):
     help = 'Import execution data from CSV or Excel file into the database'
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: argparse.ArgumentParser) -> None:
         parser.add_argument(
             'file_path',
             type=str,
@@ -53,11 +55,11 @@ class Command(BaseCommand):
         dry_run = options['dry_run']
 
         # Validate file exists
-        if not os.path.exists(file_path):
+        if not Path(file_path).exists():
             raise CommandError(f'File not found: {file_path}')
 
         # Determine file type and read data
-        file_ext = os.path.splitext(file_path)[1].lower()
+        file_ext = Path(file_path).suffix.lower()
         
         if file_ext == '.csv':
             rows = self._read_csv(file_path)
@@ -73,12 +75,12 @@ class Command(BaseCommand):
             raise CommandError('No data found in file')
 
         self.stdout.write(
-            self.style.SUCCESS(f'Found {len(rows)} rows to import')
+            self.style.SUCCESS(f'Found {len(rows)} rows to import')  # type: ignore[attr-defined]
         )
 
         if dry_run:
             self.stdout.write(
-                self.style.WARNING('DRY RUN MODE - No data will be imported')
+                self.style.WARNING('DRY RUN MODE - No data will be imported')  # type: ignore[attr-defined]
             )
             self._show_preview(rows)
             return
@@ -93,10 +95,9 @@ class Command(BaseCommand):
             for i, row_data in enumerate(rows, 1):
                 try:
                     # Check for duplicates if requested
-                    if skip_duplicates:
-                        if self._is_duplicate(row_data):
-                            skipped_count += 1
-                            continue
+                    if skip_duplicates and self._is_duplicate(row_data):
+                        skipped_count += 1
+                        continue
 
                     # Create Execution object
                     execution = self._create_execution(row_data)
@@ -115,13 +116,13 @@ class Command(BaseCommand):
                     error_msg = f'Row {i}: {str(e)}'
                     errors.append(error_msg)
                     self.stdout.write(
-                        self.style.ERROR(f'\n{error_msg}')
+                        self.style.ERROR(f'\n{error_msg}')  # type: ignore[attr-defined]
                     )
 
         # Summary
         self.stdout.write('\n' + '=' * 60)
         self.stdout.write(
-            self.style.SUCCESS(
+            self.style.SUCCESS(  # type: ignore[attr-defined]
                 f'Import complete!\n'
                 f'  Imported: {imported_count}\n'
                 f'  Skipped: {skipped_count}\n'
@@ -132,37 +133,35 @@ class Command(BaseCommand):
         if errors:
             self.stdout.write('\nErrors encountered:')
             for error in errors[:10]:  # Show first 10 errors
-                self.stdout.write(self.style.ERROR(f'  - {error}'))
+                self.stdout.write(self.style.ERROR(f'  - {error}'))  # type: ignore[attr-defined]
             if len(errors) > 10:
                 self.stdout.write(
-                    self.style.WARNING(f'  ... and {len(errors) - 10} more errors')
+                    self.style.WARNING(f'  ... and {len(errors) - 10} more errors')  # type: ignore[attr-defined]
                 )
 
-    def _read_csv(self, file_path):
+    def _read_csv(self, file_path: str) -> list[dict[str, object]]:
         """Read CSV file and return list of dictionaries."""
-        rows = []
-        with open(file_path, 'r', encoding='utf-8') as f:
+        rows: list[dict[str, object]] = []
+        with Path(file_path).open(encoding='utf-8') as f:
             reader = csv.DictReader(f)
             for row in reader:
-                rows.append(row)
+                rows.append(cast('dict[str, object]', row))
         return rows
 
-    def _read_excel(self, file_path):
+    def _read_excel(self, file_path: str) -> list[dict[str, object]]:
         """Read Excel file and return list of dictionaries."""
         try:
             df = pd.read_excel(file_path)
-            # Convert DataFrame to list of dictionaries
-            rows = df.to_dict('records')
-            return rows
+            return df.to_dict('records')
         except ImportError as e:
             raise CommandError(
-                f'Excel support requires openpyxl. Install it with: '
-                f'pip install openpyxl (or uv add openpyxl)'
-            )
+                'Excel support requires openpyxl. Install it with: '
+                'pip install openpyxl (or uv add openpyxl)'
+            ) from e
         except Exception as e:
-            raise CommandError(f'Error reading Excel file: {str(e)}')
+            raise CommandError(f'Error reading Excel file: {str(e)}') from e
 
-    def _parse_timestamp(self, timestamp_str):
+    def _parse_timestamp(self, timestamp_str: object) -> datetime | None:
         """
         Parse timestamp string to datetime object.
         
@@ -178,10 +177,11 @@ class Command(BaseCommand):
         - Space format: 2026-01-23 06:09:08 (treated as PST)
         - Date only: 2026-01-23 (assumes 00:00:00 PST)
         """
-        if not timestamp_str or timestamp_str.strip() == '':
+        if timestamp_str is None:
             return None
-
-        timestamp_str = timestamp_str.strip()
+        timestamp_str = str(timestamp_str).strip()
+        if timestamp_str == '':
+            return None
         
         # Remove common timezone suffixes if present (PST, PDT, UTC, etc.)
         # This handles cases where the CSV has been edited to include timezone info
@@ -208,14 +208,14 @@ class Command(BaseCommand):
                 dt_pst = dt.replace(tzinfo=pst_tz)
                 # Convert to UTC, then make naive (for USE_TZ=False)
                 # This ensures PostgreSQL stores the correct UTC time
-                dt_utc = dt_pst.astimezone(timezone.utc)
+                dt_utc = dt_pst.astimezone(datetime.UTC)  # type: ignore[attr-defined]
                 return dt_utc.replace(tzinfo=None)
             except ValueError:
                 continue
 
         raise ValueError(f'Unable to parse timestamp: {timestamp_str}')
 
-    def _parse_decimal(self, value):
+    def _parse_decimal(self, value: object) -> Decimal | None:
         """Parse value to Decimal, returning None if empty or invalid."""
         if value is None or value == '' or str(value).strip() == '':
             return None
@@ -224,16 +224,25 @@ class Command(BaseCommand):
         except (InvalidOperation, ValueError):
             return None
 
-    def _parse_float(self, value):
+    def _parse_float(self, value: object) -> float | None:
         """Parse value to float, returning None if empty or invalid."""
         if value is None or value == '' or str(value).strip() == '':
             return None
         try:
-            return float(value)
+            return float(str(value))
         except (ValueError, TypeError):
             return None
 
-    def _create_execution(self, row_data):
+    def _parse_int(self, value: object) -> int | None:
+        """Parse value to int, returning None if empty or invalid."""
+        if value is None or value == '' or str(value).strip() == '':
+            return None
+        try:
+            return int(float(str(value)))
+        except (ValueError, TypeError):
+            return None
+
+    def _create_execution(self, row_data: dict[str, object]) -> Execution:
         """Create Execution object from row data dictionary."""
         # Parse timestamp
         timestamp = self._parse_timestamp(row_data.get('timestamp'))
@@ -279,9 +288,12 @@ class Command(BaseCommand):
         stop_price = self._parse_decimal(row_data.get('stop_price'))
         take_profit_price = self._parse_decimal(row_data.get('take_profit_price'))
         order_id = str(row_data.get('order_id', '')).strip() or None
+        shares = self._parse_int(row_data.get('shares'))
+        total_risk = self._parse_float(row_data.get('total_risk'))
+        risk_per_share = self._parse_float(row_data.get('risk_per_share'))
+        market_value = self._parse_float(row_data.get('market_value'))
 
-        # Create Execution object
-        execution = Execution(
+        return Execution(
             timestamp=timestamp,
             trader=trader,
             symbol=symbol,
@@ -292,11 +304,13 @@ class Command(BaseCommand):
             stop_price=stop_price,
             take_profit_price=take_profit_price,
             order_id=order_id,
+            shares=shares,
+            total_risk=total_risk,
+            risk_per_share=risk_per_share,
+            market_value=market_value,
         )
 
-        return execution
-
-    def _is_duplicate(self, row_data):
+    def _is_duplicate(self, row_data: dict[str, object]) -> bool:
         """Check if a row already exists in the database."""
         timestamp = self._parse_timestamp(row_data.get('timestamp'))
         trader = str(row_data.get('trader', '')).strip()
@@ -306,14 +320,14 @@ class Command(BaseCommand):
         if not all([timestamp, trader, symbol, change_type]):
             return False
 
-        return Execution.objects.filter(
+        return Execution.objects.filter(  # type: ignore[attr-defined]
             timestamp=timestamp,
             trader=trader,
             symbol=symbol,
             change_type=change_type,
         ).exists()
 
-    def _show_preview(self, rows):
+    def _show_preview(self, rows: list[dict[str, object]]) -> None:
         """Show preview of data that would be imported."""
         self.stdout.write('\nPreview of first 5 rows:')
         self.stdout.write('-' * 60)

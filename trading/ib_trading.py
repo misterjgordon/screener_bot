@@ -3,7 +3,7 @@
 Single entry point for IB trading: placing and cancelling orders (bracket,
 scaling, market). Account and position queries live in trade_data. All
 functions take an IB connection; connection lifecycle is managed by the
-screener or check_trade.
+screener.
 """
 
 import traceback
@@ -234,6 +234,7 @@ def send_bracket_order(
     magnitude: float,
     trader: str = '',
     entry_order_type: str = 'stop',
+    num_shares: int | None = None,
 ) -> OrderEntry:
     """
     Send a bracket order to IB for NEW/ADD positions.
@@ -247,6 +248,7 @@ def send_bracket_order(
         take_profit_price: Take profit price
         magnitude: Position magnitude (used to calculate trade_stop_percent)
         entry_order_type: 'stop' for StopOrder at entry_price, 'limit' for LimitOrder at entry_price
+        num_shares: If set, use this share count instead of calculating from magnitude
 
     Returns:
         OrderEntry: order_id and sizing (num_shares, total_risk, risk_per_share) for CSV logging.
@@ -256,20 +258,21 @@ def send_bracket_order(
         trade_stop_percent = magnitude / 100.0
         trade_stop_amount = DAILY_STOP * trade_stop_percent
 
-        available_funds = get_available_funds(ib)
-        if available_funds <= 0:
-            print(f'Error: Insufficient available funds: ${available_funds:.2f}')
-            return order_result
+        if num_shares is None:
+            available_funds = get_available_funds(ib)
+            if available_funds <= 0:
+                print(f'Error: Insufficient available funds: ${available_funds:.2f}')
+                return order_result
 
-        num_shares = calculate_num_shares_from_risk(
-            trade_stop_amount=trade_stop_amount,
-            entry_price=entry_price,
-            stop_loss_price=stop_price,
-            is_long=is_long,
-            available_funds=available_funds,
-        )
+            num_shares = calculate_num_shares_from_risk(
+                trade_stop_amount=trade_stop_amount,
+                entry_price=entry_price,
+                stop_loss_price=stop_price,
+                is_long=is_long,
+                available_funds=available_funds,
+            )
 
-        if num_shares == 0:
+        if num_shares == 0 or num_shares is None:
             print(f'Error: Calculated share quantity is zero for {symbol}')
             return order_result
 
@@ -346,6 +349,7 @@ def send_entry_only_order(
     magnitude: float,
     trader: str = '',
     entry_order_type: str = 'stop',
+    num_shares: int | None = None,
 ) -> OrderEntry:
     """
     Send an entry order without stop loss (when trailing stop and ADR both fail).
@@ -357,6 +361,7 @@ def send_entry_only_order(
         entry_price: Entry trigger price (stop trigger or limit price)
         magnitude: Position magnitude (used to calculate trade_stop_percent)
         entry_order_type: 'stop' for StopOrder, 'limit' for LimitOrder at entry_price
+        num_shares: If set, use this share count instead of calculating from magnitude
 
     Returns:
         OrderEntry: order_id and sizing (num_shares, total_risk, risk_per_share) for CSV logging.
@@ -366,15 +371,16 @@ def send_entry_only_order(
         trade_stop_percent = magnitude / 100.0
         trade_stop_amount = DAILY_STOP * trade_stop_percent
 
-        available_funds = get_available_funds(ib)
-        if available_funds <= 0:
-            print(f'Error: Insufficient available funds: ${available_funds:.2f}')
-            return order_result
+        if num_shares is None:
+            available_funds = get_available_funds(ib)
+            if available_funds <= 0:
+                print(f'Error: Insufficient available funds: ${available_funds:.2f}')
+                return order_result
 
-        assumed_risk_percent = 0.02
-        num_shares = int((available_funds * trade_stop_percent) / (entry_price * assumed_risk_percent))
+            assumed_risk_percent = 0.02
+            num_shares = int((available_funds * trade_stop_percent) / (entry_price * assumed_risk_percent))
 
-        if num_shares == 0:
+        if num_shares == 0 or num_shares is None:
             print(f'Error: Calculated share quantity is zero for {symbol}')
             return order_result
 

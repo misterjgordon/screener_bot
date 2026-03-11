@@ -103,8 +103,7 @@ Press `Ctrl+C` to gracefully stop the bot. The IB connection will be closed auto
 
 ```
 ├── trading/                 # Main bot and scripts
-│   ├── smb_screener.py     # Main bot script
-│   └── check_trade.py     # Trade checker utility
+│   └── smb_screener.py     # Main bot script
 ├── position_snapshot.json   # Current position snapshot (auto-generated)
 ├── smb_cookies.pkl         # Session cookies (auto-generated)
 ├── smb_trader_executions/  # Execution logs (CSV files)
@@ -168,13 +167,13 @@ The `smbweb/` directory contains a Django application for tracking and analyzing
 
 ```bash
 # Run Django migrations
-python manage.py migrate
+python smbweb/manage.py migrate
 
 # Import execution data
-python manage.py import_executions
+python smbweb/manage.py import_executions
 
 # Start development server
-python manage.py runserver
+python smbweb/manage.py runserver
 ```
 
 ## License

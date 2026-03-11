@@ -9,7 +9,8 @@ class Execution(models.Model):
     
     This model corresponds to the CSV structure:
     timestamp, trader, symbol, change_type, net_side, delta_magnitude,
-    entry_price, stop_price, take_profit_price, order_id
+    entry_price, stop_price, take_profit_price, order_id,
+    shares, total_risk, risk_per_share, market_value
     
     Future: Will also include data directly from TWS orders and executions.
     """
@@ -54,7 +55,13 @@ class Execution(models.Model):
     
     # IB order ID if order was placed
     order_id = models.CharField(max_length=50, null=True, blank=True, db_index=True)
-    
+
+    # Risk/sizing from calculate_num_shares_from_risk
+    shares = models.IntegerField(null=True, blank=True)
+    total_risk = models.FloatField(null=True, blank=True)
+    risk_per_share = models.FloatField(null=True, blank=True)
+    market_value = models.FloatField(null=True, blank=True)
+
     # Future: TWS-specific fields can be added here
     # tws_execution_id = models.CharField(max_length=50, null=True, blank=True)
     # tws_order_id = models.IntegerField(null=True, blank=True)
@@ -69,8 +76,8 @@ class Execution(models.Model):
             models.Index(fields=['trader', 'symbol', '-timestamp']),
         ]
     
-    def __str__(self):
-        return f"{self.timestamp} | {self.trader} | {self.symbol} | {self.change_type}"
+    def __str__(self) -> str:
+        return f'{self.timestamp} | {self.trader} | {self.symbol} | {self.change_type}'
 
 
 class Position(models.Model):
@@ -124,12 +131,12 @@ class Position(models.Model):
     option_type = models.CharField(max_length=1, null=True, blank=True, choices=[('C', 'Call'), ('P', 'Put')])
     
     # Position details
-    is_long_term = models.BooleanField(default=False, db_index=True)
+    is_long_term = models.BooleanField(default=False, db_index=True)  # pyright: ignore[reportArgumentType]
     net_side = models.CharField(max_length=10, choices=Execution.SIDE_CHOICES)  # long, short, flat
-    conflict = models.BooleanField(default=False)
+    conflict = models.BooleanField(default=False)  # pyright: ignore[reportArgumentType]
     
     # Magnitude values
-    total_magnitude = models.FloatField(default=0.0)
+    total_magnitude = models.FloatField(default=0.0)  # pyright: ignore[reportArgumentType]
     prev_magnitude = models.FloatField(null=True, blank=True)
     delta_magnitude = models.FloatField(null=True, blank=True)
     
@@ -156,5 +163,5 @@ class Position(models.Model):
         # Prevent duplicate change events for same timestamp/trader/symbol
         unique_together = [['timestamp', 'trader', 'symbol']]
     
-    def __str__(self):
-        return f"{self.timestamp} | {self.trader} | {self.symbol} | {self.net_side} | {self.total_magnitude}"
+    def __str__(self) -> str:
+        return f'{self.timestamp} | {self.trader} | {self.symbol} | {self.net_side} | {self.total_magnitude}'

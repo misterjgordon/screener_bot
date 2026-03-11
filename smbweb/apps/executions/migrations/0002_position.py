@@ -3,10 +3,10 @@
 import django.utils.timezone
 from django.db import migrations, models
 
-# shell promt to make migrations file:
-# python manage.py makemigrations executions
-# shell primt to apply migrations:
-# python manage.py migrate
+# shell prompt to make migrations file:
+# python smbweb/manage.py makemigrations executions
+# shell prompt to apply migrations:
+# python smbweb/manage.py migrate
 class Migration(migrations.Migration):
 
     dependencies = [

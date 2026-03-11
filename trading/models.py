@@ -229,7 +229,7 @@ class Execution:
     risk_per_share: float | None = None
 
     @property
-    def value(self) -> float | None:
+    def market_value(self) -> float | None:
         """Notional value at entry: shares * entry_price."""
         if self.shares is not None and self.entry_price is not None:
             return self.shares * self.entry_price
@@ -241,12 +241,12 @@ class Execution:
         return [
             'timestamp', 'trader', 'symbol', 'change_type', 'net_side', 'delta_magnitude',
             'entry_price', 'stop_price', 'take_profit_price', 'order_id',
-            'shares', 'total_risk', 'risk_per_share', 'value',
+            'shares', 'total_risk', 'risk_per_share', 'market_value',
         ]
 
     def to_csv_row(self) -> dict[str, str | int | float]:
         """Dict for csv.DictWriter.writerow; None values become empty string."""
-        val = self.value
+        val = self.market_value
         return {
             'timestamp': self.timestamp,
             'trader': self.trader,
@@ -261,5 +261,5 @@ class Execution:
             'shares': self.shares if self.shares is not None else '',
             'total_risk': self.total_risk if self.total_risk is not None else '',
             'risk_per_share': round(self.risk_per_share, 2) if self.risk_per_share is not None else '',
-            'value': val if val is not None else '',
+            'market_value': round(val, 2) if val is not None else '',
         }

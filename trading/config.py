@@ -22,7 +22,7 @@ IB_HOST = '127.0.0.1'
 IB_PORT = 7496
 IB_CLIENT_ID = 1  # smb screener (use different ID from jobot)
 IB_CLIENT_ID_MARKET_DATA = 2  # market_data standalone/tests (1 reserved for screener)
-IB_CLIENT_ID_CHECK_TRADE = 3  # check_trade / notebooks (avoid conflict with screener)
+IB_CLIENT_ID_TRADE_MGMT = 4  # test_trade_mgmt integration tests
 
 DAILY_STOP = 250  # USD - maximum daily loss allowed
 STOP_OFFSET = 0.02  # USD - buffer below day low (long) or above day high (short)

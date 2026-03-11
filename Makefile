@@ -1,17 +1,16 @@
-.PHONY: help install format format-file lint lint-file type-check type-check-file run check-trade screener clean smb-install smb-reload smb-start smb-stop smb-status smb-logs smb-unload
+.PHONY: help install format format-file lint lint-file type-check type-check-file run screener clean smb-install smb-reload smb-start smb-stop smb-status smb-logs smb-unload
 
 # Default target
 help:
 	@echo "Available commands:"
 	@echo "  make install              - Install dependencies with uv"
 	@echo "  make format               - Format all Python code (ty, ruff, autopep8)"
-	@echo "  make format-file FILE=... - Format specific file (e.g., make format-file FILE=trading/check_trade.py)"
+	@echo "  make format-file FILE=... - Format specific file (e.g., make format-file FILE=trading/smb_screener.py)"
 	@echo "  make lint                 - Run ruff linter on all files"
 	@echo "  make lint-file FILE=...   - Run ruff linter on specific file"
 	@echo "  make type-check           - Run ty type checker on all files"
 	@echo "  make type-check-file FILE=... - Run ty type checker on specific file"
 	@echo "  make run                  - Run trading/smb_screener.py"
-	@echo "  make check-trade          - Run trading/check_trade.py"
 	@echo "  make smb                  - Run trading/smb_screener.py"
 
 	@echo "  make clean                - Clean Python cache files"
@@ -31,7 +30,7 @@ install:
 
 # Format code (following spec.md pattern)
 format:  ## run autopep, isort, ruff on $(code); ty on changed files vs webdev
-	@./trading/format_python_code.sh $(code)
+	@./scripts/format_python_code.sh $(code)
 # Format specific file
 format-file:
 	@if [ -z "$(FILE)" ]; then \
@@ -72,10 +71,6 @@ type-check-file:
 # Run main script (uv run + -m so trading package is found from repo root)
 run:
 	uv run python -m trading.smb_screener
-
-# Run check_trade script
-check-trade:
-	uv run python -m trading.check_trade
 
 # Run screener script
 smb:

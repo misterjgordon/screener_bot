@@ -35,5 +35,11 @@ position_snapshot.json
 resources/cookies/
 resources/positions/
 
-# Execution logs (CSV files in executions directory)
-smb_trader_executions/*.csv
+# Execution logs (entire directory, do not upload to GitHub)
+smb_trader_executions/
+
+#tesing documents
+docs/
+
+#tesintg alerts
+alerts/

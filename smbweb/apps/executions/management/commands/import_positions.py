@@ -1,17 +1,23 @@
 """
 Django management command to import position snapshots from JSON file to database.
 
+The screener writes to resources/positions/position_snapshot.json. By default this
+command reads from that path (relative to project root). Override with --file.
+
 Usage:
-    python manage.py import_positions
-    
+    python smbweb/manage.py import_positions
+
+    # Import from default (resources/positions/position_snapshot.json)
+    python smbweb/manage.py import_positions
+
     # Import from specific file
-    python manage.py import_positions --file position_snapshot.json
-    
+    python smbweb/manage.py import_positions --file path/to/position_snapshot.json
+
     # Import all positions (not just changes)
-    python manage.py import_positions --all
-    
+    python smbweb/manage.py import_positions --all
+
     # Import including flat positions
-    python manage.py import_positions --include-flat
+    python smbweb/manage.py import_positions --include-flat
 """
 import os
 from django.core.management.base import BaseCommand, CommandError
@@ -25,8 +31,8 @@ class Command(BaseCommand):
         parser.add_argument(
             '--file',
             type=str,
-            default='position_snapshot.json',
-            help='Path to the position snapshot JSON file (default: position_snapshot.json)'
+            default='resources/positions/position_snapshot.json',
+            help='Path to the position snapshot JSON file (default: resources/positions/position_snapshot.json)'
         )
         parser.add_argument(
             '--all',

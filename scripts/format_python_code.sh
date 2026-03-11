@@ -3,10 +3,10 @@
 # Code formatting script for Python files
 #
 # Usage:
-#   ./trading/format_python_code.sh [options] <paths...>
+#   ./scripts/format_python_code.sh [options] <paths...>
 #
 # - autopep8 and ruff run on all provided paths (required, can be directories)
-# - ty only runs on specific .py files; if no .py files in paths, 
+# - ty only runs on specific .py files; if no .py files in paths,
 #   auto-detects changed files on current branch vs webdev
 #
 # Options:
@@ -63,12 +63,12 @@ if [ "$SKIP_TY" = false ]; then
     if [ -z "$(echo "$TY_FILES" | xargs)" ]; then
         # Use origin/main to include uncommitted changes
         CHANGED_FILES=$(git diff --name-only origin/main -- '*.py')
-        
+
         if [ -z "$CHANGED_FILES" ]; then
             echo "No Python files changed on current branch vs webdev - skipping ty"
             exit 0
         fi
-        
+
         # Collect existing changed files
         for file in $CHANGED_FILES; do
             [ -f "$file" ] && TY_FILES="$TY_FILES $file"
@@ -88,7 +88,7 @@ if [ "$SKIP_TY" = false ]; then
 
     if [ -n "$TY_FILES" ]; then
         echo "Running ty check on $(echo "$TY_FILES" | wc -w | xargs) file(s)..."
-        
+
         if [ "$STRICT" = true ]; then
             # Strict mode: fail on warnings too
             uv run --frozen ty check --error-on-warning $TY_FILES
