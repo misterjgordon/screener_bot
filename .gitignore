@@ -38,8 +38,6 @@ resources/positions/
 # Execution logs (entire directory, do not upload to GitHub)
 smb_trader_executions/
 
-#tesing documents
+# Testing / local-only (if already committed, run: git rm -r --cached docs/ alerts/)
 docs/
-
-#tesintg alerts
 alerts/
