@@ -4,13 +4,17 @@ Single source for bar fetching: get_bars (raw IB request) and load_bars (daily +
 Consumers (market_data, entry_mode) use these and pass bundle when available to avoid duplicate IB calls.
 """
 
+from datetime import date
+from datetime import datetime
+from datetime import time
+
 from ib_async import IB
 from ib_async import Stock
 
 from trading.config import ACCOUNT_CURRENCY
 from trading.models import BarSeries
 
-TRAILING_STOP_BARS_2MIN = 7  # 14 min trailing stop (7 * 2 min)
+TRAILING_STOP_BARS_2MIN = 22  # 44 min trailing window (22 * 2 min) for move filter
 ADR_DAYS = 20
 DAILY_DURATION = f'{ADR_DAYS} D'
 
@@ -22,16 +26,21 @@ def get_bars(
     bar_size: str,
     what_to_show: str = 'TRADES',
     use_rth: bool = True,
+    end_date: date | None = None,
 ) -> list | None:
-    """Get historical bars for symbol. Returns raw ib_async BarData objects."""
+    """Get historical bars for symbol. Returns raw ib_async BarData objects.
+
+    If end_date is set, request ends at 4:00 PM ET on that date; otherwise most recent data.
+    """
     if ib is None or not ib.isConnected():
         return None
+    end_dt = datetime.combine(end_date, time(16, 0)) if end_date else ''
     try:
         contract = Stock(symbol, 'SMART', ACCOUNT_CURRENCY)
         ib.qualifyContracts(contract)
         return ib.reqHistoricalData(
             contract,
-            endDateTime='',
+            endDateTime=end_dt,
             durationStr=duration_str,
             barSizeSetting=bar_size,
             whatToShow=what_to_show,
@@ -42,8 +51,12 @@ def get_bars(
         return None
 
 
-def load_bars(ib: IB | None, symbol: str) -> BarSeries | None:
-    """Fetch daily and 2-min bars for symbol. Returns None if either fetch fails."""
+def load_bars(ib: IB | None, symbol: str, end_date: date | None = None) -> BarSeries | None:
+    """Fetch daily and 2-min bars for symbol. Returns None if either fetch fails.
+
+    If end_date is set, bars are requested through 4:00 PM ET on that date (for backtesting a specific day).
+    Otherwise returns most recent data.
+    """
     if ib is None or not ib.isConnected():
         return None
 
@@ -52,6 +65,7 @@ def load_bars(ib: IB | None, symbol: str) -> BarSeries | None:
         symbol,
         duration_str=DAILY_DURATION,
         bar_size='1 day',
+        end_date=end_date,
     )
     if not bars_1d:
         return None
@@ -63,6 +77,7 @@ def load_bars(ib: IB | None, symbol: str) -> BarSeries | None:
         duration_str='1 D',
         bar_size='2 mins',
         use_rth=False,
+        end_date=end_date,
     )
     if not bars_2min:
         return None

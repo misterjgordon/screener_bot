@@ -7,7 +7,11 @@ if TYPE_CHECKING:
 
 
 def ema(bar_series: 'BarSeries', period: int) -> float | None:
-    """Exponential Moving Average of close prices. Uses bar_series.bars_2min."""
+    """Exponential Moving Average of close prices over bar_series.bars_2min; one value per call.
+
+    To get EMA at any point in the day: pass a BarSeries whose bars_2min is the slice from
+    session start (PM) through that bar; calculation starts from the first bar (PM).
+    """
     bars = bar_series.bars_2min
     if len(bars) < period:
         return None

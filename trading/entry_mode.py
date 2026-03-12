@@ -87,6 +87,7 @@ def get_entry_mode(
 
     stats = break_out_bar_stats(bar_series, lookback_bars=BREAK_OUT_LOOKBACK_BARS)
     if stats.breakout and stats.midpoint_of_breakout_bar is not None:
+        print(f'Breakout bar TRUE for {symbol}: using limit at midpoint ${stats.midpoint_of_breakout_bar:.2f}')
         return EntryMode(
             order_type='limit',
             entry_price=stats.midpoint_of_breakout_bar,

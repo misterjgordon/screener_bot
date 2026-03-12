@@ -7,12 +7,11 @@ if TYPE_CHECKING:
 
 
 def vwap(bar_series: 'BarSeries') -> float | None:
-    """Volume-weighted average price: cumulative(typical_price * volume) / cumulative(volume).
+    """Volume-weighted average price: one price per call over bar_series.bars_2min.
 
-    Typical price per bar = (H + L + C) / 3.
-    Example: bar with H=20, L=15, C=18 → typical = 17.67; typical * V = 353.33;
-    over multiple bars, VWAP = sum(typical * volume) / sum(volume).
-    Uses bar_series.bars_2min.
+    Cumulative(typical_price * volume) / cumulative(volume). Typical price = (H + L + C) / 3.
+    To get VWAP at any point in the day: pass a BarSeries whose bars_2min is the slice from
+    session start (PM) through that bar; calculation starts from the first bar (PM).
     """
     bars = bar_series.bars_2min
     if not bars:

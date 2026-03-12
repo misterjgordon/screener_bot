@@ -31,6 +31,7 @@ class OrderEntry:
     num_shares: int | None
     total_risk: float | None
     risk_per_share: float | None
+    skip_reason: str | None = None  # Set when order not placed (e.g. insufficient funds)
 
 
 def calculate_num_shares_from_risk(
@@ -253,7 +254,7 @@ def send_bracket_order(
     Returns:
         OrderEntry: order_id and sizing (num_shares, total_risk, risk_per_share) for CSV logging.
     """
-    order_result = OrderEntry(None, None, None, None)
+    order_result = OrderEntry(None, None, None, None, None)
     try:
         trade_stop_percent = magnitude / 100.0
         trade_stop_amount = DAILY_STOP * trade_stop_percent
@@ -261,6 +262,7 @@ def send_bracket_order(
         if num_shares is None:
             available_funds = get_available_funds(ib)
             if available_funds <= 0:
+                order_result.skip_reason = f'insufficient_available_funds (${available_funds:.2f})'
                 print(f'Error: Insufficient available funds: ${available_funds:.2f}')
                 return order_result
 
@@ -273,6 +275,7 @@ def send_bracket_order(
             )
 
         if num_shares == 0 or num_shares is None:
+            order_result.skip_reason = 'calculated_shares_zero'
             print(f'Error: Calculated share quantity is zero for {symbol}')
             return order_result
 
@@ -306,6 +309,7 @@ def send_bracket_order(
             parent_order_id = parent_trade.order.orderId
 
         if parent_order_id is None:
+            order_result.skip_reason = 'no_parent_order_id'
             print(f'Error: Could not obtain parent order ID for {symbol}')
             return order_result
 
@@ -336,6 +340,7 @@ def send_bracket_order(
         return OrderEntry(order_id, num_shares, trade_stop_amount, risk_per_share)
 
     except Exception as e:
+        order_result.skip_reason = f'exception: {e}'
         print(f'Error placing bracket order for {symbol}: {e}')
         traceback.print_exc()
         return order_result
@@ -366,7 +371,7 @@ def send_entry_only_order(
     Returns:
         OrderEntry: order_id and sizing (num_shares, total_risk, risk_per_share) for CSV logging.
     """
-    order_result = OrderEntry(None, None, None, None)
+    order_result = OrderEntry(None, None, None, None, None)
     try:
         trade_stop_percent = magnitude / 100.0
         trade_stop_amount = DAILY_STOP * trade_stop_percent
@@ -374,6 +379,7 @@ def send_entry_only_order(
         if num_shares is None:
             available_funds = get_available_funds(ib)
             if available_funds <= 0:
+                order_result.skip_reason = f'insufficient_available_funds (${available_funds:.2f})'
                 print(f'Error: Insufficient available funds: ${available_funds:.2f}')
                 return order_result
 
@@ -381,6 +387,7 @@ def send_entry_only_order(
             num_shares = int((available_funds * trade_stop_percent) / (entry_price * assumed_risk_percent))
 
         if num_shares == 0 or num_shares is None:
+            order_result.skip_reason = 'calculated_shares_zero'
             print(f'Error: Calculated share quantity is zero for {symbol}')
             return order_result
 
@@ -409,6 +416,7 @@ def send_entry_only_order(
         return OrderEntry(order_id, num_shares, trade_stop_amount, risk_per_share)
 
     except Exception as e:
+        order_result.skip_reason = f'exception: {e}'
         print(f'Error placing entry-only order for {symbol}: {e}')
         traceback.print_exc()
         return order_result

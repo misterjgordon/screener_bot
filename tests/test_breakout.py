@@ -18,7 +18,7 @@ from trading.bar_loader import load_bars
 from trading.market_data import connect
 from trading.market_data import disconnect
 
-SYMBOL = 'IBIT'
+SYMBOL = 'SOC'
 # Override for quick experiments; set to None to use strategy default.
 LOOKBACK_BARS_OVERRIDE: int | None = 130
 

@@ -196,6 +196,8 @@ def process_execution_change(
                                     csv_shares = result.num_shares
                                     csv_total_risk = result.total_risk
                                     csv_risk_per_share = result.risk_per_share
+                                    if result.order_id is None and getattr(result, 'skip_reason', None):
+                                        no_place_reason = result.skip_reason
                                 else:
                                     if not stop_price:
                                         print(
@@ -213,6 +215,8 @@ def process_execution_change(
                                     csv_shares = result.num_shares
                                     csv_total_risk = result.total_risk
                                     csv_risk_per_share = result.risk_per_share
+                                    if result.order_id is None and getattr(result, 'skip_reason', None):
+                                        no_place_reason = result.skip_reason
                         elif change_type == 'ADD':
                             current_position = get_position_size(ib, underlying)
                             # Check if position exists and is in the same direction
@@ -313,6 +317,8 @@ def process_execution_change(
                                         csv_shares = result.num_shares
                                         csv_total_risk = result.total_risk
                                         csv_risk_per_share = result.risk_per_share
+                                        if result.order_id is None and getattr(result, 'skip_reason', None):
+                                            no_place_reason = result.skip_reason
                                     else:
                                         if not stop_price:
                                             print(
@@ -330,6 +336,8 @@ def process_execution_change(
                                         csv_shares = result.num_shares
                                         csv_total_risk = result.total_risk
                                         csv_risk_per_share = result.risk_per_share
+                                        if result.order_id is None and getattr(result, 'skip_reason', None):
+                                            no_place_reason = result.skip_reason
                 else:
                     # No entry price available
                     no_place_reason = 'no_market_price'
@@ -367,6 +375,7 @@ def process_execution_change(
     elif change_type == 'TRIM':
         if net_side in ['long', 'short']:
             is_long = (net_side == 'long')
+            trim_no_place_reason: str | None = None
 
             if ib is not None and ib.isConnected():
                 # Get current position size from IB
@@ -405,11 +414,22 @@ def process_execution_change(
                                 )
                                 if child_orders_updated:
                                     print('   ✓ Updated child orders to match reduced position size')
+                        elif not ACTIVE_TRADING:
+                            trim_no_place_reason = 'ACTIVE_TRADING disabled'
+                        else:
+                            trim_no_place_reason = f'exit_size zero (delta_magnitude={delta_magnitude})'
                     else:
+                        trim_no_place_reason = 'no position in IB'
                         print(f'⚠️  No position found in IB for {underlying} - nothing to trim')
                 except Exception as e:
+                    trim_no_place_reason = f'exception: {e}'
                     print(f'Error getting position for {underlying}: {e}')
                     traceback.print_exc()
+            else:
+                trim_no_place_reason = 'IB not connected'
+
+            if order_id is None and trim_no_place_reason:
+                print(f'Order not placed for TRIM {underlying} ({trader}): {trim_no_place_reason}')
 
             # Save to CSV
             save_execution_to_csv(
