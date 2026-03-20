@@ -32,11 +32,14 @@ class TestGapsIntegration(unittest.TestCase):
     """Integration tests against real IB historical data."""
 
     ib = None
+    bundle = None
 
     @classmethod
     def setUpClass(cls) -> None:
-        """Connect once for all tests."""
+        """Connect once and load bars once for all tests."""
         cls.ib = connect(readonly=True)
+        if cls.ib is not None and cls.ib.isConnected():
+            cls.bundle = load_bars(cls.ib, SYMBOL)
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -50,9 +53,8 @@ class TestGapsIntegration(unittest.TestCase):
 
     def test_day_3_gap_timing_and_result(self) -> None:
         """Fetch daily bars via bar_loader, run day_3_gap, and print timing metrics."""
-        retrieval_start = time.perf_counter()
-        bundle = load_bars(self.ib, SYMBOL)
-        retrieval_seconds = time.perf_counter() - retrieval_start
+        bundle = self.bundle
+        retrieval_seconds = 0.0
 
         if bundle is None or not bundle.bars_1d:
             self.skipTest('No daily bars returned')

@@ -54,10 +54,12 @@ def save_execution_to_csv(
     stop_price: float | None = None,
     take_profit_price: float | None = None,
     order_id: str | None = None,
+    filled_price: float | None = None,
     timestamp: str | None = None,
     shares: int | None = None,
     total_risk: float | None = None,
     risk_per_share: float | None = None,
+    risk_percent: float | None = None,
 ) -> None:
     """Save execution data to CSV file using Execution schema."""
     ensure_executions_dir()
@@ -76,9 +78,11 @@ def save_execution_to_csv(
         stop_price=stop_price,
         take_profit_price=take_profit_price,
         order_id=order_id,
+        filled_price=filled_price,
         shares=shares,
         total_risk=total_risk,
         risk_per_share=risk_per_share,
+        risk_percent=risk_percent,
     )
     with Path(filename).open('a', newline='', encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=Execution.csv_fieldnames())

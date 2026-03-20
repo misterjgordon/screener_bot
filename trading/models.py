@@ -179,10 +179,14 @@ class PositionSummary:
     delta_magnitude: float | None = None
     change_type: str | None = None
     order_placed: bool | None = None
+    risk_percent: float | None = None
 
     def to_dict(self) -> dict:
         """Convert to dict for JSON serialization."""
-        return asdict(self)
+        d = asdict(self)
+        # Keep backward-compatible key naming for analysis tooling.
+        d['risk_%'] = d.pop('risk_percent')
+        return d
 
     @classmethod
     def from_dict(cls, d: dict) -> 'PositionSummary':
@@ -203,6 +207,7 @@ class PositionSummary:
             delta_magnitude=d.get('delta_magnitude'),
             change_type=d.get('change_type'),
             order_placed=d.get('order_placed'),
+            risk_percent=d.get('risk_%', d.get('risk_percent')),
         )
 
 
@@ -224,9 +229,11 @@ class Execution:
     stop_price: float | None = None
     take_profit_price: float | None = None
     order_id: str | None = None
+    filled_price: float | None = None
     shares: int | None = None
     total_risk: float | None = None
     risk_per_share: float | None = None
+    risk_percent: float | None = None
 
     @property
     def market_value(self) -> float | None:
@@ -240,8 +247,8 @@ class Execution:
         """Column names for csv.DictWriter (single source of truth for CSV schema)."""
         return [
             'timestamp', 'trader', 'symbol', 'change_type', 'net_side', 'delta_magnitude',
-            'entry_price', 'stop_price', 'take_profit_price', 'order_id',
-            'shares', 'total_risk', 'risk_per_share', 'market_value',
+            'entry_price', 'stop_price', 'take_profit_price', 'order_id', 'filled_price',
+            'shares', 'total_risk', 'risk_per_share', 'market_value', 'risk_%',
         ]
 
     def to_csv_row(self) -> dict[str, str | int | float]:
@@ -258,8 +265,10 @@ class Execution:
             'stop_price': self.stop_price if self.stop_price is not None else '',
             'take_profit_price': self.take_profit_price if self.take_profit_price is not None else '',
             'order_id': self.order_id if self.order_id is not None else '',
+            'filled_price': self.filled_price if self.filled_price is not None else '',
             'shares': self.shares if self.shares is not None else '',
             'total_risk': self.total_risk if self.total_risk is not None else '',
             'risk_per_share': round(self.risk_per_share, 2) if self.risk_per_share is not None else '',
             'market_value': round(val, 2) if val is not None else '',
+            'risk_%': round(self.risk_percent, 2) if self.risk_percent is not None else '',
         }

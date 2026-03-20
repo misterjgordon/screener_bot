@@ -85,7 +85,12 @@ def get_entry_mode(
     if len(bar_series.bars_2min_rth) < BREAK_OUT_LOOKBACK_BARS:
         return EntryMode(order_type='limit', entry_price=limit_price, skip=False)
 
-    stats = break_out_bar_stats(bar_series, lookback_bars=BREAK_OUT_LOOKBACK_BARS)
+    stats = break_out_bar_stats(
+        bar_series,
+        lookback_bars=BREAK_OUT_LOOKBACK_BARS,
+        ib=ib,
+        symbol=symbol,
+    )
     if stats.breakout and stats.midpoint_of_breakout_bar is not None:
         print(f'Breakout bar TRUE for {symbol}: using limit at midpoint ${stats.midpoint_of_breakout_bar:.2f}')
         return EntryMode(

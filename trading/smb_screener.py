@@ -1,12 +1,11 @@
 """
 Purpose: This script is used to screen for positions from the SMB API
-and execute trades in IB (interactive brokers live account). For educational purposes only.
+and execute trades in IB (interactive brokers paper account by default). For educational purposes only.
 """
 # IB imports - need event loop setup before importing ib_async
 import asyncio
 import threading
 import time
-import traceback
 from collections import defaultdict
 from typing import TYPE_CHECKING
 
@@ -103,27 +102,31 @@ def get_ib_connection() -> IB | None:
 
         client_id = _SCREENER_CLIENT_IDS[_ib_reconnect_attempt % len(_SCREENER_CLIENT_IDS)]
         _ib_reconnect_attempt += 1
+        readonly_mode = not ACTIVE_TRADING
+
+        last_exc: Exception | None = None
+
         print(f'Attempting IB connection to {IB_HOST}:{IB_PORT} with client ID {client_id}...')
         try:
             ib = IB()
-            readonly_mode = not ACTIVE_TRADING
             ib.connect(IB_HOST, IB_PORT, clientId=client_id, readonly=readonly_mode)
             if ib.isConnected():
                 _ib_connection = ib
                 mode_str = 'readonly' if readonly_mode else 'trading'
                 print(f'✓ IB connected: {IB_HOST}:{IB_PORT} ({mode_str} mode, client ID {client_id})')
                 if readonly_mode:
-                    print('⚠️  Orders will not be sent: connection is readonly (ACTIVE_TRADING is False). Set ACTIVE_TRADING = True and restart to enable trading.')
+                    print(
+                        '⚠️  Orders will not be sent: connection is readonly (ACTIVE_TRADING is False). Set ACTIVE_TRADING = True and restart to enable trading.')
                 return ib
             print('✗ Warning: IB connection failed - isConnected() returned False')
-            print('  Check TWS/Gateway: API enabled, correct port, and "Allow localhost" or this machine in Trusted IPs')
-            _ib_connection = None
-            return None
         except Exception as e:
+            last_exc = e
             print(f'✗ Warning: IB connection error: {e}')
-            print('  Check TWS/Gateway: API enabled, correct port, and "Allow localhost" or this machine in Trusted IPs')
-            traceback.print_exc()
-            _ib_connection = None
+
+        _ib_connection = None
+        if last_exc is not None:
+            print(f'✗ Warning: IB connection last error: {last_exc}')
+        print('  Check TWS/Gateway: API enabled, correct port, and "Allow localhost" or this machine in Trusted IPs')
         return None
 
 

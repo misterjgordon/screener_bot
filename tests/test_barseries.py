@@ -52,11 +52,16 @@ class TestBarSeriesIntegration(unittest.TestCase):
     """Integration tests against real IB historical data."""
 
     ib = None
+    bundle = None
 
     @classmethod
     def setUpClass(cls) -> None:
-        """Connect once for all tests."""
-        cls.ib = connect(readonly=True)
+        """Connect once and load bars once for all tests."""
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', category=DeprecationWarning)
+            cls.ib = connect(readonly=True)
+        if cls.ib is not None and cls.ib.isConnected():
+            cls.bundle = load_bars(cls.ib, SYMBOL)
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -70,7 +75,7 @@ class TestBarSeriesIntegration(unittest.TestCase):
 
     def test_barseries_dataframe(self) -> None:
         """Load BarSeries for symbol and print summary + bar DataFrames."""
-        bundle = load_bars(self.ib, SYMBOL)
+        bundle = self.bundle
         if bundle is None:
             self.skipTest('load_bars returned None')
         assert bundle is not None  # Narrow type after skip

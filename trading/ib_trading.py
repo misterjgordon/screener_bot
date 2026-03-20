@@ -18,6 +18,7 @@ from ib_async import StopOrder
 from trading.config import ACCOUNT_CURRENCY
 from trading.config import ACTIVE_ORDER_STATUSES
 from trading.config import DAILY_STOP
+from trading.config import SCREENER_DAILY_STOP_FRACTION
 from trading.trade_data import find_orders_for_symbol_trader
 from trading.trade_data import get_available_funds
 from trading.trade_data import order_tag
@@ -28,10 +29,19 @@ class OrderEntry:
     """Result of placing an entry order; used for CSV logging."""
 
     order_id: str | None
+    filled_price: float | None
     num_shares: int | None
     total_risk: float | None
     risk_per_share: float | None
     skip_reason: str | None = None  # Set when order not placed (e.g. insufficient funds)
+
+
+@dataclass
+class MarketOrderEntry:
+    """Result of placing a market exit order."""
+
+    order_id: str | None
+    filled_price: float | None
 
 
 def calculate_num_shares_from_risk(
@@ -181,7 +191,7 @@ def send_scaling_order(
     entry_price: float,
     num_shares: int,
     trader: str = '',
-) -> str | None:
+) -> OrderEntry:
     """
     Send a stop order to scale into an existing position (for ADD changes).
     Uses a stop entry order to add shares to an existing position.
@@ -194,12 +204,12 @@ def send_scaling_order(
         num_shares: Number of shares to add
 
     Returns:
-        str | None: Order ID string if successful, None otherwise
+        OrderEntry: order_id and IB order price for CSV logging.
     """
     try:
         if num_shares <= 0:
             print(f'Error: Invalid share quantity {num_shares} for {symbol}')
-            return None
+            return OrderEntry(None, None, None, None, None, 'invalid_share_quantity')
 
         action = 'BUY' if is_long else 'SELL'
 
@@ -217,12 +227,12 @@ def send_scaling_order(
 
         order_id = str(order.orderId) if order.orderId else 'pending'
         print(f'Scaling order placed for {symbol}: {action} {num_shares} shares @ ${entry_price:.2f} (STOP-ENTRY)')
-        return order_id
+        return OrderEntry(order_id, entry_price, num_shares, None, None)
 
     except Exception as e:
         print(f'Error placing scaling order for {symbol}: {e}')
         traceback.print_exc()
-        return None
+        return OrderEntry(None, None, None, None, None, f'exception: {e}')
 
 
 def send_bracket_order(
@@ -254,10 +264,10 @@ def send_bracket_order(
     Returns:
         OrderEntry: order_id and sizing (num_shares, total_risk, risk_per_share) for CSV logging.
     """
-    order_result = OrderEntry(None, None, None, None, None)
+    order_result = OrderEntry(None, None, None, None, None, None)
     try:
         trade_stop_percent = magnitude / 100.0
-        trade_stop_amount = DAILY_STOP * trade_stop_percent
+        trade_stop_amount = (DAILY_STOP * SCREENER_DAILY_STOP_FRACTION) * trade_stop_percent
 
         if num_shares is None:
             available_funds = get_available_funds(ib)
@@ -337,7 +347,8 @@ def send_bracket_order(
                 entry_price:.2f} ({entry_type_str}), Stop Loss @ ${
                 stop_price:.2f}, TP @ ${
                 take_profit_price:.2f}')
-        return OrderEntry(order_id, num_shares, trade_stop_amount, risk_per_share)
+        exit_price = entry_price if entry_order_type in ['limit', 'stop'] else None
+        return OrderEntry(order_id, exit_price, num_shares, trade_stop_amount, risk_per_share)
 
     except Exception as e:
         order_result.skip_reason = f'exception: {e}'
@@ -371,10 +382,10 @@ def send_entry_only_order(
     Returns:
         OrderEntry: order_id and sizing (num_shares, total_risk, risk_per_share) for CSV logging.
     """
-    order_result = OrderEntry(None, None, None, None, None)
+    order_result = OrderEntry(None, None, None, None, None, None)
     try:
         trade_stop_percent = magnitude / 100.0
-        trade_stop_amount = DAILY_STOP * trade_stop_percent
+        trade_stop_amount = (DAILY_STOP * SCREENER_DAILY_STOP_FRACTION) * trade_stop_percent
 
         if num_shares is None:
             available_funds = get_available_funds(ib)
@@ -413,7 +424,8 @@ def send_entry_only_order(
         entry_type_str = 'LIMIT' if entry_order_type == 'limit' else 'STOP'
         print(
             f'WARNING: Entry-only order placed for {symbol}: {action} {num_shares} @ ${entry_price:.2f} ({entry_type_str}, NO STOP LOSS)')
-        return OrderEntry(order_id, num_shares, trade_stop_amount, risk_per_share)
+        exit_price = entry_price if entry_order_type in ['limit', 'stop'] else None
+        return OrderEntry(order_id, exit_price, num_shares, trade_stop_amount, risk_per_share)
 
     except Exception as e:
         order_result.skip_reason = f'exception: {e}'
@@ -422,7 +434,13 @@ def send_entry_only_order(
         return order_result
 
 
-def send_market_order(ib: IB, symbol: str, is_long: bool, position_size: int, trader: str = '') -> str | None:
+def send_market_order(
+    ib: IB,
+    symbol: str,
+    is_long: bool,
+    position_size: int,
+    trader: str = '',
+) -> MarketOrderEntry:
     """
     Send a market order to IB for TRIM positions (exit).
 
@@ -434,12 +452,12 @@ def send_market_order(ib: IB, symbol: str, is_long: bool, position_size: int, tr
         trader: Trader name for order tagging (optional)
 
     Returns:
-        str | None: Order ID string if successful, None otherwise
+        MarketOrderEntry: Order id and IB avg fill price (if available).
     """
     try:
         if position_size <= 0:
             print(f'Error: Invalid position size {position_size} for {symbol}')
-            return None
+            return MarketOrderEntry(None, None)
 
         action = 'SELL' if is_long else 'BUY'
 
@@ -456,10 +474,12 @@ def send_market_order(ib: IB, symbol: str, is_long: bool, position_size: int, tr
         ib.sleep(0.5)
 
         order_id = str(order.orderId) if order.orderId else 'pending'
+        avg_fill_price = trade.orderStatus.avgFillPrice
+        exit_price = avg_fill_price if avg_fill_price > 0 else None
         print(f'Market order placed for {symbol}: {action} {position_size} shares (TRIM/exit)')
-        return order_id
+        return MarketOrderEntry(order_id, exit_price)
 
     except Exception as e:
         print(f'Error placing market order for {symbol}: {e}')
         traceback.print_exc()
-        return None
+        return MarketOrderEntry(None, None)

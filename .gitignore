@@ -41,3 +41,4 @@ smb_trader_executions/
 # Testing / local-only (if already committed, run: git rm -r --cached docs/ alerts/)
 docs/
 alerts/
+tests/Day3_Pine_script.py

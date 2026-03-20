@@ -1,7 +1,7 @@
 """Single entry point for IB market data.
 
 Provides get_* functions for ticker quotes, bars, market price, trailing stop,
-today's range, ADR, and gap percentage. When used by the screener, all calls
+today's range, and gap percentage. When used by the screener, all calls
 receive the screener's IB connection (single entry point to IB). Can be run
 and tested independently via python -m trading.market_data <SYMBOL>.
 
@@ -11,18 +11,20 @@ to avoid duplicate IB requests. When bundle is None, fetches via bar_loader.get_
 
 from typing import TYPE_CHECKING
 
-from ib_async import IB, Stock
+from ib_async import IB
+from ib_async import Stock
 
 from strategies.utils import is_rth_session_bar
 from strategies.utils import last_trading_day
 from trading.bar_loader import get_bars
-from trading.config import (  # noqa: E402
-    ACCOUNT_CURRENCY,
-    IB_CLIENT_ID_MARKET_DATA,
-    IB_HOST,
-    IB_PORT,
-)
-from trading.models import DayRange, TickerQuote  # noqa: E402
+from trading.config import ACCOUNT_CURRENCY  # noqa: E402
+from trading.config import IB_CLIENT_ID_MARKET_DATA  # noqa: E402
+from trading.config import IB_HOST  # noqa: E402
+from trading.config import IB_PORT  # noqa: E402
+from trading.config import IB_PORT_LIVE  # noqa: E402
+from trading.config import IB_PORT_PAPER  # noqa: E402
+from trading.models import DayRange  # noqa: E402
+from trading.models import TickerQuote  # noqa: E402
 
 if TYPE_CHECKING:
     from trading.models import BarSeries
@@ -48,10 +50,32 @@ def connect(
     readonly: bool = True,
 ) -> IB | None:
     """Create and return IB connection. Use disconnect(ib) when done."""
+    candidate_hosts: list[str] = []
+    for h in (host, 'localhost', '127.0.0.1'):
+        if h not in candidate_hosts:
+            candidate_hosts.append(h)
+
+    candidate_ports: list[int] = []
+    if readonly:
+        for p in (port, IB_PORT_PAPER, IB_PORT_LIVE, 4001):
+            if p not in candidate_ports:
+                candidate_ports.append(p)
+    else:
+        candidate_ports = [port]
+
     try:
-        ib = IB()
-        ib.connect(host, port, clientId=client_id, readonly=readonly)
-        return ib if ib.isConnected() else None
+        for h in candidate_hosts:
+            for p in candidate_ports:
+                try:
+                    ib = IB()
+                    ib.connect(h, p, clientId=client_id, readonly=readonly)
+                    if ib.isConnected():
+                        return ib
+                except Exception:
+                    pass
+
+        # If we got here, all ports/hosts failed.
+        return None
     except Exception:
         return None
 
@@ -83,6 +107,32 @@ def get_ticker_quote(ib: IB | None, symbol: str) -> TickerQuote | None:
             bid=_to_float(ticker.bid),
             ask=_to_float(ticker.ask),
         )
+    except Exception:
+        return None
+
+
+def get_realtime_bar(ib: IB | None, symbol: str) -> object | None:
+    """Subscribe to 5-sec realtime bars, cancel and return latest bar if any, else None.
+
+    reqRealTimeBars requires a qualified contract; Stock + qualifyContracts provide that.
+    Returns the latest 5-sec bar (ib_async realtime bar object) or None if none received.
+    Caller should read OHLC via .open/.high/.low/.close or .open_/.high_/.low_/.close_.
+    """
+    if ib is None or not ib.isConnected():
+        return None
+    try:
+        contract = Stock(symbol, 'SMART', ACCOUNT_CURRENCY)
+        ib.qualifyContracts(contract)
+        bars = ib.reqRealTimeBars(
+            contract=contract,
+            barSize=5,
+            whatToShow='TRADES',
+            useRTH=True,
+        )
+        if bars:
+            ib.cancelRealTimeBars(bars)
+            return bars[-1]
+        return None
     except Exception:
         return None
 
@@ -139,25 +189,6 @@ def get_todays_range(
         low=float(min(b.low for b in session)),
         high=float(max(b.high for b in session)),
     )
-
-
-def calculate_adr(
-    ib: IB | None,
-    symbol: str,
-    days: int = 20,
-    bundle: 'BarSeries | None' = None,
-) -> float | None:
-    """Average Daily Range over specified days."""
-    if bundle is not None and bundle.bars_1d:
-        bars = bundle.bars_1d[-days:] if len(bundle.bars_1d) >= days else bundle.bars_1d
-    else:
-        bars = get_bars(ib, symbol, duration_str=f'{days} D', bar_size='1 day')
-    if not bars:
-        return None
-    ranges = [b.high - b.low for b in bars if b.high is not None and b.low is not None]
-    if not ranges:
-        return None
-    return round(float(sum(ranges) / len(ranges)), 2)
 
 
 def calculate_gap_percentage(

@@ -96,10 +96,16 @@ class TestRvolIntegration(unittest.TestCase):
     """Integration tests for rvol against IB historical data."""
 
     ib = None
+    bundle = None
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.ib = connect(readonly=True)
+        """Connect once and load bars once for all tests."""
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', category=DeprecationWarning)
+            cls.ib = connect(readonly=True)
+        if cls.ib is not None and cls.ib.isConnected():
+            cls.bundle = load_bars(cls.ib, SYMBOL)
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -112,7 +118,7 @@ class TestRvolIntegration(unittest.TestCase):
     def test_rvol_value(self) -> None:
         """Load bars for SYMBOL, slice to eval time, compute rvol (uses bars_1d)."""
         test_time = _TEST_TIME
-        bundle = load_bars(self.ib, SYMBOL)
+        bundle = self.bundle
         if bundle is None or not bundle.bars_1d:
             self.skipTest('No daily bars returned')
         assert bundle is not None

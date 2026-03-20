@@ -67,11 +67,16 @@ class TestFashionablyLateIntegration(unittest.TestCase):
     """Integration tests for Fashionably Late pattern against real IB historical data."""
 
     ib = None
+    bundle = None
 
     @classmethod
     def setUpClass(cls) -> None:
-        """Connect once for all tests."""
-        cls.ib = connect(readonly=True)
+        """Connect once and load bars once for all tests."""
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', category=DeprecationWarning)
+            cls.ib = connect(readonly=True)
+        if cls.ib is not None and cls.ib.isConnected():
+            cls.bundle = load_bars(cls.ib, SYMBOL, end_date=_TEST_DATE)
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -85,16 +90,13 @@ class TestFashionablyLateIntegration(unittest.TestCase):
 
     def test_fashionably_late_timing_and_result(self) -> None:
         """Fetch 2-min bars via bar_loader, run fashionably_late, and print timing metrics."""
-        end_date = _TEST_DATE
-        session_date = end_date or last_trading_day()
-
-        retrieval_start = time.perf_counter()
-        bundle = load_bars(self.ib, SYMBOL, end_date=end_date)
-        retrieval_seconds = time.perf_counter() - retrieval_start
+        session_date = _TEST_DATE or last_trading_day()
+        bundle = self.bundle
 
         if bundle is None or not bundle.bars_2min:
             self.skipTest('No 2-minute bars returned')
         assert bundle is not None
+        retrieval_seconds = 0.0
 
         if len(bundle.bars_2min) < 11:
             self.skipTest(
@@ -126,10 +128,8 @@ class TestFashionablyLateIntegration(unittest.TestCase):
 
     def test_fashionably_late_diagnostics(self) -> None:
         """Run diagnostics and print which factors are not true (why no trigger)."""
-        end_date = _TEST_DATE
-        session_date = end_date or last_trading_day()
-
-        bundle = load_bars(self.ib, SYMBOL, end_date=end_date)
+        session_date = _TEST_DATE or last_trading_day()
+        bundle = self.bundle
         if bundle is None or not bundle.bars_2min:
             self.skipTest('No 2-minute bars returned')
         assert bundle is not None

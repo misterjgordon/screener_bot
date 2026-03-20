@@ -99,35 +99,69 @@ def has_open_orders_for_trader(ib: IB, symbol: str, is_long: bool, trader: str) 
     return False
 
 
-def find_orders_for_symbol_trader(ib: IB, symbol: str, trader: str = '') -> list:
+def find_orders_for_symbol_trader(
+    ib: IB,
+    symbol: str,
+    trader: str = '',
+    debug: bool = False,
+) -> list:
     """
     Find all open orders for a specific symbol and trader.
+
+    Uses ib.trades() and filters by active status so bracket child orders
+    (stop/TP) are included; openTrades() is known to sometimes omit them.
 
     Args:
         ib: IB connection
         symbol: Symbol to find orders for
         trader: Trader name (optional)
+        debug: If True, print intermediate counts and orderRef/parentId for symbol (no-op in production)
 
     Returns:
         list: List of Trade objects matching the criteria
     """
     matching_trades = []
     try:
+        # Request open orders; use returned list. If empty (e.g. readonly or
+        # different client), try all clients (client 0 only).
+        all_trades = ib.reqOpenOrders()
+        if not all_trades:
+            try:
+                all_trades = ib.reqAllOpenOrders()
+            except Exception:
+                all_trades = []
         ref = order_tag(trader)
-        open_trades = ib.openTrades()
 
-        for trade in open_trades:
-            contract = trade.contract
-            order = trade.order
-            status = trade.orderStatus
+        by_symbol = [t for t in all_trades if t.contract.symbol == symbol and t.contract.secType == 'STK']
+        by_symbol_active = [t for t in by_symbol if t.orderStatus.status in ACTIVE_ORDER_STATUSES]
+        ref_order_ids = {t.order.orderId for t in by_symbol if t.order.orderRef == ref and t.order.orderId is not None}
+        ref_matched = [t for t in by_symbol_active if t.order.orderRef == ref]
+        children = [t for t in by_symbol_active if t.order.parentId > 0 and t.order.parentId in ref_order_ids]
+        seen_ids: set[int] = set()
+        for t in ref_matched + children:
+            oid = t.order.orderId
+            if oid is not None and oid not in seen_ids:
+                seen_ids.add(oid)
+                matching_trades.append(t)
 
-            if (
-                contract.symbol == symbol
-                and contract.secType == 'STK'
-                and order.orderRef == ref
-                and status.status in ACTIVE_ORDER_STATUSES
-            ):
-                matching_trades.append(trade)
+        if debug and (len(matching_trades) == 0 or len(by_symbol) > 0):
+            print(f'[find_orders debug] ref={ref!r}')
+            print(
+                f'  all_trades={
+                    len(all_trades)}  by_symbol({symbol})={
+                    len(by_symbol)}  by_symbol_active={
+                    len(by_symbol_active)}')
+            print(f'  ref_order_ids (parent IDs with orderRef==ref)={ref_order_ids}')
+            print(f'  ref_matched={len(ref_matched)}  children={len(children)}')
+            for t in by_symbol:
+                o = t.order
+                print(
+                    f'  order id={
+                        o.orderId} parentId={
+                        o.parentId} ref={
+                        o.orderRef!r} status={
+                        t.orderStatus.status} action={
+                        o.action}')
 
         return matching_trades
     except Exception as e:
