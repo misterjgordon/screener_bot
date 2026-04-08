@@ -16,7 +16,9 @@ from trading.models import BarSeries
 
 TRAILING_STOP_BARS_2MIN = 22  # 44 min trailing window (22 * 2 min) for move filter
 ADR_DAYS = 20
-DAILY_DURATION = f'{ADR_DAYS} D'
+# Calendar span for daily load: need enough sessions for 30D volume SMA (percent_of_avg_volume) + margin.
+DAILY_HISTORY_CALENDAR_DAYS = 45
+DAILY_DURATION = f'{DAILY_HISTORY_CALENDAR_DAYS} D'
 
 
 def get_bars(

@@ -3,11 +3,19 @@
 IB models: Bar, BarSeries, TickerQuote, etc. represent ib_async data in typed form.
 SMB models: NormalizedRecord, PositionSummary represent SMB API positions (not dicts).
 Execution: one row of the executions CSV (order/execution log).
+SEC: :class:`SecTickers` / :class:`SecTickerRow` for ``all_tickers.json`` (SEC company_tickers_exchange format).
+Watchlist: :class:`TickerSummary` for unioned symbols per source and desk day (technicals optional:
+``atr_14``, ``percent_of_avg_volume``, ``gap_percent``, ``gap_atr``).
 """
 
+import json
 from dataclasses import asdict
 from dataclasses import dataclass
+from datetime import date
 from datetime import datetime
+from pathlib import Path
+from typing import Self
+from typing import overload
 
 from strategies.utils import bar_session
 
@@ -83,21 +91,27 @@ class TickerQuote:
     ask: float | None = None
 
     def best_price(self) -> float | None:
-        """Best available price: last, then close, then midpoint, then bid/ask average."""
+        """Best available price: last, then close, then midpoint, then bid/ask average.
+
+        Returns 2-decimal dollars; bid/ask average is rounded once here.
+        """
+        p: float | None = None
         if self.last is not None and self.last > 0:
-            return self.last
-        if self.close is not None and self.close > 0:
-            return self.close
-        if self.midpoint is not None and self.midpoint > 0:
-            return self.midpoint
-        if (
+            p = float(self.last)
+        elif self.close is not None and self.close > 0:
+            p = float(self.close)
+        elif self.midpoint is not None and self.midpoint > 0:
+            p = float(self.midpoint)
+        elif (
             self.bid is not None
             and self.ask is not None
             and self.bid > 0
             and self.ask > 0
         ):
-            return (self.bid + self.ask) / 2.0
-        return None
+            p = (float(self.bid) + float(self.ask)) / 2.0
+        if p is None:
+            return None
+        return round(p, 2)
 
 
 @dataclass
@@ -211,12 +225,32 @@ class PositionSummary:
         )
 
 
+@overload
+def round_money_2(value: None) -> None: ...
+
+
+@overload
+def round_money_2(value: float) -> float: ...
+
+
+def round_money_2(value: float | None) -> float | None:
+    """Round dollar or percent fields for execution CSV/DB (2 decimal places).
+
+    Used for ``total_risk``, ``risk_per_share``, ``market_value``, and ``risk_%`` so
+    live logging, PostgreSQL, and CSV import share one quantization.
+    """
+    if value is None:
+        return None
+    return round(value, 2)
+
+
 @dataclass
 class Execution:
     """One execution log row (CSV schema for executions_YYYY-MM-DD.csv).
 
-    Shares come from calculate_num_shares_from_risk; total_risk is trade_stop_amount
-    (magnitude * daily stop); risk_per_share = total_risk / shares when applicable.
+    For NEW/ADD, shares come from risk-based sizing (or override); total_risk is
+    trade_stop_amount; risk_per_share = total_risk / shares when applicable.
+    For TRIM/CLOSE, shares are the number of shares exited; risk columns are usually empty.
     """
 
     timestamp: str
@@ -237,10 +271,13 @@ class Execution:
 
     @property
     def market_value(self) -> float | None:
-        """Notional value at entry: shares * entry_price."""
-        if self.shares is not None and self.entry_price is not None:
-            return self.shares * self.entry_price
-        return None
+        """Notional: shares * entry_price, or shares * filled_price if entry absent (exits)."""
+        if self.shares is None:
+            return None
+        price = self.entry_price if self.entry_price is not None else self.filled_price
+        if price is None:
+            return None
+        return self.shares * price
 
     @classmethod
     def csv_fieldnames(cls) -> list[str]:
@@ -267,8 +304,107 @@ class Execution:
             'order_id': self.order_id if self.order_id is not None else '',
             'filled_price': self.filled_price if self.filled_price is not None else '',
             'shares': self.shares if self.shares is not None else '',
-            'total_risk': self.total_risk if self.total_risk is not None else '',
-            'risk_per_share': round(self.risk_per_share, 2) if self.risk_per_share is not None else '',
-            'market_value': round(val, 2) if val is not None else '',
-            'risk_%': round(self.risk_percent, 2) if self.risk_percent is not None else '',
+            'total_risk': round_money_2(self.total_risk) if self.total_risk is not None else '',
+            'risk_per_share': round_money_2(self.risk_per_share) if self.risk_per_share is not None else '',
+            'market_value': round_money_2(val) if val is not None else '',
+            'risk_%': round_money_2(self.risk_percent) if self.risk_percent is not None else '',
         }
+
+
+# --- SEC all-tickers reference (same schema as SEC company_tickers_exchange.json) ---
+
+SEC_TICKER_JSON_FIELDS = ('cik', 'name', 'ticker', 'exchange')
+ALL_TICKERS_JSON = 'all_tickers.json'
+
+
+@dataclass(frozen=True)
+class SecTickerRow:
+    """One row of SEC-style ``fields`` + ``data`` ticker listing."""
+
+    cik: int
+    name: str
+    ticker: str
+    exchange: str
+
+
+@dataclass(frozen=True)
+class SecTickers:
+    """Parsed ``all_tickers.json``: ``{"fields": [...], "data": [[...], ...]}``."""
+
+    fields: tuple[str, str, str, str]
+    rows: tuple[SecTickerRow, ...]
+
+    def ticker_set_upper(self) -> frozenset[str]:
+        """Uppercased tickers for O(1) validation of parsed candidates."""
+        return frozenset(row.ticker.upper() for row in self.rows)
+
+    @classmethod
+    def from_json_dict(cls, obj: dict[str, object]) -> Self:
+        """Parse decoded JSON object."""
+        fields_raw = obj.get('fields')
+        data_raw = obj.get('data')
+        if not isinstance(fields_raw, list) or not isinstance(data_raw, list):
+            raise TypeError('ticker JSON must contain list fields and list data')
+
+        fields = tuple(str(x) for x in fields_raw)
+        expected = SEC_TICKER_JSON_FIELDS
+        if fields != expected:
+            raise ValueError(f'ticker fields mismatch: got {fields!r}, expected {expected!r}')
+        fields_named: tuple[str, str, str, str] = SEC_TICKER_JSON_FIELDS
+
+        rows: list[SecTickerRow] = []
+        for i, row in enumerate(data_raw):
+            if not isinstance(row, list) or len(row) != 4:
+                raise TypeError(f'ticker data row {i}: expected 4 columns, got {row!r}')
+            cik_v, name_v, ticker_v, exchange_v = row
+            if not isinstance(cik_v, int):
+                raise TypeError(f'ticker data row {i}: cik must be int, got {type(cik_v).__name__}')
+            rows.append(
+                SecTickerRow(
+                    cik=cik_v,
+                    name=str(name_v),
+                    ticker=str(ticker_v),
+                    exchange=str(exchange_v),
+                )
+            )
+
+        return cls(fields=fields_named, rows=tuple(rows))
+
+
+def p_all_tickers_json_path() -> Path:
+    """Default: ``trading/data/symbols/all_tickers.json``."""
+    return Path(__file__).resolve().parent / 'data' / 'symbols' / ALL_TICKERS_JSON
+
+
+def load_all_tickers(p_json: Path | None = None) -> SecTickers:
+    """Load ``all_tickers.json`` from disk (defaults to :func:`p_all_tickers_json_path`)."""
+    p_path = p_json if p_json is not None else p_all_tickers_json_path()
+    text = p_path.read_text(encoding='utf-8')
+    obj = json.loads(text)
+    if not isinstance(obj, dict):
+        raise TypeError('ticker JSON root must be an object')
+    return SecTickers.from_json_dict(obj)
+
+
+@dataclass(frozen=True)
+class TickerSummary:
+    """One symbol mention from an ingested watchlist source for a desk day.
+
+    ``source_id`` matches the ingest module basename (e.g. ``smb_gameplan``,
+    ``market_rundown``). ``atr_14`` is 14-period ATR on daily bars when filled
+    from historical data; otherwise ``None``.
+    ``percent_of_avg_volume`` is rounded percent vs 30D prior volume mean using the last
+    available 2m bar through ET session close on the desk day (premarket vs RTH volume
+    sections per :func:`strategies.indicators.percent_of_avg_volume.percent_of_avg_volume`);
+    ``None`` when not computed or insufficient data.
+    ``gap_percent`` and ``gap_atr`` are from :func:`strategies.indicators.gap.gap` at the same
+    evaluation instant as percent-of-average volume; ``None`` when not computed or insufficient data.
+    """
+
+    symbol: str
+    source_id: str
+    trade_date: date
+    atr_14: float | None = None
+    percent_of_avg_volume: int | None = None
+    gap_percent: float | None = None
+    gap_atr: float | None = None

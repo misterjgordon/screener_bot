@@ -20,6 +20,7 @@ from trading.config import TRADER_DAILY_STOP_USD
 from trading.config import TRADER_ENABLED
 from trading.config import TRADER_MAX_PER_TRADE_VALUE_USD
 from trading.entry_mode import get_entry_mode
+from trading.execution_db import save_execution_to_db
 from trading.ib_trading import calculate_num_shares_from_risk
 from trading.ib_trading import cancel_all_orders_for_position
 from trading.ib_trading import send_bracket_order
@@ -89,47 +90,50 @@ def round_risk_fraction(raw_fraction: float) -> float:
     return float(rounded_up_to_decimals)
 
 
-def compute_risk_dollars(
-    *,
-    daily_stop: float,
-    magnitude_0_100: float,
-) -> float | None:
-    """Compute implied risk dollars for a trade using the screener magnitude model."""
-    if daily_stop <= 0:
-        return None
-    raw_fraction = SCREENER_DAILY_STOP_FRACTION * (abs(magnitude_0_100) / 100.0)
-    return raw_fraction * daily_stop
-
-
 def compute_risk_percent_and_trade_stop_amount(
     *,
     trader: str,
     magnitude_0_100: float,
     entry_price: float,
     stop_price: float,
+    is_long: bool,
 ) -> tuple[float, float] | None:
-    """
-    Compute trader risk fraction (0-1) and the implied trade stop amount (USD).
+    """Compute risk fraction (0-1) and account risk dollars using DAILY_STOP.
 
-    Using the user-provided model:
+    Trader share intent from screener magnitude and max notional; dollar risk at
+    stop uses entry/stop distance. Fraction is share of the trader's daily stop,
+    then rounded; that fraction is applied to this account's DAILY_STOP for
+    sizing and persistence.
+
         shares_est = ((magnitude/100) * max_per_trade_value) / entry_price
-        risk_dollars = shares_est * trader_risk_per_share
-        risk_fraction = risk_dollars / trader_daily_stop
+        risk_dollars_trader = shares_est * risk_per_share
+        risk_fraction_raw = risk_dollars_trader / trader_daily_stop
+        risk_fraction = round_risk_fraction(risk_fraction_raw)
+        account_risk_dollars = risk_fraction * DAILY_STOP
     """
-    # Keep `risk_%` and `$total_risk` consistent by computing both from the
-    # screener's own risk model (DAILY_STOP + SCREENER_DAILY_STOP_FRACTION).
-    #
-    # `entry_price` and `stop_price` affect share count, but do not affect the
-    # intended dollar risk target.
-
-    risk_dollars_raw = compute_risk_dollars(daily_stop=DAILY_STOP, magnitude_0_100=magnitude_0_100)
-    if risk_dollars_raw is None:
+    trader_daily_stop_usd = get_trader_daily_stop_usd(trader)
+    max_pt_usd = get_trader_max_per_trade_value_usd(trader)
+    if (
+        trader_daily_stop_usd is None
+        or max_pt_usd is None
+        or trader_daily_stop_usd <= 0
+        or entry_price <= 0
+    ):
         return None
 
-    risk_fraction_raw = risk_dollars_raw / DAILY_STOP
+    if is_long:
+        risk_per_share = entry_price - stop_price
+    else:
+        risk_per_share = stop_price - entry_price
+    if risk_per_share <= 0:
+        return None
+
+    shares_est = (abs(magnitude_0_100) / 100.0) * max_pt_usd / entry_price
+    risk_dollars_trader = shares_est * risk_per_share
+    risk_fraction_raw = risk_dollars_trader / trader_daily_stop_usd
     risk_fraction_rounded = round_risk_fraction(risk_fraction_raw)
-    risk_dollars_rounded = risk_fraction_rounded * DAILY_STOP
-    return risk_fraction_rounded, risk_dollars_rounded
+    risk_dollars_account = risk_fraction_rounded * DAILY_STOP
+    return risk_fraction_rounded, risk_dollars_account
 
 
 def internal_magnitude_for_trade_stop_amount(trade_stop_amount: float) -> float | None:
@@ -247,7 +251,15 @@ def place_new_order(
         print(f'Skipping NEW order for {underlying} ({trader}): {no_place_reason}')
         return NewAddPlacementResult(None, None, None, None, None, no_place_reason)
 
-    entry_mode = get_entry_mode(ib, underlying, market.entry_price, is_long, bundle=market.bundle)
+    entry_mode = get_entry_mode(
+        ib,
+        trader,
+        'NEW',
+        underlying,
+        market.entry_price,
+        is_long,
+        bundle=market.bundle,
+    )
     if entry_mode.skip:
         print(f'Skipping NEW order for {underlying} ({trader}): entry_mode_skip')
         return NewAddPlacementResult(None, None, None, None, None, 'entry_mode_skip')
@@ -333,6 +345,7 @@ def place_add_order(
             magnitude_0_100=abs(delta_magnitude),
             entry_price=market.entry_price,
             stop_price=scaling_stop_price,
+            is_long=is_long,
         )
         if risk_calc is not None:
             risk_percent, risk_dollars = risk_calc
@@ -392,7 +405,15 @@ def place_add_order(
         print(f'Skipping ADD bracket order for {underlying}: open_order_already_exists (ADD bracket)')
         return NewAddPlacementResult(None, None, None, None, None, 'open_order_already_exists (ADD bracket)')
 
-    entry_mode = get_entry_mode(ib, underlying, market.entry_price, is_long, bundle=market.bundle)
+    entry_mode = get_entry_mode(
+        ib,
+        trader,
+        'ADD',
+        underlying,
+        market.entry_price,
+        is_long,
+        bundle=market.bundle,
+    )
     if entry_mode.skip:
         print(f'Skipping ADD bracket order for {underlying} ({trader}): entry_mode_skip')
         return NewAddPlacementResult(None, None, None, None, None, 'entry_mode_skip')
@@ -404,6 +425,7 @@ def place_add_order(
             magnitude_0_100=magnitude,
             entry_price=entry_mode.entry_price,
             stop_price=market.stop_price,
+            is_long=is_long,
         )
         if risk_calc is not None:
             risk_percent, risk_dollars = risk_calc
@@ -463,13 +485,13 @@ def record_new_add_execution(
     take_profit_price: float | None,
     order_id: str | None,
     filled_price: float | None,
-    timestamp: str,
     csv_shares: int | None,
     csv_total_risk: float | None,
     csv_risk_per_share: float | None,
     risk_percent: float | None,
 ) -> None:
-    """Persist NEW/ADD execution to CSV."""
+    """Persist NEW/ADD execution to CSV and database."""
+    ts = format_timestamp()
     save_execution_to_csv(
         trader=trader,
         symbol=symbol,
@@ -481,7 +503,24 @@ def record_new_add_execution(
         take_profit_price=take_profit_price,
         order_id=order_id,
         filled_price=filled_price,
-        timestamp=timestamp,
+        timestamp=ts,
+        shares=csv_shares,
+        total_risk=csv_total_risk,
+        risk_per_share=csv_risk_per_share,
+        risk_percent=risk_percent,
+    )
+    save_execution_to_db(
+        trader=trader,
+        symbol=symbol,
+        change_type=change_type,
+        net_side=net_side,
+        delta_magnitude=delta_magnitude,
+        entry_price=entry_price,
+        stop_price=stop_price,
+        take_profit_price=take_profit_price,
+        order_id=order_id,
+        filled_price=filled_price,
+        timestamp=ts,
         shares=csv_shares,
         total_risk=csv_total_risk,
         risk_per_share=csv_risk_per_share,
@@ -489,12 +528,22 @@ def record_new_add_execution(
     )
 
 
+def get_decision_price_for_recording(ib: 'IB | None', underlying: str) -> float | None:
+    """Capture decision-time market price for execution logs."""
+    if ib is None or not ib.isConnected():
+        return None
+    decision_price = get_market_price(ib, underlying)
+    if not decision_price:
+        print(f'Warning: Could not get market price for {underlying} - recording without decision price')
+        return None
+    return round(decision_price, 2)
+
+
 def process_new_or_add(
     ib: 'IB | None',
     row: 'PositionSummary',
     change_type: str,
     shares_override: int | None,
-    timestamp: str,
 ) -> None:
     """Handle NEW or ADD: market data, place order, record to CSV."""
     trader = row.trader or ''
@@ -519,7 +568,6 @@ def process_new_or_add(
             None,
             None,
             None,
-            timestamp,
             None,
             None,
             None,
@@ -541,7 +589,6 @@ def process_new_or_add(
             None,
             None,
             None,
-            timestamp,
             None,
             None,
             None,
@@ -555,6 +602,7 @@ def process_new_or_add(
             magnitude_0_100=market.adjusted_magnitude,
             entry_price=market.entry_price,
             stop_price=market.stop_price,
+            is_long=is_long,
         )
         if risk_calc is not None:
             risk_percent, risk_dollars = risk_calc
@@ -576,7 +624,6 @@ def process_new_or_add(
             market.take_profit_price,
             None,
             None,
-            timestamp,
             None,
             None,
             None,
@@ -610,7 +657,6 @@ def process_new_or_add(
         market.take_profit_price,
         result.order_id,
         result.filled_price,
-        timestamp,
         result.csv_shares,
         result.csv_total_risk,
         result.csv_risk_per_share,
@@ -622,7 +668,6 @@ def process_trim(
     ib: 'IB | None',
     row: 'PositionSummary',
     underlying: str,
-    timestamp: str,
     shares_override: int | None,
 ) -> None:
     """Handle TRIM: reduce position and optionally update child orders; record to CSV."""
@@ -634,6 +679,8 @@ def process_trim(
     filled_price: float | None = None
     no_place_reason: str | None = None
     change_type = 'TRIM'
+    csv_shares: int | None = None
+    decision_price = get_decision_price_for_recording(ib, underlying)
 
     if ib is None or not ib.isConnected():
         no_place_reason = 'IB not connected'
@@ -648,6 +695,10 @@ def process_trim(
                     exit_size = shares_override
                 else:
                     exit_size = abs(int(current_position * (abs(delta_magnitude) / 100.0)))
+                if exit_size >= abs(current_position):
+                    csv_shares = abs(current_position)
+                else:
+                    csv_shares = exit_size
                 if exit_size > 0 and ACTIVE_TRADING:
                     if exit_size >= abs(current_position):
                         print(
@@ -679,15 +730,30 @@ def process_trim(
     if order_id is None and no_place_reason:
         print(f'Order not placed for TRIM {underlying} ({trader}): {no_place_reason}')
 
+    ts = format_timestamp()
     save_execution_to_csv(
         trader=trader,
         symbol=underlying,
         change_type=change_type,
         net_side=net_side,
         delta_magnitude=delta_magnitude,
+        entry_price=decision_price,
         order_id=order_id,
         filled_price=filled_price,
-        timestamp=timestamp,
+        timestamp=ts,
+        shares=csv_shares,
+    )
+    save_execution_to_db(
+        trader=trader,
+        symbol=underlying,
+        change_type=change_type,
+        net_side=net_side,
+        delta_magnitude=delta_magnitude,
+        entry_price=decision_price,
+        order_id=order_id,
+        filled_price=filled_price,
+        timestamp=ts,
+        shares=csv_shares,
     )
 
 
@@ -695,7 +761,6 @@ def process_close(
     ib: 'IB | None',
     row: 'PositionSummary',
     underlying: str,
-    timestamp: str,
     shares_override: int | None,
 ) -> None:
     """Handle CLOSE: cancel orders, exit full position, record to CSV."""
@@ -704,6 +769,8 @@ def process_close(
     delta_magnitude = row.delta_magnitude or 0
     order_id: str | None = None
     filled_price: float | None = None
+    csv_shares: int | None = None
+    decision_price = get_decision_price_for_recording(ib, underlying)
 
     print(f'🔄 CLOSE detected for {underlying} ({trader})')
     if ib is not None and ib.isConnected():
@@ -715,6 +782,7 @@ def process_close(
             if current_position != 0:
                 is_long = current_position > 0
                 exit_size = shares_override if shares_override is not None else abs(current_position)
+                csv_shares = exit_size
                 print(f'   Exiting {exit_size} shares ({"long" if is_long else "short"})')
                 if ACTIVE_TRADING and exit_size > 0:
                     market_result = send_market_order(ib, underlying, is_long, exit_size, trader)
@@ -731,31 +799,58 @@ def process_close(
     else:
         print('   ❌ IB not connected - cannot check position or place order')
 
+    ts = format_timestamp()
     save_execution_to_csv(
         trader=trader,
         symbol=underlying,
         change_type='CLOSE',
         net_side=net_side,
         delta_magnitude=delta_magnitude,
+        entry_price=decision_price,
         order_id=order_id,
         filled_price=filled_price,
-        timestamp=timestamp,
+        timestamp=ts,
+        shares=csv_shares,
+    )
+    save_execution_to_db(
+        trader=trader,
+        symbol=underlying,
+        change_type='CLOSE',
+        net_side=net_side,
+        delta_magnitude=delta_magnitude,
+        entry_price=decision_price,
+        order_id=order_id,
+        filled_price=filled_price,
+        timestamp=ts,
+        shares=csv_shares,
     )
 
 
 def process_flip(
     row: 'PositionSummary',
     underlying: str,
-    timestamp: str,
+    ib: 'IB | None' = None,
 ) -> None:
-    """Handle FLIP: record to CSV only (no order placement)."""
+    """Handle FLIP: record to CSV and database (no order placement)."""
+    decision_price = get_decision_price_for_recording(ib, underlying)
+    ts = format_timestamp()
     save_execution_to_csv(
         trader=row.trader or '',
         symbol=underlying,
         change_type='FLIP',
         net_side=row.net_side or '',
         delta_magnitude=row.delta_magnitude or 0,
-        timestamp=timestamp,
+        entry_price=decision_price,
+        timestamp=ts,
+    )
+    save_execution_to_db(
+        trader=row.trader or '',
+        symbol=underlying,
+        change_type='FLIP',
+        net_side=row.net_side or '',
+        delta_magnitude=row.delta_magnitude or 0,
+        entry_price=decision_price,
+        timestamp=ts,
     )
 
 
@@ -790,15 +885,14 @@ def process_execution_change(
         return
 
     underlying = row.underlying or symbol
-    timestamp = format_timestamp()
 
     if change_type in ['NEW', 'ADD']:
         if net_side in ['long', 'short']:
-            process_new_or_add(ib, row, change_type, shares_override, timestamp)
+            process_new_or_add(ib, row, change_type, shares_override)
     elif change_type == 'TRIM':
         if net_side in ['long', 'short']:
-            process_trim(ib, row, underlying, timestamp, shares_override)
+            process_trim(ib, row, underlying, shares_override)
     elif change_type == 'CLOSE':
-        process_close(ib, row, underlying, timestamp, shares_override)
+        process_close(ib, row, underlying, shares_override)
     elif change_type == 'FLIP':
-        process_flip(row, underlying, timestamp)
+        process_flip(row, underlying, ib=ib)

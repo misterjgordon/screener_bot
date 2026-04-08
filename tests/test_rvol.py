@@ -11,6 +11,7 @@ uv run python -m tests.test_rvol --time 10:30
 import sys
 import unittest
 import warnings
+from datetime import date
 from datetime import datetime
 from datetime import time
 
@@ -27,6 +28,15 @@ from trading.models import BarSeries
 SYMBOL = 'HIMS'
 
 
+def _bar_timestamp_as_naive_datetime(bar_dt: object) -> datetime:
+    """Normalize IB bar .date to naive datetime (strip tzinfo if present)."""
+    if isinstance(bar_dt, datetime):
+        return bar_dt.replace(tzinfo=None) if bar_dt.tzinfo else bar_dt
+    if isinstance(bar_dt, date):
+        return datetime.combine(bar_dt, RTH_END)
+    raise TypeError(f'bar .date must be date or datetime, got {type(bar_dt).__name__}')
+
+
 def _eval_time(test_time: time | None, bars_2min: list, bars_2min_rth: list) -> datetime:
     """Compute evaluation datetime: test_time, now(), or last RTH bar if outside hours."""
     session_date = last_trading_day()
@@ -36,11 +46,9 @@ def _eval_time(test_time: time | None, bars_2min: list, bars_2min_rth: list) -> 
     if RTH_START <= now.time() < RTH_END:
         return now
     if bars_2min_rth:
-        bar_dt = bars_2min_rth[-1].date
-        return bar_dt.replace(tzinfo=None) if hasattr(bar_dt, 'tzinfo') and bar_dt.tzinfo else bar_dt
+        return _bar_timestamp_as_naive_datetime(bars_2min_rth[-1].date)
     if bars_2min:
-        bar_dt = bars_2min[-1].date
-        return bar_dt.replace(tzinfo=None) if hasattr(bar_dt, 'tzinfo') and bar_dt.tzinfo else bar_dt
+        return _bar_timestamp_as_naive_datetime(bars_2min[-1].date)
     return now
 
 
@@ -50,7 +58,7 @@ def _slice_bars_1d(bars_1d: list, eval_dt: datetime) -> list:
     eval_date = eval_dt.date()
     eval_time = eval_dt.time()
     for b in bars_1d:
-        bd = bar_date(b.date) if hasattr(b, 'date') else None
+        bd = bar_date(b.date)
         if bd is None:
             continue
         if bd < eval_date or bd == eval_date and eval_time >= RTH_END:
@@ -104,16 +112,12 @@ class TestRvolIntegration(unittest.TestCase):
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', category=DeprecationWarning)
             cls.ib = connect(readonly=True)
-        if cls.ib is not None and cls.ib.isConnected():
-            cls.bundle = load_bars(cls.ib, SYMBOL)
+        assert cls.ib is not None and cls.ib.isConnected()
+        cls.bundle = load_bars(cls.ib, SYMBOL)
 
     @classmethod
     def tearDownClass(cls) -> None:
         disconnect(cls.ib)
-
-    def setUp(self) -> None:
-        if self.ib is None or not self.ib.isConnected():
-            self.skipTest('IB not connected - is TWS/Gateway running?')
 
     def test_rvol_value(self) -> None:
         """Load bars for SYMBOL, slice to eval time, compute rvol (uses bars_1d)."""
@@ -123,8 +127,8 @@ class TestRvolIntegration(unittest.TestCase):
             self.skipTest('No daily bars returned')
         assert bundle is not None
 
-        bars_2min = getattr(bundle, 'bars_2min', []) or []
-        bars_2min_rth = getattr(bundle, 'bars_2min_rth', []) or []
+        bars_2min = bundle.bars_2min
+        bars_2min_rth = bundle.bars_2min_rth
         eval_dt = _eval_time(test_time, bars_2min, bars_2min_rth)
         sliced_1d = _slice_bars_1d(bundle.bars_1d, eval_dt)
         if not sliced_1d:

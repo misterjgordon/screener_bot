@@ -1,0 +1,134 @@
+# source=tradertv_watchlist desk_date=2026-03-19 fetched_at_utc=2026-03-31T02:30:27.749676+00:00
+# subject=Trader TV Watchlist - March 19, 2026
+# from=TraderTV Live Research <tradertv-live@mail.beehiiv.com>
+# date_header=Thu, 19 Mar 2026 11:39:10 +0000
+
+----------
+CLICK TO WATCH NOW! (https://youtube.com/live/mAhnfXggzZ8)
+
+
+----------# **Thursday March 19, 2026**
+
+----------
+# ^~**Welcome to the TraderTV Live Morning Research Note. Here&#39;s what&#39;s making major moves in the market today.**~^
+
+
+----------##### ^_[TraderTV.LIVE](https://TraderTV.LIVE)_^^™ features a daily live trading broadcast, professional education and an active community of more than 450,000 subscribers.  ^_[^Join us on YouTube^](https://www.youtube.com/c/TraderTVLive)_^ every weekday from 8:00am to 4:00pm EST for the first and only professional trading show on YouTube Live!^
+
+———————————————————————————
+
+
+# **Economic Events:**
+
+----------
+0830 - **Philly Fed manufacturing index for March:** Expected 8.5; Prior 16.3
+0830 - **Initial jobless claims:** Expected 215k; Prior 213k
+1000 - **New home sales for January:** Expected 721k; Prior 745k
+1000 - **New home sales m/m for January:** Expected -2.7%; Prior -1.7%
+
+
+
+----------# **Premarket Trading:**
+
+**Trading Higher ($): FIVE, ALGN, LNG**
+
+**Trading Lower ($): MU, BABA, HYMC**
+
+# **Earnings Today:**
+
+**Premarket: BABA, LUNR, ACN**
+
+**Post-market: FDX, PL, FLY**
+
+———————————————————————————
+
+# **In The News**
+
+———————————————————————————
+
+----------
+## **Tesla Inc (TSLA)**
+
+#### **-0.56%**
+
+The U.S. auto safety regulator (NHTSA) has deepened a probe into Tesla's driver-assistance system to evaluate its effectiveness in identifying degraded road conditions after nine crashes linked to the technology, including one that was fatal. The probe covers roughly 3.2 million vehicles across multiple models — nearly all vehicles the company has sold in the U.S. The move marks a significant escalation that could lead to a recall or other enforcement action if regulators find a safety defect. The probe focuses on Tesla's "degradation detection" system, which is designed to recognize when visibility is impaired and warn drivers to take control.
+
+
+
+———————————————————————————
+
+
+--------------------
+## **Micron Technology Inc (MU)**
+
+#### **-6.63%**
+
+Micron's shares dropped before the bell as the chipmaker's plans for heftier capex spending unnerved investors, taking the shine off another round of AI-fueled blockbuster quarterly earnings. Micron said it is boosting its 2026 capital spending plan by $5 billion to meet growing demand, bringing total investment for the current fiscal year to more than $25 billion, with spending expected to rise again in 2027. The chipmaker topped Wall Street expectations for Q2 and forecast Q3 revenue of $33.5 billion (vs. analyst estimates of $24.29 billion). Micron is one of only three global suppliers of high-bandwidth memory used in AI systems, along with Samsung and SK Hynix.
+
+———————————————————————————
+
+
+--------------------
+## **Alphabet Inc (GOOGL)**
+
+#### **-0.49%**
+
+Google said it is developing new search controls to let websites specifically opt out of its generative AI features, seeking to address the British competition regulator's concerns about its dominance in search services. The company also proposed "a less intrusive" switch in device settings to make it easier to change the default search engine, rather than frequent pop-ups. Britain's Competition and Markets Authority designated Google as having "strategic market status" in search services and subsequently started a consultation on potential interventions. Google accounts for more than 90% of UK search queries and uses content harvested by its search crawler to build its AI Overviews, AI mode, and standalone Gemini AI assistant
+
+———————————————————————————
+
+
+--------------------
+## **Precious Metals**
+
+#### **-3.2%**
+
+Gold And Silver prices declined sharply overnight with Gold hitting 6t week lows. The US federal reserve holding rates steady in addition to Iranian Missile strikes causing shock to Oil and gas futures have seen the Dollar index reach highs putting pressure on the precious metals
+
+**SLV, GLD, GXDX,HYMC, NEM**
+
+———————————————————————————
+
+
+--------------------
+## **Alibaba Holding Group (BABA)**
+
+#### **-4.73%**
+
+Shares are trading lower premarket after Alibaba reported a significant bottom-line miss with an EPS of $1.01, trailing analyst estimates by over 41% and marking a sharp 65.5% decline from the previous year. While quarterly revenue grew 6.1% to $40.73 billion, it still fell slightly short of the $41.26 billion consensus. This stark contrast between modest sales growth and collapsing profitability suggests severe margin compression that traders should monitor closely.
+
+———————————————————————————
+
+
+--------------------
+## **Novo Nordisk (NVO)**
+
+#### **-2.90%**
+
+Trading lower Prmarket as India's market for diabetes and weight-loss drugs is set for a shake-up. Novo Nordisk's patent on semaglutide expires this week, triggering a wave of cheaper generics from local drugmakers. More than 40 Indian firms are expected to launch over 50 brands within weeks, widening access in a price-sensitive market but also raising concerns about misuse and uneven oversight. The entry of generics will also challenge Novo and rival Eli Lilly, which launched blockbuster diabetes and obesity drugs in India last year, as they seek to cement their position in the country.
+
+
+
+———————————————————————————
+
+
+--------------------
+## **Apple Inc (AAPL)**
+
+#### **0.28%**
+
+Apple posted a 23% surge in China smartphone sales in the first nine weeks of 2026, bucking a broader market decline as some Android phone makers raised prices in response to higher costs for memory chips. Apple's gains were driven by e-commerce discounts and its eligibility for state subsidies on the base iPhone 17 model. The company's tight grip on its supply chain leaves it better placed than rivals to absorb the impact of soaring memory chip costs, and it is expected to hold the line on pricing while competitors raise theirs.
+
+———————————————————————————
+
+
+--------------------
+## **China Natural Resources (CHNR)**
+
+#### **+50.3%**
+
+China Natural Resources is gapping significantly higher after they have signed a non-binding letter of intent to acquire a 59.79% stake in HooRii Technology, a Hong Kong-based firm specializing in physical AI and IoT integration. This move marks a potential strategic shift for the mining company as it looks to diversify into the artificial intelligence sector. A special committee of independent directors has been established to evaluate the transaction with the principal shareholder, Feishang Group. The stock trades with a 550k float with almost 7% short
+
+
+
+———————————————————————————

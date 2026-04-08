@@ -1,0 +1,144 @@
+# source=tradertv_watchlist desk_date=2026-03-20 fetched_at_utc=2026-03-31T02:00:31.019629+00:00
+# subject=Trader TV Watchlist - March 20, 2026
+# from=TraderTV Live Research <tradertv-live@mail.beehiiv.com>
+# date_header=Fri, 20 Mar 2026 11:41:00 +0000
+
+View image: (https://media.beehiiv.com/cdn-cgi/image/fit=scale-down,format=auto,onerror=redirect,quality=80/uploads/asset/file/8e91f170-4cc5-44bb-ba24-42a3d61c23c4/RESEARCH-LOGO-SQUARE_REV07__2_.png?t=1768505763)
+Follow image link: (https://youtube.com/live/wAb8lD-_pmc)
+Caption: 
+
+----------
+CLICK TO WATCH NOW! (https://youtube.com/live/wAb8lD-_pmc)
+
+
+----------# **Friday March 20, 2026**
+
+----------
+# ^~**Welcome to the TraderTV Live Morning Research Note. Here&#39;s what&#39;s making major moves in the market today.**~^
+
+
+----------##### ^_[TraderTV.LIVE](https://TraderTV.LIVE)_^^™ features a daily live trading broadcast, professional education and an active community of more than 450,000 subscribers.  ^^_[Join us on YouTube](https://www.youtube.com/c/TraderTVLive)_^^ every weekday from 8:30am to 4:30pm EST for the first and only professional trading show on YouTube Live!^
+
+———————————————————————————
+
+# **Economic Events:**
+
+----------
+1:00 - **Baker Hughes Oil Rig Count:** Prior 412
+1:00 - **Baker Hughes Total Rig Count:** Prior 553
+
+
+
+----------# **Premarket Trading:**
+
+**Trading Higher ($): FDX, PL, FLY**
+
+**Trading Lower ($): SMCI, NVO, XPEV**
+
+# **Earnings Today:**
+
+**Premarket: XPEV, ZGN, FUFU**
+
+———————————————————————————
+
+# **In The News**
+
+———————————————————————————
+
+----------
+## **Super Micro Computer (SMCI)**
+
+#### **-27.8%**
+
+Down Sharply overnight after three individuals associated with AI server maker Super Micro Computer — including co-founder Yih-Shyan Liaw — were charged with helping smuggle at least $2.5 billion of U.S. AI technology to China in violation of export laws. The alleged scheme involved routing U.S.-made servers through Taiwan, swapping them into unmarked boxes, and shipping them onward to China. Super Micro noted the company itself was not named as a defendant and said it had cooperated with investigators. The company placed two employees on administrative leave and terminated its relationship with a third contractor.
+
+
+
+———————————————————————————
+
+
+--------------------
+## **FedEx Corp (FDX)**
+
+#### **8.39%**
+
+FedEx shares surged after the close as the package-delivery giant raised its full-year profit forecast and signaled steady shipping demand despite geopolitical tensions and surging fuel costs. The company said demand in the first two weeks of March tracked expectations for a continuation of Q3 trends. The Company Beat EPS $5.25 vs Estimates of $4.13 as well as a beat on sales. The U.S.-Israeli war on Iran has increased air freight rates and forced re-routing of flights, but FedEx said its fuel-surcharge mechanisms continue to absorb most of the impact. J.P. Morgan highlighted FedEx's Express segment as the standout, with stronger yields, firmer U.S. domestic volume and continued cost takeout.
+
+
+
+———————————————————————————
+
+
+--------------------
+## **NVIDIA Corp (NVDA)**
+
+#### **-0.49%**
+
+Nvidia will sell 1 million GPU chips — along with Spectrum networking chips and Groq chips — to Amazon Web Services by 2027, per a Nvidia executive speaking to Reuters. Sales begin this year and extend through 2027, the same window Nvidia CEO Jensen Huang identified for a $1 trillion sales opportunity across its Rubin and Blackwell chip families. The deal also includes chips acquired through Nvidia's $17 billion licensing deal with an AI chip startup announced last year. Financial terms were not disclosed.
+
+**AMZN**
+
+———————————————————————————
+
+
+--------------------
+## **Oil and Energy **
+
+#### **-%**
+
+Oil prices dropped following Prime Minister Netanyahu’s press conference yesterday, as he sought to de-escalate fears by stating that the war with Iran would end "a lot faster than people think." Markets reacted positively to his claims that Iran’s strategic capabilities—specifically uranium enrichment and ballistic missile production—had been "decimated," reducing the perceived long-term risk to global energy supplies. Furthermore, the drop was supported by President Trump’s assurance that Israel would no longer target Iranian energy infrastructure, easing immediate concerns over further retaliatory strikes in the Persian Gulf. As a result, Brent crude retreated from its highs of nearly $119 toward the $105 range as the "geopolitical risk premium" began to uncouple from the price.
+
+**USO, CVX, XOM, OXY, BOIL, XLE**
+
+———————————————————————————
+
+
+--------------------
+## **Tesla (TSLA)**
+
+#### **-0.42%**
+
+Tesla is in talks to buy $2.9 billion worth of solar panel and cell manufacturing equipment from Chinese suppliers, including Suzhou Maxwell Technologies, as CEO Elon Musk aims to add 100 gigawatts of solar capacity in the United States. Suzhou Maxwell Technologies is among the leading candidates and has been seeking export approval from China's commerce ministry. Tesla's job postings target 100 GW of "solar manufacturing from raw materials on American soil before the end of 2028." Musk has claimed solar power could meet all U.S. electricity needs.
+
+
+
+———————————————————————————
+
+
+--------------------
+## **Firefly Aerospace (FLY)**
+
+#### **7.14%**
+
+Firefly Aerospace  is rallying in the premarket following a "double beat" that signals a massive shift toward commercial scalability. The company significantly narrowed its losses to $(0.26) per share, comfortably outperforming analyst expectations of $(0.43) and marking a nearly 97% improvement over last year’s heavy losses. Most impressively, revenue surged over 538% year-over-year to $57.67 million, suggesting that Firefly's launch cadence and contract fulfillments are accelerating far faster than Wall Street anticipated..
+
+
+
+———————————————————————————
+
+
+--------------------
+## **Gemini Space Station (GEMI)**
+
+#### **3.83%**
+
+Shareholders sued Gemini and its billionaire founders Cameron and Tyler Winklevoss, alleging they were defrauded about the cryptocurrency exchange's business prospects. The proposed class action filed in Manhattan federal court claims Gemini made false and misleading statements in marketing documents for its September 11, 2025 IPO by overstating the viability of its crypto platform and its ability to grow internationally. Shareholders also allege the company did not disclose it was poised for an "abrupt corporate pivot" to focus on prediction markets. Gemini reported a full-year net loss of $582.8 million, or $258 million before EBITDA adjustments
+
+———————————————————————————
+
+
+--------------------
+## **Planet Labs (PL)**
+
+#### **17.21%**
+
+Shares surged after market due to a comprehensive "beat and raise" report that highlighted explosive growth in its underlying contract value. The company surpassed Q4 revenue expectations with $86.82 million and, more importantly, reported a massive 106% year-over-year increase in Remaining Performance Obligations (RPO), signaling a robust long-term backlog of over $900 million. This momentum is supported by a significant cash position of $640 million and a new R&D partnership with Google to explore space-based data centers. Finally, the stock is being propelled by an optimistic fiscal 2027 revenue outlook that sits well above analyst estimates, reassuring investors of sustained demand for its satellite services..
+
+———————————————————————————
+
+
+----------
+———
+
+You are reading a plain text version of this post. For the best experience, copy and paste this link in your browser to view the post online:
+https://tradertv-live.beehiiv.com/p/trader-tv-watchlist-march-20-2026

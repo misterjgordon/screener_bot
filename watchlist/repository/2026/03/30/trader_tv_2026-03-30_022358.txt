@@ -1,0 +1,160 @@
+# source=tradertv_watchlist desk_date=2026-03-30 fetched_at_utc=2026-03-31T02:23:58.942463+00:00
+# subject=Trader TV Watchlist - March 30, 2026
+# from=TraderTV Live Research <tradertv-live@mail.beehiiv.com>
+# date_header=Mon, 30 Mar 2026 11:49:19 +0000
+
+----------
+CLICK TO WATCH NOW! (https://www.youtube.com/watch?v=IdHTentfFvo)
+
+
+----------# **Monday March 30, 2026**
+
+----------
+# ^~**Welcome to the TraderTV Live Morning Research Note. Here&#39;s what&#39;s making major moves in the market today.**~^
+
+
+----------##### ^_[TraderTV.LIVE](https://TraderTV.LIVE)_^^™ features a daily live trading broadcast, professional education and an active community of more than 450,000 subscribers.  ^^_[Join us on YouTube](https://www.youtube.com/c/TraderTVLive)_^^ every weekday from 8:00am to 4:00pm EST for the first and only professional trading show on YouTube Live!^
+
+———————————————————————————
+
+
+
+# **Economic Events:**
+
+----------
+1030 - **Fed Chair Powell speaks**
+1600 - **Fed’s Williams speaks**
+
+
+----------# **Premarket Trading:**
+
+**Trading Higher ($): BATL, NVDA, INTC**
+
+**Trading Lower ($): SYY, PLTR, ARTL**
+
+# **Earnings Today:**
+
+**Premarket: RZLV, PAVM, FRMI**
+
+**Post-market: PRGS, ARKO, DMAC**
+
+———————————————————————————
+
+# **In The News**
+
+———————————————————————————
+
+----------
+## **Oil and Energy Stocks**
+
+#### **+1.57%**
+
+Trading higher as a group as the conflict between the US and Iran enters its fifth week. Escalations over the weekend, including Houthi missile attacks on Israel and comments from US President Donald Trump about seizing Iran’s oil, raised fears of disruptions to global energy supply. Brent prices are up 55% in March and on track for a record monthly gain amid the widening conflict. On Monday morning, Trump shared a Truth Social post in which he announced that the US will attack Iran’s oil and energy plants, including Kharg Island, if a deal is not “shortly reached”; he noted that he believes a deal will “probably” be reached and that progress has been made through negotiations.
+
+**USO, CVX, XOM, OXY, BATL, TPET, DVN, COP, EONR**
+
+———————————————————————————
+
+
+--------------------
+## **Advanced Micro Devices Inc (AMD)**
+
+#### **+1.09%**
+
+Trading higher premarket after Aletheia Capital reiterated a Buy rating on the stock with a $330 price target. Analysts attributed the rating to a belief that the rise of agentic AI will boost demand for CPUs, strengthening AMD’s position as a comprehensive AI compute provider. Aletheia expects strong dual growth from both server CPUs and MI GPUs, projecting data center revenue to surge significantly alongside a 45% CAGR in server CPU sales through 2028.
+
+———————————————————————————
+
+
+--------------------
+## **Crypto Stocks**
+
+#### **+2.04%**
+
+Trading higher as a group in tandem with a rebound in Bitcoin. The cryptocurrency, which is coming off of two straight losing weeks, opened Monday’s session just shy of $66,000 and is trading near $67,500 as of 7:10 AM ET. Ethereum is also bouncing after two straight losing weeks, up nearly 4% to start Monday’s session.
+
+**COIN, MSTR, MARA, RIOT, IBIT, ETHE, HUT, CLSK, IREN, CAN, HIVE**
+
+———————————————————————————
+
+
+--------------------
+## **Sysco Corp (SYY)**
+
+#### **-4.77%**
+
+The Wall Street Journal reported that the company is nearing a deal to acquire Restaurant Depot, a warehouse supplier serving small and independent food businesses, for roughly $29.1 billion, including debt. The acquisition would significantly expand Sysco’s reach across restaurants, hospitals, and schools while strengthening its position with smaller operators.
+
+———————————————————————————
+
+
+--------------------
+## **Meta Platforms Inc (META)**
+
+#### **+1.32%**
+
+On watch after Morgan Stanley cut its price target cut on the stock from $825 to $775 while maintaining an Overweight rating. The analyst attributed the price target cut to weak sentiment driven by AI monetization concerns, macro ad pressures, and regulatory risks. Despite the stock’s recent ~13% selloff, Morgan Stanley sees Meta as undervalued and thinks there is a strong buying opportunity, noting the stock trades below historical valuation levels with potential upside from cost savings and earnings growth.
+
+———————————————————————————
+
+
+--------------------
+## **Memory Stocks**
+
+#### **+1.81%**
+
+On watch after RBC issued an analyst note on memory pricing outlook. The analyst expects pricing strength to persist into 2027, driven by tight supply, ongoing clean room constraints, and strong data center demand. DRAM contract prices are expected to surge, while HBM pricing is likely to rise further in upcoming negotiations. Meanwhile, NAND supply remains constrained as capacity shifts toward DRAM, though continued tech investments should still support high-teens bit supply growth.
+
+**MU, SNDK, WDC, STX**
+
+———————————————————————————
+
+
+--------------------
+## **CrowdStrike Holding Inc (CRWD)**
+
+#### **+2.89%**
+
+Trading sharply higher premarket after Wolfe Research upgraded the stock to Outperform with a $450 price target. The analysts see CrowdStrike’s recent pullback, driven in part by concerns around competition from Anthropic, as creating an attractive entry point. Wolfe believes that the stock’s premium valuation is justified by CrowdStrike’s strong growth, expanding margins, and leadership in cybersecurity, especially as threat levels rise.
+
+———————————————————————————
+
+
+--------------------
+## **Nike Inc (NKE)**
+
+#### **+0.49%**
+
+On watch ahead of the company’s earnings report on Tuesday, March 31 (ETA 4:15 PM ET). Nike has been struggling in China as operational missteps, weaker consumer demand, and intense competition expose deeper execution issues beyond anti-foreign sentiment. With Greater China contributing about 15% of revenue, Nike is urgently trying to recover but is losing share to domestic rivals Anta and Li Ning, which benefit from faster supply chains and broader retail reach. Analysts are looking for Nike to post earnings of $0.29 per share and sales of $11.29 billion.
+
+———————————————————————————
+
+
+--------------------
+## **Palo Alto Networks Inc (PANW)**
+
+#### **+3.60%**
+
+Trading higher premarket after a positive note from Barclays. The analyst noted that CEO Nikesh Arora’s recent $10M open-market stock purchase is the largest such purchase that Barclays has seen among management teams in its coverage. The move is viewed as a strong vote of confidence, particularly as the cybersecurity sector faces new competitive concerns from Anthropic.
+
+———————————————————————————
+
+
+--------------------
+## **Carnival Corp (CCL)**
+
+#### **+0.66%**
+
+Trading marginally higher premarket after BofA reiterated the stock at a Buy rating with a $45 price target, supported by strong earnings momentum, a $2.5B buyback program, and long-term plans targeting over 50% EPS growth through 2029. While near-term fuel costs and cautious consumer behavior may create volatility, BofA views these as temporary and sees the stock as attractively valued based on 2027 earnings.
+
+———————————————————————————
+
+
+--------------------
+## **Bullfrog AI Holdings Inc (BFRG)**
+
+#### **+85.87%**
+
+Gapping up after announcing a commercial agreement with a top-five global pharmaceutical company to use its bfLEAP® platform to identify and prioritize novel drug targets for major depressive disorder, accelerating drug discovery and clinical development. The deal also grants the pharma partner exclusive access to a target candidate. The stock has a market capitalization of $6.44 million and a float of 9.12 million shares, 6% of which are sold short.
+
+———————————————————————————

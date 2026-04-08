@@ -7,14 +7,11 @@ from trading.config import SCREENER_DAILY_STOP_FRACTION
 from trading.trade_mgmt import compute_risk_percent_and_trade_stop_amount
 from trading.trade_mgmt import round_risk_fraction
 
-# =========================================================
-# Constants (mirroring the style of test_trade_mgmt.py)
-# =========================================================
 TRADER = 'Justin Spero'
 MAGNITUDE_0_100 = 48.0
 ENTRY_PRICE = 25.3
 STOP_PRICE = 21.21
-
+direction = True
 
 class TestRiskPercent(unittest.TestCase):
     def test_risk_percent_returns_fraction_and_risk_dollars(self) -> None:
@@ -25,6 +22,7 @@ class TestRiskPercent(unittest.TestCase):
             magnitude_0_100=MAGNITUDE_0_100,
             entry_price=ENTRY_PRICE,
             stop_price=STOP_PRICE,
+            is_long=direction,
         )
         assert out is not None
         risk_fraction, risk_dollars = out

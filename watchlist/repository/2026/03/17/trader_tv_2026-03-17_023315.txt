@@ -1,0 +1,175 @@
+# source=tradertv_watchlist desk_date=2026-03-17 fetched_at_utc=2026-03-31T02:33:15.664619+00:00
+# subject=Trader TV Watchlist - March 17, 2026
+# from=TraderTV Live Research <tradertv-live@mail.beehiiv.com>
+# date_header=Tue, 17 Mar 2026 11:46:40 +0000
+
+----------
+CLICK TO WATCH NOW! (https://www.youtube.com/watch?v=iR7chZYIAhQ)
+
+
+----------# **Tuesday March 17, 2026**
+
+----------
+# ^~**Welcome to the TraderTV Live Morning Research Note. Here&#39;s what&#39;s making major moves in the market today.**~^
+
+
+----------##### ^_[TraderTV.LIVE](https://TraderTV.LIVE)_^^™ features a daily live trading broadcast, professional education and an active community of more than 450,000 subscribers.  ^^_[Join us on YouTube](https://www.youtube.com/c/TraderTVLive)_^^ every weekday from 8:30am to 4:30pm EST for the first and only professional trading show on YouTube Live!^
+
+———————————————————————————
+
+# **Economic Events:**
+
+----------
+1000 - **Pending home sales m/m for February:** Expected -0.7%; Prior -0.8%
+
+
+----------# **Premarket Trading:**
+
+**Trading Higher ($): CRCL, AAL, INTC**
+
+**Trading Lower ($): LITE, SNDK, BYND**
+
+# **Earnings Today:**
+
+**Premarket: ASO, ESLT, ATAT**
+
+**Post-market: OKLO, LULU, DOCU**
+
+———————————————————————————
+
+# **In The News**
+
+———————————————————————————
+
+----------
+## **NVIDIA Corp (NVDA)**
+
+#### **+0.31%**
+
+On watch after its GTC 2026 keynote, hosted by CEO Jensen Huang on Monday afternoon. During the event, Huang indicated that the company expects $1 trillion in total Blackwell and Vera Rubin purchase orders through 2027. Huang also announced Nvidia’s first computing platform to be used on orbital data centers and touted partnerships with companies like Palantir, Dell, and CoreWeave throughout the keynote. 
+
+———————————————————————————
+
+
+--------------------
+## **Oil and Energy Stocks**
+
+#### **+3.33%**
+
+Trading higher premarket in tandem with a surge in oil prices. Brent crude futures topped $103 and WTI futures neared $97 on Tuesday morning as uncertainty grew over a US-led coalition to secure shipping in the Strait of Hormuz. Mixed signals from the Trump administration and ongoing Iranian-related disruptions to tanker traffic have heightened supply concerns and volatility in global energy markets. Additionally, US economic advisor Kevin Hassett outlined a four-to-six week “base case” for the length of the conflict between the US and Iran.
+
+**USO, XOM, CVX, DVN, OXY, BATL, TPET, EONR**
+
+———————————————————————————
+
+
+--------------------
+## **Airlines**
+
+#### **+3.71%**
+
+Trading sharply higher as a group after Delta announced that it is maintaining its previously-issued Q1 2026 guidance in spite of recent jet fuel price increases. CEO Ed Bastian attributed the company’s optimistic outlook to “really, really great” demand, though he noted a $400 million impact thus far in the current quarter. Delta’s outlook included year-over-year sales growth of up to 7% and adjusted EPS between $0.50 and $0.90.
+
+**DAL, AAL, UAL, JBLU, LUV**
+
+———————————————————————————
+
+
+--------------------
+## **Uber Technologies Inc (UBER)**
+
+#### **+2.95%**
+
+Trading higher premarket after expanding its autonomous vehicle partnership with Nvidia to launch a global fleet of Nvidia-powered robotaxis. This launch will start in Los Angeles and San Francisco in 2027, with plans to scale to 28 cities by 2028. The rollout will use NVIDIA’s DRIVE Hyperion platform and new Alpamayo AI model to enable advanced, full-stack Level 4 autonomy capable of handling complex real-world driving scenarios.
+
+———————————————————————————
+
+
+--------------------
+## **Nebius Group NV (NBIS)**
+
+#### **-6.99%**
+
+Gapping down after announcing plans to raise $3.75 billion through a convertible loan to fund its AI cloud services. The announcement follows major deals with Meta worth up to $27 billion and a $2 billion investment from Nvidia. Approximately 21.7% of the stock’s float is sold short.
+
+———————————————————————————
+
+
+--------------------
+## **Alibaba Group Holding Ltd (BABA)**
+
+#### **+0.94%**
+
+On watch after launching Wukong, a new agentic AI tool for enterprise customers that allows businesses to manage multiple AI agents through a single interface with enterprise-grade security. Currently in invitation-only testing, Wukong can automate tasks like document editing and research. This tool is designed to integrate with platforms such as DingTalk, Slack, Microsoft Teams, and WeChat, as well as Alibaba’s own e-commerce ecosystem.
+
+———————————————————————————
+
+
+--------------------
+## **Amazon.com Inc (AMZN)**
+
+#### **-0.41%**
+
+The company announced an expansion ultra-fast delivery in the US, offering three-hour delivery in about 2,000 locations and one-hour delivery in hundreds of areas as it ramps up convenience for customers. The service covers over 90,000 items and is expected to roll out to more regions in the coming months following earlier pilot tests.
+
+———————————————————————————
+
+
+--------------------
+## **Alphabet Inc (GOOGL)**
+
+#### **-0.48%**
+
+Reuters reported that the company is in talks with China-based suppliers including Envicool to secure liquid cooling systems for AI data centers, reflecting tight global supply. The discussions underscore rising demand for cooling infrastructure as AI workloads increase heat output and highlight the growing role of Chinese vendors despite US-China tensions.
+
+———————————————————————————
+
+
+--------------------
+## **Tesla Inc (TSLA)**
+
+#### **-0.11%**
+
+On watch after the US government confirmed that the company signed a $4.3 billion agreement with LG Energy Solution to build an LFP battery cell manufacturing facility in Michigan. Production is expected to begin in 2027. The deal supports Tesla’s push to localize supply chains and reduce reliance on Chinese imports amid tariffs.
+
+———————————————————————————
+
+
+--------------------
+## **Lemonade Inc (LMND)**
+
+#### **+6.30%**
+
+Morgan Stanley upgraded the stock from Equal Weight to Overweight and hiked its price target to $85, highlighting its partnership with Tesla as a first-mover advantage in autonomous auto insurance data. The analyst expects Lemonade to expand geographically in autonomous coverage, driving growth through Lemonade Car and improving its long-term earnings potential.
+
+———————————————————————————
+
+
+--------------------
+## **Beyond Meat Inc (BYND)**
+
+#### **-4.75%**
+
+Gapping down after releasing preliminary earnings for Q4 2025. The company posted preliminary Q4 revenue of about $61 million, missing Wall Street estimates, and said it will delay filing its 2025 annual report while it reviews inventory balances and internal controls. Beyond Meat continues to face weak demand amid consumer shifts away from higher-priced, processed plant-based foods.
+
+———————————————————————————
+
+
+--------------------
+## **AEye Inc (LIDR)**
+
+#### **+38.71%**
+
+Gapping up after joining NVIDIA’s Halos AI Systems Inspection Lab to validate interoperability, safety processes, and integration with NVIDIA DRIVE platforms. AEye also highlighted that its Apollo lidar is already validated on DRIVE AGX Orin and demonstrated on DRIVE AGX Thor, with detection capabilities up to 1 kilometer. The stock has a market capitalization of $70 million and a float of 43 million shares.
+
+———————————————————————————
+
+
+--------------------
+## **Lunai Bioworks Inc (LNAI)**
+
+#### **+96.18%**
+
+Gapping up amid an influx of premarket social media attention. The stock has a market capitalization of $5.1 million and a float of 13.25 million shares, roughly 6% of which are sold short.
+
+———————————————————————————

@@ -38,6 +38,8 @@ Avoid creating multiple pathways for same operation.
 
 - Names describe purpose, not implementation.
 - Avoid generic names (`data`, `result`, `temp`, `utils`, `out`).
+- Do not embed variable or constant values in function names (e.g. `seed_hims_row` when HIMS is a
+  symbol constant; use `seed_sample_execution` instead).
 
 ## Comments
 
@@ -95,3 +97,14 @@ When multiple approaches are valid:
 ## Violations
 
 If a change violates these principles, don't implement it. Explain conflict and propose alternative.
+
+## Hard coded values
+
+- Hard-coded values should be defined with a named variable if they are used in multiple places.
+- Inside a function, prefer the named constant over repeating its literal (e.g. use `FILLED_PRICE` or
+  `Decimal(str(FILLED_PRICE))` instead of `Decimal('33.18')` when `FILLED_PRICE = 33.18` exists).
+
+## Naming: do not encode values in identifiers
+- NEVER name variables/constants/functions after their current literal values.
+  - Bad: `TRADER_JEFF = 'Jeff Holden'`, `SYMBOL_NFLX = 'NFLX'`, `ACCOUNT_U123 = 'U123', def trader_jeff(): return 'Jeff Holden'`
+  - Good: `TRADER = 'Jeff Holden'`, `SYMBOL = 'NFLX'`, `IB_ACCOUNT = 'U123', def trader_function(trader: str): return 'trader'`

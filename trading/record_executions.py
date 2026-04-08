@@ -4,8 +4,11 @@ import csv
 from datetime import date
 from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from trading.models import Execution
+
+_VANCOUVER_TZ = ZoneInfo('America/Vancouver')
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 EXECUTIONS_DIR = str(_REPO_ROOT / 'smb_trader_executions')
@@ -15,21 +18,32 @@ def format_timestamp(dt: datetime | None = None) -> str:
     """
     Format datetime as a database and Excel-friendly timestamp string.
 
-    Format: YYYY-MM-DD HH:MM:SS (space-separated, seconds precision)
-    This format is:
-    - Recognized by Excel when importing CSV
-    - Compatible with most databases (PostgreSQL, MySQL, SQLite, etc.)
-    - Sortable and filterable in both Excel and databases
+    Format: YYYY-MM-DD HH:MM:SS (space-separated, seconds precision) in
+    America/Vancouver wall time. Matches ``execution_db._parse_timestamp`` and
+    ``import_executions``: naive strings round-trip as Pacific, not system local.
+
+    When ``dt`` is None, uses current time in Vancouver (not ``datetime.now()`` alone,
+    which follows host TZ and mislabels UTC machines as Pacific when parsed).
 
     Args:
-        dt: datetime object (defaults to current time if None)
+        dt: Optional datetime; naive values are treated as Vancouver local; aware
+            values are converted to Vancouver before formatting.
 
     Returns:
-        str: Formatted timestamp string
+        str: Formatted timestamp string (24h Pacific wall clock)
     """
     if dt is None:
-        dt = datetime.now()
+        dt = datetime.now(_VANCOUVER_TZ)
+    elif dt.tzinfo is None:
+        dt = dt.replace(tzinfo=_VANCOUVER_TZ)
+    else:
+        dt = dt.astimezone(_VANCOUVER_TZ)
     return dt.strftime('%Y-%m-%d %H:%M:%S')
+
+
+def vancouver_today() -> date:
+    """Calendar date in America/Vancouver (for daily CSV filename)."""
+    return datetime.now(_VANCOUVER_TZ).date()
 
 
 def ensure_executions_dir() -> None:
@@ -38,8 +52,8 @@ def ensure_executions_dir() -> None:
 
 
 def get_executions_filename() -> str:
-    """Get the executions CSV filename for today."""
-    today = date.today()
+    """Daily CSV path using America/Vancouver calendar date (not host ``date.today()``)."""
+    today = vancouver_today()
     filename = f"executions_{today.strftime('%Y-%m-%d')}.csv"
     return str(Path(EXECUTIONS_DIR) / filename)
 
@@ -61,7 +75,7 @@ def save_execution_to_csv(
     risk_per_share: float | None = None,
     risk_percent: float | None = None,
 ) -> None:
-    """Save execution data to CSV file using Execution schema."""
+    """Append one execution row; timestamp column is Pacific wall time (see ``format_timestamp``)."""
     ensure_executions_dir()
     filename = get_executions_filename()
     if timestamp is None:

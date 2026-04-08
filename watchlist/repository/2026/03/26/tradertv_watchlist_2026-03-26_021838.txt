@@ -1,0 +1,191 @@
+# source=tradertv_watchlist desk_date=2026-03-26 fetched_at_utc=2026-03-31T02:18:38.061130+00:00
+# subject=Trader TV Watchlist - March 26, 2026
+# from=TraderTV Live Research <tradertv-live@mail.beehiiv.com>
+# date_header=Thu, 26 Mar 2026 11:44:39 +0000
+
+View image: (https://media.beehiiv.com/cdn-cgi/image/fit=scale-down,format=auto,onerror=redirect,quality=80/uploads/asset/file/8e91f170-4cc5-44bb-ba24-42a3d61c23c4/RESEARCH-LOGO-SQUARE_REV07__2_.png?t=1768505763)
+Follow image link: (https://www.youtube.com/watch?v=QgFLE3Qywxs)
+Caption: 
+
+----------
+CLICK TO WATCH NOW! (https://www.youtube.com/watch?v=QgFLE3Qywxs)
+
+
+----------# **Thursday March 26, 2026**
+
+----------
+# ^~**Welcome to the TraderTV Live Morning Research Note. Here&#39;s what&#39;s making major moves in the market today.**~^
+
+
+----------##### ^_[TraderTV.LIVE](https://TraderTV.LIVE)_^^™ features a daily live trading broadcast, professional education and an active community of more than 450,000 subscribers.  ^^_[Join us on YouTube](https://www.youtube.com/c/TraderTVLive)_^^ every weekday from 8:00am to 4:00pm EST for the first and only professional trading show on YouTube Live!^
+
+———————————————————————————
+
+View image: (https://media.beehiiv.com/cdn-cgi/image/fit=scale-down,format=auto,onerror=redirect,quality=80/uploads/asset/file/188b4e64-ce48-498f-88b5-19eca4a5bca9/Copy_of_16-03-26_TraderTV-1320x1080-01.jpeg?t=1774463363)
+Follow image link: (https://www.wsj.com/politics/policy/trump-to-name-mark-zuckerberg-larry-ellison-and-jensen-huang-to-tech-panel-ded1ec6f)
+Caption: 
+
+# **Economic Events:**
+
+----------
+0830 - **Initial jobless claims:** Expected 210k; Prior 205k
+1600 - **Fed’s Cook speaks**
+1830 - **Fed’s Miran speaks**
+1900 - **Fed’s Jefferson speaks**
+1910 - **Fed’s Barr speaks**
+
+
+----------# **Premarket Trading:**
+
+**Trading Higher ($): BATL, OXY, DOW**
+
+**Trading Lower ($): INTC, SMCI, BMNR**
+
+# **Earnings Today:**
+
+**Premarket: PONY, PAVM, CMC**
+
+**Post-market: BLNK, VERI, AGX**
+
+———————————————————————————
+
+# **In The News**
+
+———————————————————————————
+
+----------
+## **Super Micro Computer Inc (SMCI)**
+
+#### **-2.29%**
+
+Trading lower premarket after shareholders filed a securities fraud class action against the company, alleging that it concealed its reliance on China-related sales that violated U.S. export controls, overstating its growth prospects and inflating its stock price. The case references criminal smuggling charges involving Nvidia chips tied to individuals linked to the firm, though neither company has been charged. Super Micro has said that it is cooperating with authorities and that the alleged conduct violated its policies.
+
+———————————————————————————
+
+
+--------------------
+## **Oil and Energy Stocks**
+
+#### **+1.65%**
+
+Trading higher as a group as traders assess the latest reports on the conflict in Iran. The rebound in oil began on Wednesday afternoon after Iran’s foreign minister stated that the country is not interested in negotiations with the US. Fars, a state-aligned news agency out of Iran, reported that Iran is working on legislation to charge tolls on ships that pass through the contentious Strait of Hormuz. Early on Thursday morning, US President Trump posted on Truth Social that negotiators in Iran “better get serious soon”.
+
+**USO, OXY, XOM, CVX, DVN, COP, MPC, BATL, TPET, EONR**
+
+———————————————————————————
+
+
+--------------------
+## **Meta Platforms and Alphabet**
+
+#### **-0.91%**
+
+On Wednesday afternoon, a Los Angeles jury found Meta and Google-owned YouTube liable in a personal injury lawsuit which alleged that the companies’ negligence contributed to mental health concerns. This verdict marked the second judgement against Meta in a twenty-four hour period. The companies have been ordered to pay a total of $3 million in compensatory damages and $3 million in punitive damages, with Meta to cover 70% of each amount and YouTube responsible for the remaining 30%; this means that Meta will pay $4.2 million in total, while YouTube will cover $1.8 million.
+
+**META, GOOGL**
+
+———————————————————————————
+
+
+--------------------
+## **Crypto Stocks**
+
+#### **-1.87%**
+
+Trading lower as a group in tandem with a drop in Bitcoin, which appears to be pulling back alongside the market amid Middle East tensions. Bitcoin opened Thursday’s session around $71,300 and is trading near $69,600 as of 7:05 AM ET. Ethereum, meanwhile, opened just shy of $2,170 on Thursday before pulling back to $2,080. 
+
+**COIN, MSTR, MARA, RIOT, IBIT, ETHE, HUT, CLSK, IREN, CAN, HIVE, CRCL**
+
+———————————————————————————
+
+
+--------------------
+## **Tesla Inc (TSLA)**
+
+#### **-1.06%**
+
+On Wednesday, CEO Elon Musk’s legal team asked Kathaleen McCormick to recuse herself from two Tesla lawsuits. The lawyers alleged that McCormick displayed bias against Tesla after she appeared to react to a LinkedIn post critical of Musk in relation to a separate fraud verdict. McCormick denied any intentional endorsement, stating she did not read or support the post and may have accidentally interacted with it. Musk’s $55 billion Tesla pay package, approved in 2018, was voided by McCormick in a January 2024 ruling.
+
+———————————————————————————
+
+
+--------------------
+## **Memory Stocks**
+
+#### **-2.11%**
+
+Morgan Stanley analysts weighed in on the possible market impacts of TurboQuant, a Google compression algorithm whose introduction was attributed to a decline in memory stocks on Wednesday. The analyst said that the impacts of this algorithm, which speeds up AI inference while reducing memory usage by six times, are likely “neutral to positive” for memory companies in the long term because it will allow for greater output per GPU. The note also said that TurboQuant could be “another DeepSeek moment” in terms of its implications for the broader tech space, adding that software margins could take a hit.
+
+**STX, WDC, MU, SNDK**
+
+———————————————————————————
+
+
+--------------------
+## **Qualcomm Inc (QCOM)**
+
+#### **-1.51%**
+
+Trading lower premarket after Bernstein downgraded the stock to Market Perform and cut its price target to $140, citing worsening memory-driven headwinds that could push global smartphone shipments into double-digit declines and leave estimates too high. While acknowledging Qualcomm’s solid execution and long-term AI and diversification potential, the firm believes near-term risks like weak handset demand, Apple license uncertainty, and competitive pressures will outweigh potential catalysts like buybacks or AI momentum.
+
+———————————————————————————
+
+
+--------------------
+## **Robinhood Markets Inc (HOOD)**
+
+#### **-1.30%**
+
+Jefferies initiated coverage on the stock with a Buy rating and $88 price target, highlighting its leverage to growing retail investor participation, strong user growth. The firm also noted the company’s expanding product suite that is boosting revenue diversification and retention. Jefferies sees Robinhood evolving into a financial “super app” with improving profitability, supported by rising assets, steady net deposits, and new revenue streams like prediction markets despite near-term moderation in trading activity.
+
+———————————————————————————
+
+
+--------------------
+## **Equitable Holdings Inc (EQH)**
+
+#### **+3.43%**
+
+Trading higher premarket after announcing a merger with Corebridge Financial in an all-stock valued at roughly $22 billion. The combined companies will form a retirement, life insurance, and asset management firm with over $1.5 trillion in assets and 12 million customers. Corebridge shareholders will own 51% of the combined company, operating under the Equitable name, with the deal expected to close by the end of 2026 as both firms seek greater scale and competitiveness.
+
+———————————————————————————
+
+
+--------------------
+## **Navan Inc (NAVN)**
+
+#### **+21.97%**
+
+Gapping up after its Q4 2026 earnings report, with revenue of $178 million representing 35% year-over-year growth. Usage revenue and subscription revenue grew by 35% and 29%, respectively, while Gross Booking Volume spiked by 42% to $2.3 billion. The company’s FY 2026 revenue grew by 31% year-over-year to $702 million.
+
+———————————————————————————
+
+
+--------------------
+## **Arm Holdings PLC (ARM)**
+
+#### **-0.25%**
+
+Needham upgraded the stock to Buy with a $200 price target. This rating hike was attributed to analysts’ confidence that Arm’s strategic bets like higher royalties, subsystem expansion, and custom silicon are starting to pay off. The firm also sees Arm emerging as a credible AI play, benefiting from the growing importance of CPUs in AI data centers and improved positioning to capture more value from the AI boom.
+
+———————————————————————————
+
+
+--------------------
+## **Pony AI Inc (PONY)**
+
+#### **-1.32%**
+
+On watch after its Q4 2025 earnings report. The company reported $29.1 million in revenue for the quarter, marking an 18% year-over-year decline, though robotaxi services revenue grew by 160% year-over-year. Licensing and applications revenue sunk by 53.2%. Additionally, Uber has partnered with Pony and Verne to launch Europe’s first commercial robotaxi service in Zagreb; Pony will provide the autonomous tech and Verne will own and operate the fleet. The service will be integrated into Uber’s platform, with plans to scale to thousands of robotaxis across Europe over time, as testing is already underway and regulatory approvals are being pursued.
+
+———————————————————————————
+
+
+--------------------
+## **EpicQuest Education Group (EEIQ)**
+
+#### **+86.44%**
+
+The stock, which underwent a 1-for-16 reverse split on February 17, 2026, is gapping up on no apparent news. EpicQuest has a market capitalization of $4.04 million and a float of 860,000 shares, approximately 7% of which are sold short.
+
+———————————————————————————

@@ -6,14 +6,40 @@ from typing import TYPE_CHECKING
 
 from trading.market_data import get_realtime_bar
 from trading.models import Bar
+from trading.models import TickerQuote
 
 if TYPE_CHECKING:
     from ib_async import IB
 
     from trading.models import BarSeries
 
-BREAK_OUT_LOOKBACK_BARS = 100  # max 195 bars
+BREAK_OUT_LOOKBACK_BARS = 5  # max 195 bars
 BREAK_OUT_SIZE_MULTIPLIER = 3.0
+
+
+def breakout_limit_entry_price(
+    midpoint_of_breakout_bar: float,
+    is_long: bool,
+    quote: TickerQuote | None,
+) -> float:
+    """Limit price when a breakout bar fired: anchor to quote so the limit is fillable.
+
+    Long: min(midpoint, ask) when ask is valid; else midpoint.
+    Short: max(midpoint, bid) when bid is valid; else midpoint.
+
+    Caller supplies ``quote`` from a single ``get_ticker_quote`` (e.g. entry_mode); this
+    function does not request market data.
+    """
+    mid = float(midpoint_of_breakout_bar)
+    if is_long:
+        ask = quote.ask if quote is not None else None
+        if ask is not None and ask > 0:
+            return min(mid, float(ask))
+        return mid
+    bid = quote.bid if quote is not None else None
+    if bid is not None and bid > 0:
+        return max(mid, float(bid))
+    return mid
 
 
 @dataclass

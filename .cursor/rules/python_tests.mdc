@@ -1,0 +1,68 @@
+---
+description: Conventions for Python test modules under tests/ or named test_*.py
+globs:
+  - tests/**/*.py
+  - '**/test_*.py'
+alwaysApply: false
+---
+
+# Python test modules
+# using barseries 
+- NEVER mock or manually construct market-data objects in tests.
+- This includes `Bar`, `BarSeries`, `TickerQuote`, and similar quote/bar containers.
+- Do NOT use literals like `TickerQuote(bid=..., ask=...)` in tests.
+- Tests must fetch real bars/quotes from IB (`load_bars`, `get_ticker_quote`).
+- If IB data is unavailable, skip the test with `self.skipTest(...)`.
+
+## Deprecation warnings (`unittest`)
+
+If setup hits third-party `DeprecationWarning`, ignore it in **`setUpClass`** (or other one-time class/module setup), not under `if __name__ == '__main__':`. Pytest and `python -m unittest` do not run that block, so warnings would still appear.
+
+Use a `warnings.catch_warnings()` context around the noisy setup; import `warnings` at the top of the file.
+
+```python
+@classmethod
+def setUpClass(cls) -> None:
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', category=DeprecationWarning)
+        ...
+```
+
+## Module-level constants
+
+After imports, define **named variables** for literals used in more than one place (symbols, thresholds, paths, sizes). Keep a single assignment readers can change (e.g. `SYMBOL = 'ibit'`).
+
+### Fixture dates in tests
+
+When several tests in the same module use the same calendar day for paths, filenames, or header strings, define **one** module-level date (e.g. `Trading_Date = date(...)`) and derive expected strings and directory segments from it (`isoformat()`, `strftime`). Avoid repeating raw `date(Y, M, D)` literals across test methods so changing the scenario updates every assertion in one place.
+
+### Evaluation time: local wall (`trading.local_time`)
+
+When a test uses **wall-clock time** as a variable (replay at “9:40”, premarket, etc.), use **local** date+time and :mod:`trading.local_time` only—do not embed `ZoneInfo('...')` in the test module.
+
+- Default IANA zone is **Vancouver** (`America/Vancouver`). Another developer sets env **`LOCAL_TZ`** (IANA name) without editing Python.
+- Name constants clearly, e.g. `DEFAULT_EVAL_DATE_LOCAL`, `DEFAULT_EVAL_TIME_LOCAL`.
+- Convert to **naive ET** once via ``local_wall_to_naive_et`` for IB bar APIs and session logic (same assumption as `strategies.utils`: naive datetimes are ET).
+
+```python
+from trading.local_time import local_timezone_name
+from trading.local_time import local_wall_to_naive_et
+
+eval_dt_et = local_wall_to_naive_et(DEFAULT_EVAL_DATE_LOCAL, DEFAULT_EVAL_TIME_LOCAL)
+```
+
+Optional CLI overrides should accept `--date` / `--time` as **local** wall and strip them from `sys.argv` before `unittest.main` (see `tests/test_gap.py`, `tests/test_percent_of_avg_volume.py`). Print lines may show `local_timezone_name()`, local clock, and ET so session context is obvious.
+
+## Print statements format
+- MUST print at least one summary line per symbol/session run when the test uses symbol names.
+- MUST print factor lines that explain pass/fail when factors exist.
+- MUST use this exact structure:
+```
+symbol | session_date | bar_pattern_or_indicator = True/False
+factor_1 = value | True/False
+factor_2 = value | True/False
+...
+factor_n = value | True/False
+```
+
+

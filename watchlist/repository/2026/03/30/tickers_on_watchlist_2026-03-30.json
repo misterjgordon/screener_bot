@@ -1,0 +1,300 @@
+{
+  "trade_date": "2026-03-30",
+  "generated_at_pt": "2026-03-30T19:19:41.488858-07:00",
+  "tickers": [
+    {
+      "symbol": "AA",
+      "source_id": "smb_gameplan",
+      "trade_date": "2026-03-30",
+      "atr_14": 3.882,
+      "percent_of_avg_volume": 28
+    },
+    {
+      "symbol": "AMD",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-30",
+      "atr_14": 10.3442,
+      "percent_of_avg_volume": 9
+    },
+    {
+      "symbol": "ARTL",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-30",
+      "atr_14": 2.4139,
+      "percent_of_avg_volume": 7
+    },
+    {
+      "symbol": "BATL",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-30",
+      "atr_14": 3.4011,
+      "percent_of_avg_volume": 6
+    },
+    {
+      "symbol": "BFRG",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-30",
+      "atr_14": 0.1347,
+      "percent_of_avg_volume": 4226
+    },
+    {
+      "symbol": "CAN",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-30",
+      "atr_14": 0.0387,
+      "percent_of_avg_volume": 5
+    },
+    {
+      "symbol": "CCL",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-30",
+      "atr_14": 1.3667,
+      "percent_of_avg_volume": 9
+    },
+    {
+      "symbol": "CLSK",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-30",
+      "atr_14": 0.8317,
+      "percent_of_avg_volume": 8
+    },
+    {
+      "symbol": "COIN",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-30",
+      "atr_14": 12.0768,
+      "percent_of_avg_volume": 6
+    },
+    {
+      "symbol": "COP",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-30",
+      "atr_14": 3.2401,
+      "percent_of_avg_volume": 12
+    },
+    {
+      "symbol": "CRWD",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-30",
+      "atr_14": 19.9142,
+      "percent_of_avg_volume": 9
+    },
+    {
+      "symbol": "CVX",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-30",
+      "atr_14": 4.2552,
+      "percent_of_avg_volume": 9
+    },
+    {
+      "symbol": "DVN",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-30",
+      "atr_14": 1.4221,
+      "percent_of_avg_volume": 5
+    },
+    {
+      "symbol": "EONR",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-30",
+      "atr_14": 0.1745,
+      "percent_of_avg_volume": 2
+    },
+    {
+      "symbol": "ETHE",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-30",
+      "atr_14": 0.901,
+      "percent_of_avg_volume": 6
+    },
+    {
+      "symbol": "HIVE",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-30",
+      "atr_14": 0.1529,
+      "percent_of_avg_volume": 5
+    },
+    {
+      "symbol": "HUT",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-30",
+      "atr_14": 4.6357,
+      "percent_of_avg_volume": 5
+    },
+    {
+      "symbol": "IBIT",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-30",
+      "atr_14": 1.57,
+      "percent_of_avg_volume": 6
+    },
+    {
+      "symbol": "INTC",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-30",
+      "atr_14": 2.5919,
+      "percent_of_avg_volume": 6
+    },
+    {
+      "symbol": "IREN",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-30",
+      "atr_14": 3.6758,
+      "percent_of_avg_volume": 8
+    },
+    {
+      "symbol": "MARA",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-30",
+      "atr_14": 0.7814,
+      "percent_of_avg_volume": 7
+    },
+    {
+      "symbol": "META",
+      "source_id": "smb_gameplan",
+      "trade_date": "2026-03-30",
+      "atr_14": 20.0634,
+      "percent_of_avg_volume": 17
+    },
+    {
+      "symbol": "META",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-30",
+      "atr_14": 20.0634,
+      "percent_of_avg_volume": 17
+    },
+    {
+      "symbol": "MSFT",
+      "source_id": "smb_gameplan",
+      "trade_date": "2026-03-30",
+      "atr_14": 9.033,
+      "percent_of_avg_volume": 9
+    },
+    {
+      "symbol": "MSTR",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-30",
+      "atr_14": 8.5916,
+      "percent_of_avg_volume": 4
+    },
+    {
+      "symbol": "MU",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-30",
+      "atr_14": 26.9092,
+      "percent_of_avg_volume": 16
+    },
+    {
+      "symbol": "NKE",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-30",
+      "atr_14": 1.5918,
+      "percent_of_avg_volume": 11
+    },
+    {
+      "symbol": "NVDA",
+      "source_id": "smb_gameplan",
+      "trade_date": "2026-03-30",
+      "atr_14": 5.6233,
+      "percent_of_avg_volume": 7
+    },
+    {
+      "symbol": "NVDA",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-30",
+      "atr_14": 5.6233,
+      "percent_of_avg_volume": 7
+    },
+    {
+      "symbol": "OXY",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-30",
+      "atr_14": 1.9372,
+      "percent_of_avg_volume": 8
+    },
+    {
+      "symbol": "PANW",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-30",
+      "atr_14": 6.9911,
+      "percent_of_avg_volume": 11
+    },
+    {
+      "symbol": "PLTR",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-30",
+      "atr_14": 7.0567,
+      "percent_of_avg_volume": 5
+    },
+    {
+      "symbol": "RIOT",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-30",
+      "atr_14": 1.2049,
+      "percent_of_avg_volume": 5
+    },
+    {
+      "symbol": "SNDK",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-30",
+      "atr_14": 58.1538,
+      "percent_of_avg_volume": 12
+    },
+    {
+      "symbol": "STX",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-30",
+      "atr_14": 29.44,
+      "percent_of_avg_volume": 10
+    },
+    {
+      "symbol": "SYY",
+      "source_id": "smb_gameplan",
+      "trade_date": "2026-03-30",
+      "atr_14": 2.6084,
+      "percent_of_avg_volume": 31
+    },
+    {
+      "symbol": "SYY",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-30",
+      "atr_14": 2.6084,
+      "percent_of_avg_volume": 31
+    },
+    {
+      "symbol": "TPET",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-30",
+      "atr_14": 0.2773,
+      "percent_of_avg_volume": 3
+    },
+    {
+      "symbol": "USO",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-30",
+      "atr_14": 6.7744,
+      "percent_of_avg_volume": 4
+    },
+    {
+      "symbol": "VRDN",
+      "source_id": "smb_gameplan",
+      "trade_date": "2026-03-30",
+      "atr_14": 2.0171,
+      "percent_of_avg_volume": 57
+    },
+    {
+      "symbol": "WDC",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-30",
+      "atr_14": 22.366,
+      "percent_of_avg_volume": 10
+    },
+    {
+      "symbol": "XOM",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-30",
+      "atr_14": 4.3251,
+      "percent_of_avg_volume": 14
+    }
+  ]
+}

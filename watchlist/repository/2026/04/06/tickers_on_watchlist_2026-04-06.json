@@ -1,0 +1,202 @@
+{
+  "trade_date": "2026-04-06",
+  "generated_at_pt": "2026-04-07T09:11:27.201753-07:00",
+  "tickers": [
+    {
+      "symbol": "AAOI",
+      "source_id": "smb_gameplan",
+      "trade_date": "2026-04-06",
+      "atr_14": null,
+      "percent_of_avg_volume": null
+    },
+    {
+      "symbol": "AEHR",
+      "source_id": "smb_gameplan",
+      "trade_date": "2026-04-06",
+      "atr_14": null,
+      "percent_of_avg_volume": null
+    },
+    {
+      "symbol": "ANF",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-04-06",
+      "atr_14": null,
+      "percent_of_avg_volume": null
+    },
+    {
+      "symbol": "ASTS",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-04-06",
+      "atr_14": null,
+      "percent_of_avg_volume": null
+    },
+    {
+      "symbol": "BMNR",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-04-06",
+      "atr_14": null,
+      "percent_of_avg_volume": null
+    },
+    {
+      "symbol": "BNO",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-04-06",
+      "atr_14": null,
+      "percent_of_avg_volume": null
+    },
+    {
+      "symbol": "BOIL",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-04-06",
+      "atr_14": null,
+      "percent_of_avg_volume": null
+    },
+    {
+      "symbol": "COIN",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-04-06",
+      "atr_14": null,
+      "percent_of_avg_volume": null
+    },
+    {
+      "symbol": "CVX",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-04-06",
+      "atr_14": null,
+      "percent_of_avg_volume": null
+    },
+    {
+      "symbol": "DOW",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-04-06",
+      "atr_14": null,
+      "percent_of_avg_volume": null
+    },
+    {
+      "symbol": "DXYZ",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-04-06",
+      "atr_14": null,
+      "percent_of_avg_volume": null
+    },
+    {
+      "symbol": "ETHA",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-04-06",
+      "atr_14": null,
+      "percent_of_avg_volume": null
+    },
+    {
+      "symbol": "HOOD",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-04-06",
+      "atr_14": null,
+      "percent_of_avg_volume": null
+    },
+    {
+      "symbol": "IBIT",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-04-06",
+      "atr_14": null,
+      "percent_of_avg_volume": null
+    },
+    {
+      "symbol": "MSTR",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-04-06",
+      "atr_14": null,
+      "percent_of_avg_volume": null
+    },
+    {
+      "symbol": "OXY",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-04-06",
+      "atr_14": null,
+      "percent_of_avg_volume": null
+    },
+    {
+      "symbol": "PFSA",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-04-06",
+      "atr_14": null,
+      "percent_of_avg_volume": null
+    },
+    {
+      "symbol": "PL",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-04-06",
+      "atr_14": null,
+      "percent_of_avg_volume": null
+    },
+    {
+      "symbol": "PSNY",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-04-06",
+      "atr_14": null,
+      "percent_of_avg_volume": null
+    },
+    {
+      "symbol": "RKLB",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-04-06",
+      "atr_14": null,
+      "percent_of_avg_volume": null
+    },
+    {
+      "symbol": "SLNO",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-04-06",
+      "atr_14": null,
+      "percent_of_avg_volume": null
+    },
+    {
+      "symbol": "SNDK",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-04-06",
+      "atr_14": null,
+      "percent_of_avg_volume": null
+    },
+    {
+      "symbol": "TSLA",
+      "source_id": "smb_gameplan",
+      "trade_date": "2026-04-06",
+      "atr_14": null,
+      "percent_of_avg_volume": null
+    },
+    {
+      "symbol": "TSLA",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-04-06",
+      "atr_14": null,
+      "percent_of_avg_volume": null
+    },
+    {
+      "symbol": "TWLO",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-04-06",
+      "atr_14": null,
+      "percent_of_avg_volume": null
+    },
+    {
+      "symbol": "USO",
+      "source_id": "smb_gameplan",
+      "trade_date": "2026-04-06",
+      "atr_14": null,
+      "percent_of_avg_volume": null
+    },
+    {
+      "symbol": "USO",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-04-06",
+      "atr_14": null,
+      "percent_of_avg_volume": null
+    },
+    {
+      "symbol": "XOM",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-04-06",
+      "atr_14": null,
+      "percent_of_avg_volume": null
+    }
+  ]
+}

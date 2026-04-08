@@ -1,0 +1,36 @@
+# desk_date=2026-03-26 fetched_at_utc=2026-03-28T22:13:01.996955+00:00
+
+﻿Mar 27, 2026
+Market Rundown:
+
+
+Q’s down about 60bps and markets are lower for the fifth consecutive week as the Iran war’s diplomatic whipsaw dynamic continues with a new escalation vector: Israel’s Defense Minister declared this morning that Israel will ‘escalate and expand attacks to additional targets on Iran that assist the regime in building and operating its means of warfare.’ Trump last night extended his pause on attacking Iran’s energy sector to April 6 (10 more days), markets very briefly rallied, then Iran’s Revolutionary Guards stated Hormuz is ‘closed’ and any transit by ships of ‘US and Israeli allies’ faces ‘harsh measures’ — then Israel’s defense minister issued the expansion threat above.’ Per (Smokestack), oil may hit a record $200/barrel if the war lasts until June with Hormuz staying shut. Per WSJ, markets now see zero chance of Fed rate cuts in 2026. As of 8:20 this morning: The IRGC says that the Strait of Hormuz is closed and any transit through the waterway will face “harsh measures.” Three container ships of various nationalities were just turned back from the Strait of Hormuz after warnings from the IRGC navy, media reports.
+
+
+Domestically, shutdown risk is easing after a DHS funding bill, which removes a near-term overhang. On the corporate side, Microsoft is facing pressure from rising AI costs and slowing productivity-linked revenue, reinforcing concerns around software margins. Anthropic received a favorable legal ruling and is considering an IPO, keeping AI competition in focus. The Fed is also in play, with commentary suggesting balance sheet reduction could continue without destabilizing markets.
+
+
+* U. of Michigan Sentiment @ 10am ET — consumer confidence + inflation expectations ★
+* Fed speakers: Barkin 11am, Paulson 11:30am, Daly 11:30am — messaging on zero-cut 2026
+
+
+
+
+________________
+
+
+QQQ – I wouldn’t be looking to play a bounce heading into the weekend. If the market does bounce in the morning after being down two days in a row into a gap down, I’d look to fade that. I don’t think anyone wants to be long going into the weekend.
+NVDA - HTF Breakdown below 170. 
+ONCO - Runner of the day? The reverse split went into effect Wednesday and this morning it’s gapping up 56%, holding up well and  doing a ton of volume premarket. Float is now <1m shs. 
+
+
+U - Q1 Pre-Announcement:
+* Q1 revenue guide raised to $505–508M vs $480–490M prior → ~6% increase mid-quarter
+* Q1 EBITDA $130–135M vs ~$111M est → ~20%+ beat
+* Vector segment +15% QoQ vs ~10% implied → key re-acceleration signal
+* Shutting down ironSource Ads Network (April 30) → removing overhang from failed integration
+* Exploring sale of Supersonic gaming unit → shifting focus to core, higher-margin platform
+* Doing roughly 10% of it’s AVOL PM and we saw yesterday relative strength in the software name NAVN which reported positive results
+* Core re-accelerating + guidance up + strategic cleanup → clear reset working, bullish setup in oversold software
+USO - Back at the top of the range. Need RVOL/further escalation to trade this and look for a breakout 
+NAVN - Day 2. Great relative strength and volume yesterday. 2-day VWAP @ 12.30 = inflection/line in the sand.

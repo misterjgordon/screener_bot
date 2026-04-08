@@ -4,6 +4,7 @@ and execute trades in IB (interactive brokers paper account by default). For edu
 """
 # IB imports - need event loop setup before importing ib_async
 import asyncio
+import logging
 import threading
 import time
 from collections import defaultdict
@@ -281,6 +282,12 @@ def run_polling_mode(interval_seconds: int):
 
 
 def main():
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(levelname)s %(name)s %(message)s',
+    )
+    # ib_async emits position/updatePortfolio on every IB push at INFO; suppress for quieter logs.
+    logging.getLogger('ib_async').setLevel(logging.WARNING)
     if RUN_MODE == 'once':
         run_once_mode()
     elif RUN_MODE == 'poll':

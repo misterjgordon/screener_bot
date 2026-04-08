@@ -17,13 +17,13 @@
     <key>WorkingDirectory</key>
     <string>__REPO_ROOT__</string>
     
-    <!-- Start script at 6:30 AM local time on weekdays (script handles weekday checking internally) -->
-    <!-- Note: This uses your Mac's local time zone (make sure it's set to PST/PDT) -->
+    <!-- Mon–Fri; launchd Weekday: 0/7=Sun, 1=Mon, … 6=Sat (man launchd.plist) -->
+    <!-- Local TZ should be PST/PDT. Wedged times: Mon–Wed 6:23, Thu–Fri 6:25 (+ sleep 7 in shell). -->
     <key>StartCalendarInterval</key>
     <array>
         <dict>
             <key>Weekday</key>
-            <integer>2</integer> <!-- Monday -->
+            <integer>1</integer>
             <key>Hour</key>
             <integer>6</integer>
             <key>Minute</key>
@@ -31,7 +31,7 @@
         </dict>
         <dict>
             <key>Weekday</key>
-            <integer>3</integer> <!-- Tuesday -->
+            <integer>2</integer>
             <key>Hour</key>
             <integer>6</integer>
             <key>Minute</key>
@@ -39,7 +39,7 @@
         </dict>
         <dict>
             <key>Weekday</key>
-            <integer>4</integer> <!-- Wednesday -->
+            <integer>3</integer>
             <key>Hour</key>
             <integer>6</integer>
             <key>Minute</key>
@@ -47,7 +47,7 @@
         </dict>
         <dict>
             <key>Weekday</key>
-            <integer>5</integer> <!-- Thursday -->
+            <integer>4</integer>
             <key>Hour</key>
             <integer>6</integer>
             <key>Minute</key>
@@ -55,7 +55,7 @@
         </dict>
         <dict>
             <key>Weekday</key>
-            <integer>6</integer> <!-- Friday -->
+            <integer>5</integer>
             <key>Hour</key>
             <integer>6</integer>
             <key>Minute</key>

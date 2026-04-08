@@ -1,4 +1,4 @@
-.PHONY: help install format format-file lint lint-file type-check type-check-file run screener clean smb-install smb-reload smb-start smb-stop smb-status smb-logs smb-unload
+.PHONY: help install format format-file lint lint-file type-check type-check-file run screener clean smb-install smb-reload smb-start smb-stop smb-status smb-logs smb-unload watchlist-install watchlist-reload watchlist-start watchlist-status watchlist-unload watchlist-run-now watchlist-sources-install watchlist-sources-reload watchlist-sources-start watchlist-sources-status watchlist-sources-unload watchlist-sources-run-now
 
 # Default target
 help:
@@ -23,6 +23,22 @@ help:
 	@echo "  make smb-status           - Check if LaunchAgents are running"
 	@echo "  make smb-logs             - View LaunchAgent logs (follow mode)"
 	@echo "  make smb-unload           - Unload and remove all LaunchAgents"
+	@echo ""
+	@echo "Watchlist Sources LaunchAgent commands:"
+	@echo "  make watchlist-install          - Install and load watchlist sources LaunchAgent"
+	@echo "  make watchlist-reload           - Reload watchlist sources LaunchAgent"
+	@echo "  make watchlist-start            - Start watchlist sources agent now"
+	@echo "  make watchlist-status           - Show watchlist sources agent status"
+	@echo "  make watchlist-unload           - Unload and remove watchlist sources LaunchAgent"
+	@echo "  make watchlist-run-now          - Run watchlist source orchestration once now"
+	@echo ""
+	@echo "Watchlist Sources LaunchAgent commands (legacy names):"
+	@echo "  make watchlist-sources-install  - Install and load watchlist sources LaunchAgent"
+	@echo "  make watchlist-sources-reload   - Reload watchlist sources LaunchAgent"
+	@echo "  make watchlist-sources-start    - Start watchlist sources agent now"
+	@echo "  make watchlist-sources-status   - Show watchlist sources agent status"
+	@echo "  make watchlist-sources-unload   - Unload and remove watchlist sources LaunchAgent"
+	@echo "  make watchlist-sources-run-now  - Run watchlist source orchestration once now"
 
 # Install dependencies
 install:
@@ -209,3 +225,61 @@ smb-unload:
 	@rm -f ~/Library/LaunchAgents/com.smb.screener.start.plist
 	@rm -f ~/Library/LaunchAgents/com.smb.screener.stop.plist
 	@echo "✓ LaunchAgents unloaded and removed"
+
+watchlist-sources-install:
+	@echo "Installing watchlist sources LaunchAgent..."
+	@mkdir -p logs
+	@launchctl bootout gui/$$(id -u) ~/Library/LaunchAgents/com.joel.trading.watchlist.sources.plist 2>/dev/null || true
+	@launchctl bootout gui/$$(id -u) ~/Library/LaunchAgents/watchlist.sources.plist 2>/dev/null || true
+	@launchctl bootout gui/$$(id -u) ~/Library/LaunchAgents/com.trading.watchlist.sources.plist 2>/dev/null || true
+	@launchctl bootout gui/$$(id -u) ~/Library/LaunchAgents/com.watchlist.sources.plist 2>/dev/null || true
+	@cp com.watchlist.sources.plist ~/Library/LaunchAgents/com.watchlist.sources.plist
+	@launchctl bootstrap gui/$$(id -u) ~/Library/LaunchAgents/com.watchlist.sources.plist
+	@launchctl enable gui/$$(id -u)/com.watchlist.sources
+	@echo "✓ watchlist sources LaunchAgent installed"
+
+watchlist-install: watchlist-sources-install
+
+watchlist-sources-reload:
+	@echo "Reloading watchlist sources LaunchAgent..."
+	@launchctl bootout gui/$$(id -u) ~/Library/LaunchAgents/com.joel.trading.watchlist.sources.plist 2>/dev/null || true
+	@launchctl bootout gui/$$(id -u) ~/Library/LaunchAgents/watchlist.sources.plist 2>/dev/null || true
+	@launchctl bootout gui/$$(id -u) ~/Library/LaunchAgents/com.trading.watchlist.sources.plist 2>/dev/null || true
+	@launchctl bootout gui/$$(id -u) ~/Library/LaunchAgents/com.watchlist.sources.plist 2>/dev/null || true
+	@cp com.watchlist.sources.plist ~/Library/LaunchAgents/com.watchlist.sources.plist
+	@launchctl bootstrap gui/$$(id -u) ~/Library/LaunchAgents/com.watchlist.sources.plist
+	@launchctl enable gui/$$(id -u)/com.watchlist.sources
+	@echo "✓ watchlist sources LaunchAgent reloaded"
+
+watchlist-reload: watchlist-sources-reload
+
+watchlist-sources-start:
+	@echo "Starting watchlist sources LaunchAgent..."
+	@launchctl start com.watchlist.sources
+	@echo "✓ watchlist sources agent started"
+
+watchlist-start: watchlist-sources-start
+
+watchlist-sources-status:
+	@launchctl print gui/$$(id -u)/com.watchlist.sources | sed -n '1,80p'
+
+watchlist-status: watchlist-sources-status
+
+watchlist-sources-unload:
+	@echo "Unloading watchlist sources LaunchAgent..."
+	@launchctl bootout gui/$$(id -u) ~/Library/LaunchAgents/com.joel.trading.watchlist.sources.plist 2>/dev/null || true
+	@launchctl bootout gui/$$(id -u) ~/Library/LaunchAgents/watchlist.sources.plist 2>/dev/null || true
+	@launchctl bootout gui/$$(id -u) ~/Library/LaunchAgents/com.trading.watchlist.sources.plist 2>/dev/null || true
+	@launchctl bootout gui/$$(id -u) ~/Library/LaunchAgents/com.watchlist.sources.plist 2>/dev/null || true
+	@rm -f ~/Library/LaunchAgents/com.joel.trading.watchlist.sources.plist
+	@rm -f ~/Library/LaunchAgents/watchlist.sources.plist
+	@rm -f ~/Library/LaunchAgents/com.trading.watchlist.sources.plist
+	@rm -f ~/Library/LaunchAgents/com.watchlist.sources.plist
+	@echo "✓ watchlist sources LaunchAgent removed"
+
+watchlist-unload: watchlist-sources-unload
+
+watchlist-sources-run-now:
+	uv run --frozen python -m watchlist.run_sources --date $$(date +%F)
+
+watchlist-run-now: watchlist-sources-run-now

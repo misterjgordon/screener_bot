@@ -31,18 +31,13 @@ class TestMarketDataIntegration(unittest.TestCase):
     def setUpClass(cls) -> None:
         """Connect once and load bars once for all tests."""
         cls.ib = connect(readonly=True)
-        if cls.ib is not None and cls.ib.isConnected():
-            cls.bundle = load_bars(cls.ib, SYMBOL)
+        assert cls.ib is not None and cls.ib.isConnected()
+        cls.bundle = load_bars(cls.ib, SYMBOL)
 
     @classmethod
     def tearDownClass(cls) -> None:
         """Disconnect after all tests."""
         disconnect(cls.ib)
-
-    def setUp(self) -> None:
-        """Skip tests if IB not connected."""
-        if self.ib is None or not self.ib.isConnected():
-            self.skipTest('IB not connected - is TWS/Gateway running?')
 
     def test_get_market_price(self) -> None:
         """get_market_price returns positive float."""

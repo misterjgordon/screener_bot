@@ -4,9 +4,20 @@ Single source of truth for IB connection, risk, and run settings.
 Import in other modules; do not import from market_data or smb_screener here.
 """
 
+from dataclasses import dataclass
+from typing import Literal
+
 # Run: "once" = single run and exit; "poll" = every INTERVAL_SECONDS; "off" = disabled
 RUN_MODE = 'poll'
 INTERVAL_SECONDS = 10  # SMB updates every 10 seconds
+
+# Browser-like User-Agent for outbound HTTP (SMB login, gameplan, Google Doc export).
+# Not hardware-specific; some endpoints expect a typical browser string. Change here
+# if you standardize on another profile across machines.
+HTTP_BROWSER_USER_AGENT = (
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 '
+    '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+)
 
 ACTIVE_TRADING = True  # Set True to enable order execution to IB
 # Per-trader toggle: set True to mirror trades for that trader
@@ -15,6 +26,26 @@ TRADER_ENABLED = {
     'Jeff Holden': True,
     'Steve Spencer': False,  # no options display so direction can be misleading
     'Kenneth Sharkness': False,
+}
+
+# NEW-order entry pricing policy when no qualifying pattern exists.
+NewOrderEntryMode = Literal['quote', 'ema9_fallback']
+# mode:
+# - quote: existing behavior (long at ask, short at bid)
+# - ema9_fallback: prefer 9 EMA, clamped to quote for fillability
+
+
+@dataclass(frozen=True)
+class NewOrderEntryPolicy:
+    """Per-trader NEW-order default limit pricing when no pattern override applies."""
+
+    enabled: bool
+    mode: NewOrderEntryMode
+
+
+NEW_ORDER_ENTRY_POLICY_BY_TRADER: dict[str, NewOrderEntryPolicy] = {
+    'Justin Spero': NewOrderEntryPolicy(enabled=True, mode='ema9_fallback'),
+    'Jeff Holden': NewOrderEntryPolicy(enabled=True, mode='ema9_fallback'),
 }
 
 # TWS/Gateway: Configure → API → Settings → enable API, set port. 7497 paper, 7496 live, 4001 Gateway paper

@@ -13,14 +13,49 @@ import warnings
 from strategies.bar_patterns.breakout import BREAK_OUT_LOOKBACK_BARS
 from strategies.bar_patterns.breakout import break_out_bar
 from strategies.bar_patterns.breakout import break_out_bar_stats
+from strategies.bar_patterns.breakout import breakout_limit_entry_price
 from strategies.utils import last_trading_day
 from trading.bar_loader import load_bars
 from trading.market_data import connect
 from trading.market_data import disconnect
+from trading.models import TickerQuote
 
 SYMBOL = 'SOC'
 # Override for quick experiments; set to None to use strategy default.
 LOOKBACK_BARS_OVERRIDE: int | None = 130
+
+MIDPOINT = 13.30
+ASK_ABOVE = 15.35
+ASK_BELOW = 12.50
+BID_BELOW = 12.40
+BID_ABOVE = 14.00
+
+
+class TestBreakoutLimitEntryPrice(unittest.TestCase):
+    """Unit tests for breakout limit vs bid/ask (no IB)."""
+
+    def test_long_uses_min_of_midpoint_and_ask_when_ask_higher(self) -> None:
+        quote = TickerQuote(bid=13.0, ask=ASK_ABOVE)
+        self.assertEqual(
+            breakout_limit_entry_price(MIDPOINT, True, quote),
+            round(min(MIDPOINT, ASK_ABOVE), 2),
+        )
+
+    def test_long_uses_min_when_ask_below_midpoint(self) -> None:
+        quote = TickerQuote(bid=12.0, ask=ASK_BELOW)
+        self.assertEqual(breakout_limit_entry_price(MIDPOINT, True, quote), ASK_BELOW)
+
+    def test_short_uses_max_of_midpoint_and_bid_when_bid_lower(self) -> None:
+        quote = TickerQuote(bid=BID_BELOW, ask=13.0)
+        self.assertEqual(breakout_limit_entry_price(MIDPOINT, False, quote), MIDPOINT)
+
+    def test_short_uses_max_when_bid_above_midpoint(self) -> None:
+        quote = TickerQuote(bid=BID_ABOVE, ask=15.0)
+        self.assertEqual(breakout_limit_entry_price(MIDPOINT, False, quote), BID_ABOVE)
+
+    def test_no_quote_returns_rounded_midpoint(self) -> None:
+        self.assertEqual(breakout_limit_entry_price(MIDPOINT, True, None), MIDPOINT)
+        self.assertEqual(breakout_limit_entry_price(MIDPOINT, False, None), MIDPOINT)
 
 
 class TestBreakoutIntegration(unittest.TestCase):
@@ -35,18 +70,13 @@ class TestBreakoutIntegration(unittest.TestCase):
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', category=DeprecationWarning)
             cls.ib = connect(readonly=True)
-        if cls.ib is not None and cls.ib.isConnected():
-            cls.bundle = load_bars(cls.ib, SYMBOL)
+        assert cls.ib is not None and cls.ib.isConnected()
+        cls.bundle = load_bars(cls.ib, SYMBOL)
 
     @classmethod
     def tearDownClass(cls) -> None:
         """Disconnect after all tests."""
         disconnect(cls.ib)
-
-    def setUp(self) -> None:
-        """Skip tests if IB not connected."""
-        if self.ib is None or not self.ib.isConnected():
-            self.skipTest('IB not connected - is TWS/Gateway running?')
 
     def test_break_out_bar_timing_and_result(self) -> None:
         """Fetch 2-min bars via bar_loader, run break_out_bar, and print timing metrics."""

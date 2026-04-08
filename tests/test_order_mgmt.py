@@ -29,9 +29,7 @@ warnings.filterwarnings(
 if TYPE_CHECKING:
     from ib_async import IB
 
-# =========================================================
 # Test values – change these to inspect a specific position
-# =========================================================
 SYMBOL = 'USO'
 TRADER = 'Justin Spero'
 IS_LONG = True  # True = long position (open orders are SELL = TP/stop), False = short (open orders are BUY)
@@ -53,14 +51,11 @@ class TestOrderMgmtIntegration(unittest.TestCase):
     def setUpClass(cls) -> None:
         # Client 0 can call reqAllOpenOrders() to see all clients' orders (screener uses client_id=1).
         cls.ib = connect(readonly=True, client_id=0)
+        assert cls.ib is not None and cls.ib.isConnected()
 
     @classmethod
     def tearDownClass(cls) -> None:
         disconnect(cls.ib)
-
-    def setUp(self) -> None:
-        if self.ib is None or not self.ib.isConnected():
-            self.skipTest('IB not connected - is TWS/Gateway running?')
 
     def test_retrieve_open_orders_for_trader_position(self) -> None:
         """Retrieve open orders (including child orders) for SYMBOL/TRADER/IS_LONG and print raw data."""

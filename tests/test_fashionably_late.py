@@ -75,18 +75,13 @@ class TestFashionablyLateIntegration(unittest.TestCase):
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', category=DeprecationWarning)
             cls.ib = connect(readonly=True)
-        if cls.ib is not None and cls.ib.isConnected():
-            cls.bundle = load_bars(cls.ib, SYMBOL, end_date=_TEST_DATE)
+        assert cls.ib is not None and cls.ib.isConnected()
+        cls.bundle = load_bars(cls.ib, SYMBOL, end_date=_TEST_DATE)
 
     @classmethod
     def tearDownClass(cls) -> None:
         """Disconnect after all tests."""
         disconnect(cls.ib)
-
-    def setUp(self) -> None:
-        """Skip tests if IB not connected."""
-        if self.ib is None or not self.ib.isConnected():
-            self.skipTest('IB not connected - is TWS/Gateway running?')
 
     def test_fashionably_late_timing_and_result(self) -> None:
         """Fetch 2-min bars via bar_loader, run fashionably_late, and print timing metrics."""

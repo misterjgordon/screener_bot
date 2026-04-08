@@ -21,9 +21,7 @@ from trading.trade_mgmt import process_execution_change
 if TYPE_CHECKING:
     from ib_async import IB
 
-# =========================================================
 # PositionSummary constants (adjust for your test inputs)
-# =========================================================
 TRADER = 'Justin Spero'
 IS_LONG_TERM = False
 SYMBOL = 'AAPL'
@@ -87,16 +85,12 @@ class TestTradeMgmtIntegration(unittest.TestCase):
     def setUpClass(cls) -> None:
         """Connect once for all tests (live account, readonly=False for order execution)."""
         cls.ib = connect(client_id=IB_CLIENT_ID_TRADE_MGMT, readonly=False)
+        assert cls.ib is not None and cls.ib.isConnected()
 
     @classmethod
     def tearDownClass(cls) -> None:
         """Disconnect after all tests."""
         disconnect(cls.ib)
-
-    def setUp(self) -> None:
-        """Skip tests if IB not connected."""
-        if self.ib is None or not self.ib.isConnected():
-            self.skipTest('IB not connected - is TWS/Gateway running?')
 
     def _run_process_execution_change(
         self,

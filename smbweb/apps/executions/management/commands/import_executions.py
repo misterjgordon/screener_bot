@@ -30,6 +30,7 @@ from django.core.management.base import CommandError
 from django.db import transaction
 
 from smbweb.apps.executions.models import Execution
+from trading.models import round_money_2
 
 
 class Command(BaseCommand):
@@ -299,11 +300,13 @@ class Command(BaseCommand):
         order_id = str(row_data.get('order_id', '')).strip() or None
         filled_price = self._parse_decimal(row_data.get('filled_price'))
         shares = self._parse_int(row_data.get('shares'))
-        total_risk = self._parse_float(row_data.get('total_risk'))
-        risk_per_share = self._parse_float(row_data.get('risk_per_share'))
-        market_value = self._parse_float(row_data.get('market_value'))
-        risk_percent = self._parse_float(
-            row_data.get('risk_%', row_data.get('risk_percent'))
+        total_risk = round_money_2(self._parse_float(row_data.get('total_risk')))
+        risk_per_share = round_money_2(self._parse_float(row_data.get('risk_per_share')))
+        market_value = round_money_2(self._parse_float(row_data.get('market_value')))
+        risk_percent = round_money_2(
+            self._parse_float(
+                row_data.get('risk_%', row_data.get('risk_percent'))
+            )
         )
 
         return Execution(

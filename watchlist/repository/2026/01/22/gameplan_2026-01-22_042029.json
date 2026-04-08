@@ -1,0 +1,79 @@
+{
+  "source": "smb_gameplan",
+  "trade_date": "2026-01-22",
+  "fetched_at_utc": "2026-03-26T04:20:29.398958+00:00",
+  "payload": {
+    "id": 41,
+    "date": "2026-01-22T00:00:00.000Z",
+    "big_picture": "market bounced off mid december support and then continued higher as trump backed off on greenland and EU tariffs. we start the day back inside the upper part of the indices recent trading range. ",
+    "created_by": 3,
+    "created_at": "2026-01-22T08:58:41.000Z",
+    "updated_at": "2026-01-22T08:59:05.000Z",
+    "stocks": [
+      {
+        "id": 1402,
+        "game_plan_id": 41,
+        "section": "fresh_news",
+        "position": 1,
+        "ticker": "GE",
+        "support": "296, 300, 304",
+        "resistance": "312, 315, 320",
+        "inflexion": null,
+        "notes": "raised 2%. ",
+        "bias": null,
+        "setup": null,
+        "trading_plan": "ran up into earnings",
+        "created_at": "2026-01-22T09:18:59.000Z",
+        "updated_at": "2026-01-22T09:18:59.000Z"
+      },
+      {
+        "id": 1403,
+        "game_plan_id": 41,
+        "section": "second_day",
+        "position": 1,
+        "ticker": "NFLX",
+        "support": "83, 84, 85",
+        "resistance": "87, 88, 89.50-90",
+        "inflexion": "86",
+        "notes": "bought all day",
+        "bias": null,
+        "setup": null,
+        "trading_plan": null,
+        "created_at": "2026-01-22T09:18:59.000Z",
+        "updated_at": "2026-01-22T09:18:59.000Z"
+      },
+      {
+        "id": 1404,
+        "game_plan_id": 41,
+        "section": "second_day",
+        "position": 2,
+        "ticker": "ASTS",
+        "support": "100, 104, 108",
+        "resistance": "111, 112, 114",
+        "inflexion": null,
+        "notes": "sold hard into prior high",
+        "bias": null,
+        "setup": null,
+        "trading_plan": null,
+        "created_at": "2026-01-22T09:18:59.000Z",
+        "updated_at": "2026-01-22T09:18:59.000Z"
+      },
+      {
+        "id": 1405,
+        "game_plan_id": 41,
+        "section": "second_day",
+        "position": 3,
+        "ticker": "INTC",
+        "support": "48, 50, 52",
+        "resistance": "55, 56, 58",
+        "inflexion": null,
+        "notes": "earnings after close",
+        "bias": null,
+        "setup": null,
+        "trading_plan": null,
+        "created_at": "2026-01-22T09:18:59.000Z",
+        "updated_at": "2026-01-22T09:18:59.000Z"
+      }
+    ]
+  }
+}

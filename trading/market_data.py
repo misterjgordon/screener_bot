@@ -43,6 +43,14 @@ def _to_float(val: object) -> float | None:
         return None
 
 
+def _money_2(val: object) -> float | None:
+    """IB field as dollars rounded to 2 decimals (single quantization at quote source)."""
+    f = _to_float(val)
+    if f is None:
+        return None
+    return round(f, 2)
+
+
 def connect(
     host: str = IB_HOST,
     port: int = IB_PORT,
@@ -99,13 +107,13 @@ def get_ticker_quote(ib: IB | None, symbol: str) -> TickerQuote | None:
         contract = Stock(symbol, 'SMART', ACCOUNT_CURRENCY)
         ib.qualifyContracts(contract)
         ticker = ib.reqMktData(contract, '', False, False)
-        ib.sleep(0.1)
+        ib.sleep(0.2)
         return TickerQuote(
-            midpoint=_to_float(ticker.midpoint()),
-            last=_to_float(ticker.last),
-            close=_to_float(ticker.close),
-            bid=_to_float(ticker.bid),
-            ask=_to_float(ticker.ask),
+            midpoint=_money_2(ticker.midpoint()),
+            last=_money_2(ticker.last),
+            close=_money_2(ticker.close),
+            bid=_money_2(ticker.bid),
+            ask=_money_2(ticker.ask),
         )
     except Exception:
         return None

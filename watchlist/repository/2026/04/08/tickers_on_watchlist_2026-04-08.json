@@ -1,0 +1,69 @@
+{
+  "trade_date": "2026-04-08",
+  "generated_at_pt": "2026-04-08T14:57:27.413844-07:00",
+  "tickers": [
+    {
+      "symbol": "AEHR",
+      "source_id": "smb_gameplan",
+      "trade_date": "2026-04-08",
+      "atr_14": 5.698,
+      "percent_of_avg_volume": 29,
+      "gap_percent": 14.1095,
+      "gap_atr": 1.2443
+    },
+    {
+      "symbol": "DAL",
+      "source_id": "smb_gameplan",
+      "trade_date": "2026-04-08",
+      "atr_14": 3.1205,
+      "percent_of_avg_volume": 26,
+      "gap_percent": 11.2466,
+      "gap_atr": 2.365
+    },
+    {
+      "symbol": "DOW",
+      "source_id": "smb_gameplan",
+      "trade_date": "2026-04-08",
+      "atr_14": 1.9373,
+      "percent_of_avg_volume": 27,
+      "gap_percent": -11.5673,
+      "gap_atr": -2.4725
+    },
+    {
+      "symbol": "GOOGL",
+      "source_id": "smb_gameplan",
+      "trade_date": "2026-04-08",
+      "atr_14": 8.9746,
+      "percent_of_avg_volume": 23,
+      "gap_percent": 4.9041,
+      "gap_atr": 1.6692
+    },
+    {
+      "symbol": "NVDA",
+      "source_id": "smb_gameplan",
+      "trade_date": "2026-04-08",
+      "atr_14": 5.5464,
+      "percent_of_avg_volume": 11,
+      "gap_percent": 3.5766,
+      "gap_atr": 1.1485
+    },
+    {
+      "symbol": "TSLA",
+      "source_id": "smb_gameplan",
+      "trade_date": "2026-04-08",
+      "atr_14": 15.6217,
+      "percent_of_avg_volume": 11,
+      "gap_percent": 4.9445,
+      "gap_atr": 1.0972
+    },
+    {
+      "symbol": "USO",
+      "source_id": "smb_gameplan",
+      "trade_date": "2026-04-08",
+      "atr_14": 8.4499,
+      "percent_of_avg_volume": 6,
+      "gap_percent": -13.7891,
+      "gap_atr": -2.2533
+    }
+  ]
+}

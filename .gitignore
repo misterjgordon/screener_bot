@@ -28,6 +28,9 @@ logs/
 .env
 .env.local
 
+# SEC all-tickers dump (refresh locally; use all_tickers.sample.json in repo)
+trading/data/symbols/all_tickers.json
+
 # Trading bot specific files
 smb_cookies.pkl
 position_snapshot.json
@@ -41,4 +44,4 @@ smb_trader_executions/
 # Testing / local-only (if already committed, run: git rm -r --cached docs/ alerts/)
 docs/
 alerts/
-tests/Day3_Pine_script.py
+scripts/pine/

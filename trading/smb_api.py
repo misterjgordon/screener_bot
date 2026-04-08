@@ -11,13 +11,12 @@ from pathlib import Path
 import requests
 from dotenv import load_dotenv
 
+from trading.config import HTTP_BROWSER_USER_AGENT
+
 load_dotenv()
 
 SMB_USERNAME = os.getenv('SMB_USERNAME')
 SMB_PASSWORD = os.getenv('SMB_PASSWORD')
-
-if not SMB_USERNAME or not SMB_PASSWORD:
-    raise ValueError('Missing SMB_USERNAME or SMB_PASSWORD in .env')
 
 # Paths relative to repo root
 _REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -32,6 +31,9 @@ POSITIONS_URL = 'https://rt.smbtraining.com/api/external-positions'
 
 def create_authenticated_session() -> requests.Session:
     """Create a logged-in requests.Session. Called when no valid session exists from get_session using smb_cookies.pkl."""
+    if not SMB_USERNAME or not SMB_PASSWORD:
+        raise ValueError('Missing SMB_USERNAME or SMB_PASSWORD in .env')
+
     session = requests.Session()
 
     csrf_resp = session.get(CSRF_URL)
@@ -51,8 +53,7 @@ def create_authenticated_session() -> requests.Session:
     headers = {
         'Origin': 'https://rt.smbtraining.com',
         'Referer': CALLBACK_URL,
-        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 '
-        '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'User-Agent': HTTP_BROWSER_USER_AGENT,
     }
 
     login_resp = session.post(LOGIN_URL, data=payload, headers=headers)

@@ -15,12 +15,12 @@
     <key>WorkingDirectory</key>
     <string>__REPO_ROOT__</string>
     
-    <!-- Stop the screener at 1:00 PM on weekdays -->
+    <!-- Mon–Fri 1:00 PM; launchd Weekday 1=Mon … 5=Fri -->
     <key>StartCalendarInterval</key>
     <array>
         <dict>
             <key>Weekday</key>
-            <integer>2</integer> <!-- Monday -->
+            <integer>1</integer>
             <key>Hour</key>
             <integer>13</integer>
             <key>Minute</key>
@@ -28,7 +28,7 @@
         </dict>
         <dict>
             <key>Weekday</key>
-            <integer>3</integer> <!-- Tuesday -->
+            <integer>2</integer>
             <key>Hour</key>
             <integer>13</integer>
             <key>Minute</key>
@@ -36,7 +36,7 @@
         </dict>
         <dict>
             <key>Weekday</key>
-            <integer>4</integer> <!-- Wednesday -->
+            <integer>3</integer>
             <key>Hour</key>
             <integer>13</integer>
             <key>Minute</key>
@@ -44,7 +44,7 @@
         </dict>
         <dict>
             <key>Weekday</key>
-            <integer>5</integer> <!-- Thursday -->
+            <integer>4</integer>
             <key>Hour</key>
             <integer>13</integer>
             <key>Minute</key>
@@ -52,7 +52,7 @@
         </dict>
         <dict>
             <key>Weekday</key>
-            <integer>6</integer> <!-- Friday -->
+            <integer>5</integer>
             <key>Hour</key>
             <integer>13</integer>
             <key>Minute</key>

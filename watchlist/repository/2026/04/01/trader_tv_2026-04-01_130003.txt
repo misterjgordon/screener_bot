@@ -1,0 +1,152 @@
+# source=tradertv_watchlist desk_date=2026-04-01 fetched_at_utc=2026-04-01T13:00:03.542563+00:00
+# subject=Trader TV Watchlist - April 1, 2026
+# from=TraderTV Live Research <tradertv-live@mail.beehiiv.com>
+# date_header=Wed, 1 Apr 2026 11:42:31 +0000
+
+----------
+CLICK TO WATCH NOW! (https://youtube.com/live/h5aRFzapQ6s)
+
+
+----------# **Wednesday April 1, 2026**
+
+----------
+# ^~**Welcome to the TraderTV Live Morning Research Note. Here&#39;s what&#39;s making major moves in the market today.**~^
+
+
+----------##### ^_[TraderTV.LIVE](https://TraderTV.LIVE)_^^™ features a daily live trading broadcast, professional education and an active community of more than 450,000 subscribers.  ^^_[Join us on YouTube](https://www.youtube.com/c/TraderTVLive)_^^ every weekday from 8:30am to 4:30pm EST for the first and only professional trading show on YouTube Live!^
+
+———————————————————————————
+
+
+# **Economic Events:**
+
+----------
+0815 - **ADP NonFarm Employment Change (Mar):** Expected 40k; Prior 60k
+0830 - **Retail Sales m/m (Feb):** Expected 0.5% Prior -0.2%
+0830 -** Retail Sales Ex Autos m/m (Feb): **Expected 0.3% Prior 0.0%
+0945 - **S&P Global Manufacturing PMI Final (Mar):** Prior 52.4
+1000 - **Business inventories m/m for Jan:** Expected 0.1%; Prior 0.1%
+1000 - **ISM Manufacturing PMI (Mar): **Expected 52.5; Prior 52.4
+1000 - **ISM Manufacturing Prices (Mar):** Expected 73.0; Prior 70.5
+
+
+----------# **Premarket Trading:**
+
+**Trading Higher ($): NVDA, NCNO, PLAY**
+
+**Trading Lower ($): NKE, RH, OXY**
+
+# **Earnings Today:**
+
+**Premarket: LW, TLRY, CAG**
+
+**Postmarket: PENG**
+
+———————————————————————————
+
+# **In The News**
+
+———————————————————————————
+
+----------
+## **Nike Inc (NKE)**
+
+#### **-10.61%**
+
+Trading significantly lower premarket.  Iconic athleticwear company facing significant headwinds despite CEO Elliott Hill's turnaround efforts. Nike warned of a 2-4% sales decline in current quarter (vs. Wall Street estimates of +1.9% growth), citing persistent weakness in China market and slower-than-expected inventory clearance. Executive admitted turnaround "is taking longer than I would like." Middle East geopolitical tensions pose additional risks to global operations and supply chain.
+
+**COIN, MSTR, MARA, RIOT, IBIT, ETHE, HUT, CLSK, IREN, CAN, HIVE**
+
+———————————————————————————
+
+
+--------------------
+## **Oracle Corp (ORCL)**
+
+#### **1.75%**
+
+Enterprise cloud computing giant Oracle announced massive workforce restructuring with 30,000 employee layoffs globally, including 491 workers in Washington state. Despite headline concerns, stock gained premarket as market views cost-cutting as necessary to fund aggressive $58 billion AI data center buildout. Company targeting $8-10 billion in annual cash flow savings to support infrastructure investments for clients including OpenAI, Meta, and Nvidia.
+
+**NVDA, META, MSFT**
+
+———————————————————————————
+
+
+--------------------
+## **Tesla Inc (TSLA)**
+
+#### **2.1%**
+
+Electric vehicle leader showing encouraging European recovery ahead of critical Q1 delivery report (scheduled April 2). New registration data revealed Tesla's France sales more than tripled in March to record levels, with Nordic registrations doubling. Recovery signals follow aggressive new price cuts on Model Y and Model 3. However, overall Q1 deliveries still expected to dip sequentially as EV market faces uneven demand globally and intensifying Chinese competition. Market awaits official April 2 announcement. 
+
+
+
+———————————————————————————
+
+
+--------------------
+## **Oil and Energy Stocks**
+
+#### **-2.65%**
+
+President Trump and Secretary of State Rubio signaled potential swift resolution to Iran conflict, citing openness to direct talks with Tehran leadership. Optimism about conflict winding down without requiring formal agreement boosted global equities significantly in yesterday's session—largest one-day gains in nearly a year. Effects cascading across markets: European STOXX 600 jumped 2%, Japan's Nikkei gained 3.9%, China/Hong Kong stocks rallied. Crude oil reversed earlier gains on de-escalation hopes, falling below $100/barrel. Gold retreated from 2-week highs as risk appetite improved. Geopolitical premium compression could persist if peace talks advance.
+
+
+**USO, OXY, CVX, XOM, BOIL, BNO**
+
+———————————————————————————
+
+
+--------------------
+## **Microsoft Corp (MSFT)**
+
+#### **1.52%**
+
+Tech giant is forging strategic partnerships to secure critical power infrastructure for its AI expansion. Microsoft, Chevron, and investment firm Engine No. 1 signed exclusivity agreement for power generation supply using natural gas turbines (via GE Vernova). No definitive terms finalized yet, but partnership addresses urgent industry-wide electricity shortage for generative AI data centers. Microsoft positioning itself ahead of competitors in securing reliable, long-term power supplies for ChatGPT and Copilot infrastructure buildout.
+
+**GEV, CVX**
+
+———————————————————————————
+
+
+--------------------
+## **McCormick & Company (MKC)**
+
+#### **-7.2%**
+
+McCormick announced $44.8 billion reverse Morris Trust deal to combine with Unilever's food business, creating a global seasonings, sauces and condiments powerhouse. McCormick will pay $15.7 billion cash plus $29.1 billion in stock. Transaction structure means Unilever shareholders will own 65% of combined entity. Deal expected to close mid-2027 pending regulatory approval. Stock volatility reflects investor caution on mega-merger execution risks..
+
+**UL**
+
+———————————————————————————
+
+
+--------------------
+## **nCino (NCNO)**
+
+#### **22.8%**
+
+nCino is gapping up overnight after a blowout Q4 — non-GAAP EPS of $0.37 demolished the $0.15 estimate by 147%, its third straight triple-digit beat, while non-GAAP operating income surged 42% and GAAP EPS turned positive for the first time. The company layered on a $100M accelerated buyback, adding a capital return catalyst to an already strong print. Watch for whether the gap holds at the open, as the stock reclaims key levels on improving profitability and AI-driven demand in cloud banking.
+
+
+
+———————————————————————————
+
+
+--------------------
+## **Cyclerion Therapeutics (CYCN)**
+
+#### **165%**
+
+CYCN is in play after announcing an all-stock merger with private biotech Korsana Biosciences, with the combined company rebranding as Korsana and trading under "KRSA" on Nasdaq. The deal comes alongside a heavily oversubscribed $380M PIPE led by Fairmount and Venrock, with marquee names including General Atlantic, Wellington, RA Capital, and J.P. Morgan Life Sciences — a strong vote of confidence in the platform. Proceeds fund operations into 2029, with key catalysts including Phase 1 data for KRSA-028 in mid-2027 and Alzheimer's amyloid plaque clearance proof-of-concept data by year-end 2027. Watch CYCN for a volatility spike at the open as the market prices in the merger terms and the quality of the PIPE syndicate
+
+
+
+———————————————————————————
+
+
+----------
+———
+
+You are reading a plain text version of this post. For the best experience, copy and paste this link in your browser to view the post online:
+https://tradertv-live.beehiiv.com/p/trader-tv-watchlist-april-1-2026

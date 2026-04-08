@@ -12,22 +12,18 @@ import unittest
 from typing import TYPE_CHECKING
 
 from strategies.utils import last_trading_day
-from trading.market_data import connect, disconnect
+from trading.market_data import connect
+from trading.market_data import disconnect
 
 if TYPE_CHECKING:
     from ib_async import IB
-from trading.trade_data import (
-    find_orders_for_symbol_trader,
-    get_available_funds,
-    get_position_size,
-    has_open_orders,
-    has_open_orders_for_trader,
-    order_tag,
-)
+from trading.trade_data import find_orders_for_symbol_trader
+from trading.trade_data import get_available_funds
+from trading.trade_data import get_position_size
+from trading.trade_data import has_open_orders
+from trading.trade_data import has_open_orders_for_trader
+from trading.trade_data import order_tag
 
-# =========================================================
-# Test values
-# =========================================================
 SYMBOL = 'IBIT'
 TRADER = 'Justin Spero'
 
@@ -41,16 +37,12 @@ class TestTradeDataIntegration(unittest.TestCase):
     def setUpClass(cls) -> None:
         """Connect once for all tests."""
         cls.ib = connect(readonly=True)
+        assert cls.ib is not None and cls.ib.isConnected()
 
     @classmethod
     def tearDownClass(cls) -> None:
         """Disconnect after all tests."""
         disconnect(cls.ib)
-
-    def setUp(self) -> None:
-        """Skip tests if IB not connected."""
-        if self.ib is None or not self.ib.isConnected():
-            self.skipTest('IB not connected - is TWS/Gateway running?')
 
     def test_order_tag(self) -> None:
         """order_tag returns expected string format."""

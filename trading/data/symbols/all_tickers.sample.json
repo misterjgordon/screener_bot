@@ -1,0 +1,10 @@
+{
+  "fields": ["cik", "name", "ticker", "exchange"],
+  "data": [
+    [1045810, "NVIDIA CORP", "NVDA", "Nasdaq"],
+    [320193, "Apple Inc.", "AAPL", "Nasdaq"],
+    [1067983, "BERKSHIRE HATHAWAY INC", "BRK-B", "NYSE"],
+    [884394, "SPDR S&P 500 ETF TRUST", "SPY", "NYSE"],
+    [2070829, "Contemporary Amperex Technology Co., Limited/ADR", "CYATY", "OTC"]
+  ]
+}

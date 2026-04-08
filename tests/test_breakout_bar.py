@@ -39,18 +39,13 @@ class TestRealtimeBarIntegration(unittest.TestCase):
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', category=DeprecationWarning)
             cls.ib = connect(readonly=True)
-        if cls.ib is not None and cls.ib.isConnected():
-            cls.bundle = load_bars(cls.ib, SYMBOL)
+        assert cls.ib is not None and cls.ib.isConnected()
+        cls.bundle = load_bars(cls.ib, SYMBOL)
 
     @classmethod
     def tearDownClass(cls) -> None:
         """Disconnect after all tests."""
         disconnect(cls.ib)
-
-    def setUp(self) -> None:
-        """Skip tests if IB not connected."""
-        if self.ib is None or not self.ib.isConnected():
-            self.skipTest('IB not connected - is TWS/Gateway running?')
 
     def test_realtime_bar_returns_values(self) -> None:
         """Build synthetic bar (last 2-min + 5-sec realtime) and print it."""

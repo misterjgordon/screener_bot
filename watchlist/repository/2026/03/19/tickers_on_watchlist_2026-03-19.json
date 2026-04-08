@@ -1,0 +1,181 @@
+{
+  "trade_date": "2026-03-19",
+  "generated_at_pt": "2026-03-30T19:30:58.906842-07:00",
+  "tickers": [
+    {
+      "symbol": "AAPL",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-19",
+      "atr_14": 5.7577,
+      "percent_of_avg_volume": 9
+    },
+    {
+      "symbol": "ALGN",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-19",
+      "atr_14": 7.4051,
+      "percent_of_avg_volume": 33
+    },
+    {
+      "symbol": "BABA",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-19",
+      "atr_14": 5.0272,
+      "percent_of_avg_volume": 31
+    },
+    {
+      "symbol": "CHNR",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-19",
+      "atr_14": 0.4556,
+      "percent_of_avg_volume": 2206
+    },
+    {
+      "symbol": "COHR",
+      "source_id": "smb_gameplan",
+      "trade_date": "2026-03-19",
+      "atr_14": 21.4812,
+      "percent_of_avg_volume": 10
+    },
+    {
+      "symbol": "FIVE",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-19",
+      "atr_14": 9.4399,
+      "percent_of_avg_volume": 31
+    },
+    {
+      "symbol": "GLD",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-19",
+      "atr_14": 12.294,
+      "percent_of_avg_volume": 20
+    },
+    {
+      "symbol": "GOOGL",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-19",
+      "atr_14": 7.4023,
+      "percent_of_avg_volume": 6
+    },
+    {
+      "symbol": "GXDX",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-19",
+      "atr_14": null,
+      "percent_of_avg_volume": null
+    },
+    {
+      "symbol": "HYMC",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-19",
+      "atr_14": 5.3154,
+      "percent_of_avg_volume": 19
+    },
+    {
+      "symbol": "LNG",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-19",
+      "atr_14": 9.8918,
+      "percent_of_avg_volume": 28
+    },
+    {
+      "symbol": "MU",
+      "source_id": "smb_gameplan",
+      "trade_date": "2026-03-19",
+      "atr_14": 25.6049,
+      "percent_of_avg_volume": 24
+    },
+    {
+      "symbol": "MU",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-19",
+      "atr_14": 25.6049,
+      "percent_of_avg_volume": 24
+    },
+    {
+      "symbol": "NAVN",
+      "source_id": "market_rundown",
+      "trade_date": "2026-03-19",
+      "atr_14": 0.7282,
+      "percent_of_avg_volume": 1
+    },
+    {
+      "symbol": "NEM",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-19",
+      "atr_14": 5.7166,
+      "percent_of_avg_volume": 27
+    },
+    {
+      "symbol": "NVDA",
+      "source_id": "market_rundown",
+      "trade_date": "2026-03-19",
+      "atr_14": 5.7051,
+      "percent_of_avg_volume": 9
+    },
+    {
+      "symbol": "NVO",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-19",
+      "atr_14": 1.5456,
+      "percent_of_avg_volume": 6
+    },
+    {
+      "symbol": "ONCO",
+      "source_id": "market_rundown",
+      "trade_date": "2026-03-19",
+      "atr_14": 0.5933,
+      "percent_of_avg_volume": 0
+    },
+    {
+      "symbol": "QQQ",
+      "source_id": "market_rundown",
+      "trade_date": "2026-03-19",
+      "atr_14": 10.0767,
+      "percent_of_avg_volume": 7
+    },
+    {
+      "symbol": "RIVN",
+      "source_id": "smb_gameplan",
+      "trade_date": "2026-03-19",
+      "atr_14": 0.9235,
+      "percent_of_avg_volume": 22
+    },
+    {
+      "symbol": "SLV",
+      "source_id": "smb_gameplan",
+      "trade_date": "2026-03-19",
+      "atr_14": 4.6581,
+      "percent_of_avg_volume": 11
+    },
+    {
+      "symbol": "SLV",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-19",
+      "atr_14": 4.6581,
+      "percent_of_avg_volume": 11
+    },
+    {
+      "symbol": "TSLA",
+      "source_id": "tradertv_watchlist",
+      "trade_date": "2026-03-19",
+      "atr_14": 13.1864,
+      "percent_of_avg_volume": 10
+    },
+    {
+      "symbol": "U",
+      "source_id": "market_rundown",
+      "trade_date": "2026-03-19",
+      "atr_14": 1.6212,
+      "percent_of_avg_volume": 2
+    },
+    {
+      "symbol": "USO",
+      "source_id": "market_rundown",
+      "trade_date": "2026-03-19",
+      "atr_14": 6.4331,
+      "percent_of_avg_volume": 26
+    }
+  ]
+}

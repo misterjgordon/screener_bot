@@ -1,0 +1,79 @@
+{
+  "source": "smb_gameplan",
+  "trade_date": "2026-04-06",
+  "fetched_at_utc": "2026-04-06T13:00:03.397531+00:00",
+  "payload": {
+    "id": 81,
+    "date": "2026-04-06T00:00:00.000Z",
+    "big_picture": "market bounced thursday before three day holida weekend. futures gap lower sunday night was bought. buyers have shown shown up every trading session since last tuesday. this sets up the indices for further upside into earnings season and the next round of economic data. ",
+    "created_by": 3,
+    "created_at": "2026-04-06T08:04:37.000Z",
+    "updated_at": "2026-04-06T08:07:12.000Z",
+    "stocks": [
+      {
+        "id": 9786,
+        "game_plan_id": 81,
+        "section": "fresh_news",
+        "position": 2,
+        "ticker": "AEHR",
+        "support": null,
+        "resistance": null,
+        "inflexion": null,
+        "notes": null,
+        "bias": null,
+        "setup": null,
+        "trading_plan": null,
+        "created_at": "2026-04-06T08:59:56.000Z",
+        "updated_at": "2026-04-06T08:59:56.000Z"
+      },
+      {
+        "id": 9787,
+        "game_plan_id": 81,
+        "section": "second_day",
+        "position": 1,
+        "ticker": "TSLA",
+        "support": null,
+        "resistance": null,
+        "inflexion": null,
+        "notes": "sold all day",
+        "bias": null,
+        "setup": null,
+        "trading_plan": null,
+        "created_at": "2026-04-06T08:59:56.000Z",
+        "updated_at": "2026-04-06T08:59:56.000Z"
+      },
+      {
+        "id": 9788,
+        "game_plan_id": 81,
+        "section": "second_day",
+        "position": 2,
+        "ticker": "USO",
+        "support": null,
+        "resistance": null,
+        "inflexion": null,
+        "notes": "large range. traded well",
+        "bias": null,
+        "setup": null,
+        "trading_plan": null,
+        "created_at": "2026-04-06T08:59:56.000Z",
+        "updated_at": "2026-04-06T08:59:56.000Z"
+      },
+      {
+        "id": 9789,
+        "game_plan_id": 81,
+        "section": "second_day",
+        "position": 3,
+        "ticker": "AAOI",
+        "support": "100, 102.50, 105",
+        "resistance": "112.50, 115, ",
+        "inflexion": null,
+        "notes": "bought all day",
+        "bias": null,
+        "setup": null,
+        "trading_plan": null,
+        "created_at": "2026-04-06T08:59:56.000Z",
+        "updated_at": "2026-04-06T08:59:56.000Z"
+      }
+    ]
+  }
+}

@@ -1,0 +1,170 @@
+# source=tradertv_watchlist desk_date=2026-03-31 fetched_at_utc=2026-03-31T12:58:03.229221+00:00
+# subject=Trader TV Watchlist - March 31, 2026
+# from=TraderTV Live Research <tradertv-live@mail.beehiiv.com>
+# date_header=Tue, 31 Mar 2026 11:51:27 +0000
+
+----------
+CLICK TO WATCH NOW! (https://www.youtube.com/watch?v=bS-J-nSYkHA)
+
+
+----------# **Tuesday March 31, 2026**
+
+----------
+# ^~**Welcome to the TraderTV Live Morning Research Note. Here&#39;s what&#39;s making major moves in the market today.**~^
+
+
+----------##### ^_[TraderTV.LIVE](https://TraderTV.LIVE)_^^™ features a daily live trading broadcast, professional education and an active community of more than 450,000 subscribers.  ^^_[Join us on YouTube](https://www.youtube.com/c/TraderTVLive)_^^ every weekday from 8:00am to 4:00pm EST for the first and only professional trading show on YouTube Live!^
+
+———————————————————————————
+
+# **Economic Events:**
+
+----------
+0900 - **Case-Shiller home price y/y for January:** Expected 1.37%; Prior 1.4%
+0945 - **Chicago PMI for March:** Expected 54.6; Prior 57.7
+1000 - **JOLTS job openings for February:** Expected 6.895M; Prior 6.946M
+1000 - **CB consumer confidence for March:** Expected 88; Prior 91.2
+1200 - **Fed’s Goolsbee speaks**
+1500 - **Fed’s Barr speaks**
+
+
+----------# **Premarket Trading:**
+
+**Trading Higher ($): AAL, INTC, NBIS**
+
+**Trading Lower ($): TE, MU, BATL**
+
+# **Earnings Today:**
+
+**Premarket: MKC, ALTI, TE**
+
+**Post-market: NKE, BYND, NCNO**
+
+———————————————————————————
+
+# **In The News**
+
+———————————————————————————
+
+----------
+## **Big Tech**
+
+#### **+0.87%**
+
+Trading higher premarket amid renewed investor optimism that the conflict in the Middle East may soon come to a conclusion. The sentiment shift came after the Wall Street Journal reported that President Trump indicated a willingness to end the conflict without a reopening of the Strait of Hormuz. Bloomberg, however, reported that a Kuwaiti oil tanker was struck by Iran, indicating that tensions are continuing for now.
+
+**AAPL, NVDA, TSLA, AMD, PLTR, INTC**
+
+———————————————————————————
+
+
+--------------------
+## **Meta Platforms and Alphabet**
+
+#### **+1.41%**
+
+Both companies were summoned by Indonesia for failing to comply with new rules requiring high-risk platforms to deactivate accounts of users under 16. Meanwhile, Australia’s regulator is investigating major social media firms for potential violations of its own under-16 ban, signaling possible enforcement under stricter new laws. Both Meta and Google’s YouTube were found liable in a personal injury suit related to social media addiction just last week.
+
+———————————————————————————
+
+
+--------------------
+## **Nebius Group NV (NBIS)**
+
+#### **+3.30%**
+
+Reuters reported that the company is partnering with Polarnode to build a $10 billion, 310 MW AI data center in Lappeenranta, Finland. The facility will be brought online in phases starting in 2027.
+
+———————————————————————————
+
+
+--------------------
+## **Micron Technology Inc (MU)**
+
+#### **-0.89%**
+
+The stock closed nearly 10% lower on Monday, continuing its roughly 30% selloff since its earnings report on Wednesday, March 18. The downside move was influenced by a Google Research article last week which introduced TurboQuant, a compression algorithm that could increase the efficiency of AI while using less memory.
+
+———————————————————————————
+
+
+--------------------
+## **Microsoft Corp (MSFT)**
+
+#### **+1.46%**
+
+The company is facing a new investigation by the U.K.’s Competition and Markets Authority into its business software ecosystem, with a formal “strategic market status” probe set to begin in May. The regulator aims to assess concerns around Microsoft’s cloud licensing practices and ensure fair competition as AI features become more integrated into widely used tools like Office and Teams.
+
+———————————————————————————
+
+
+--------------------
+## **Delta Air Lines and Amazon.com Inc**
+
+#### **+1.67%**
+
+On watch as a pair after Delta announced a partnership with Amazon Leo to roll out faster in-flight Wi-Fi on about 500 aircraft starting in 2028. The move is part of a broader push to enhance passenger experience and unlock new revenue opportunities through streaming, ads, and onboard commerce as demand for high-speed connectivity rises.
+
+**DAL, AMZN**
+
+———————————————————————————
+
+
+--------------------
+## **McCormick & Company Inc (MKC)**
+
+#### **+3.57%**
+
+Trading higher premarket after Unilever confirmed that it is in advanced talks to merge its food division with McCormick in a deal that could create a company valued at over $60 billion. The transaction would use a Reverse Morris Trust structure, with Unilever spinning off its food business and retaining about a 65% stake in the combined entity.
+
+———————————————————————————
+
+
+--------------------
+## **Rocket Lab Corp (RKLB)**
+
+#### **+2.21%**
+
+Stifel reiterated a Buy rating and $90 price target on the company after it received regulatory approval to acquire Mynaric AG, with the deal expected to close in April. The firm views the acquisition as highly strategic, adding optical communications capabilities, securing a key supplier for major contracts, and expanding Rocket Lab’s access to European space and defense markets.
+
+———————————————————————————
+
+
+--------------------
+## **Block Inc (XYZ)**
+
+#### **+1.61%**
+
+Loop Capital initiated coverage on the stock with a Buy rating and $75 price target, noting near-term volatility after its 40% staffing cut but strong positioning in differentiated POS tools and growth in monthly transacting users. The firm expects solid gross profit growth, stable credit quality, and improving margins. Loop also sees potential upside if the company sustains profitability and maintains a ~15x forward P/E multiple into 2027.
+
+———————————————————————————
+
+
+--------------------
+## **Novo Nordisk A/S (NVO)**
+
+#### **-0.34%**
+
+On watch after cutting prices of Ozempic and Wegovy in India by up to 36% and 48% (with average cuts of ~24% and ~27%) following the expiration of its semaglutide patent. The move comes as local drugmakers in India like Dr. Reddy's Laboratories, Zydus Lifesciences, and Sun Pharmaceutical Industries launch significantly cheaper alternatives, in some cases up to 70% lower in price. Separately, Novo Nordisk announced the launch of a discounted Wegovy subscription plan that would allow self-pay patients in the US to pay as little as $249 per month.
+
+———————————————————————————
+
+
+--------------------
+## **Aehr Test Systems (AEHR)**
+
+#### **+11.90%**
+
+Gapping up after securing an initial order from a major networking and data center optical transceiver customer for multiple wafer-level burn-in systems and related equipment, with shipments planned by May 2026. The deal supports the customer’s silicon photonics transceiver development for AI and cloud data centers, with potential follow-on orders as demand for high-speed optical connectivity ramps. Roughly 15.6% of Aehr’s float is sold short.
+
+———————————————————————————
+
+
+--------------------
+## **Hitek Global Inc (HKIT)**
+
+#### **+132.50%**
+
+The penny stock is trading sharply higher premarket following the recent announcement of a $3 million direct offering. Hitek, which has rallied in the past, has a market capitalization of $1.17 million and a float of 6.24 million shares.
+
+———————————————————————————

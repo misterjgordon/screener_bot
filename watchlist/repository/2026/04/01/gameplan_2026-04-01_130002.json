@@ -1,0 +1,79 @@
+{
+  "source": "smb_gameplan",
+  "trade_date": "2026-04-01",
+  "fetched_at_utc": "2026-04-01T13:00:02.743840+00:00",
+  "payload": {
+    "id": 79,
+    "date": "2026-04-01T00:00:00.000Z",
+    "big_picture": "strong bounce erasing selling from last thursday and friday. look for a pullback and sideways action to digest the bounce. ",
+    "created_by": 3,
+    "created_at": "2026-04-01T08:58:58.000Z",
+    "updated_at": "2026-04-01T08:59:28.000Z",
+    "stocks": [
+      {
+        "id": 9491,
+        "game_plan_id": 79,
+        "section": "fresh_news",
+        "position": 1,
+        "ticker": "NKE",
+        "support": null,
+        "resistance": null,
+        "inflexion": null,
+        "notes": null,
+        "bias": null,
+        "setup": null,
+        "trading_plan": null,
+        "created_at": "2026-04-01T08:59:49.000Z",
+        "updated_at": "2026-04-01T08:59:49.000Z"
+      },
+      {
+        "id": 9492,
+        "game_plan_id": 79,
+        "section": "fresh_news",
+        "position": 2,
+        "ticker": "RH",
+        "support": null,
+        "resistance": null,
+        "inflexion": null,
+        "notes": null,
+        "bias": null,
+        "setup": null,
+        "trading_plan": null,
+        "created_at": "2026-04-01T08:59:49.000Z",
+        "updated_at": "2026-04-01T08:59:49.000Z"
+      },
+      {
+        "id": 9493,
+        "game_plan_id": 79,
+        "section": "second_day",
+        "position": 1,
+        "ticker": "MRVL",
+        "support": null,
+        "resistance": null,
+        "inflexion": null,
+        "notes": null,
+        "bias": null,
+        "setup": null,
+        "trading_plan": null,
+        "created_at": "2026-04-01T08:59:49.000Z",
+        "updated_at": "2026-04-01T08:59:49.000Z"
+      },
+      {
+        "id": 9494,
+        "game_plan_id": 79,
+        "section": "second_day",
+        "position": 2,
+        "ticker": "TSLA",
+        "support": null,
+        "resistance": null,
+        "inflexion": null,
+        "notes": null,
+        "bias": null,
+        "setup": null,
+        "trading_plan": null,
+        "created_at": "2026-04-01T08:59:49.000Z",
+        "updated_at": "2026-04-01T08:59:49.000Z"
+      }
+    ]
+  }
+}
