@@ -4,11 +4,13 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+
 from trading.market_data import get_realtime_bar
 from trading.models import Bar
 from trading.models import TickerQuote
 
 if TYPE_CHECKING:
+    from ib_async import RealTimeBar
     from ib_async import IB
 
     from trading.models import BarSeries
@@ -53,45 +55,41 @@ class BreakOutBarStats:
     breakout_bar_bullish: bool | None  # True = long, False = short, None when no breakout
 
 
-def _bar_size(bar: object) -> float:
+def _bar_size(bar: Bar) -> float:
     """Return full bar range (high-low)."""
-    return bar.high - bar.low  # type: ignore[attr-defined]
+    return bar.high - bar.low
 
 
-def _realtime_bar_ohlc(rt_bar: object) -> tuple[float, float, float, float, datetime | None]:
-    """Read OHLC and date from ib_async realtime bar (handles .open_/.high_/.low_/.close_)."""
-    o = getattr(rt_bar, 'open', None) or getattr(rt_bar, 'open_', None)
-    h = getattr(rt_bar, 'high', None) or getattr(rt_bar, 'high_', None)
-    low_rt = getattr(rt_bar, 'low', None) or getattr(rt_bar, 'low_', None)
-    c = getattr(rt_bar, 'close', None) or getattr(rt_bar, 'close_', None)
-    dt = getattr(rt_bar, 'time', None) or getattr(rt_bar, 'date', None)
-    if not all(x is not None for x in (o, h, low_rt, c)):
-        return (0.0, 0.0, 0.0, 0.0, None)
-    assert o is not None and h is not None and low_rt is not None and c is not None
-    if isinstance(dt, datetime):
-        return (float(o), float(h), float(low_rt), float(c), dt)
-    return (float(o), float(h), float(low_rt), float(c), None)
+def _realtime_bar_ohlc(rt_bar: 'RealTimeBar') -> tuple[float, float, float, float, datetime]:
+    """OHLC and bar time from an ib_async :class:`~ib_async.objects.RealTimeBar`."""
+    return (
+        float(rt_bar.open_),
+        float(rt_bar.high),
+        float(rt_bar.low),
+        float(rt_bar.close),
+        rt_bar.time,
+    )
 
 
-def _bar_high_low(bar: object) -> tuple[float, float]:
-    """Read high and low from any bar (handles .high/.low or .high_/.low_)."""
-    h = getattr(bar, 'high', None) or getattr(bar, 'high_', None)
-    low = getattr(bar, 'low', None) or getattr(bar, 'low_', None)
-    if h is None or low is None:
-        return (0.0, 0.0)
-    return (float(h), float(low))
+def _bar_high_low(bar: Bar) -> tuple[float, float]:
+    """High and low from a :class:`~trading.models.Bar`."""
+    return (bar.high, bar.low)
 
 
-def _synthetic_bar(last_2min_bar: object, rt_bar: object) -> Bar:
+def _synthetic_bar(last_2min_bar: Bar, rt_bar: 'RealTimeBar') -> Bar:
     """Build bar: high = max(last 2-min high, realtime high), low = min(last 2-min low, realtime low); open/close from 5-sec."""
     o, h_rt, l_rt, c, dt = _realtime_bar_ohlc(rt_bar)
     h_2min, low_2min = _bar_high_low(last_2min_bar)
     high = max(h_2min, h_rt)
     low = min(low_2min, l_rt)
-    date = dt if isinstance(dt, datetime) else last_2min_bar.date  # type: ignore[attr-defined]
-    vol = getattr(rt_bar, 'volume', None) or getattr(rt_bar, 'volume_', 0)
-    volume = float(vol) if vol is not None else 0.0
-    return Bar(date=date, open=o, high=high, low=low, close=c, volume=volume)
+    return Bar(
+        date=dt,
+        open=o,
+        high=high,
+        low=low,
+        close=c,
+        volume=float(rt_bar.volume),
+    )
 
 
 def break_out_bar_stats(
@@ -114,8 +112,8 @@ def break_out_bar_stats(
     if ib is not None and symbol is not None and bars_2min:
         rt_bar = get_realtime_bar(ib, symbol)
         if rt_bar is not None:
-            _, h_rt, l_rt, _, dt = _realtime_bar_ohlc(rt_bar)
-            if dt is not None and h_rt >= l_rt:
+            _, h_rt, l_rt, _, _dt = _realtime_bar_ohlc(rt_bar)
+            if h_rt >= l_rt:
                 synthetic = _synthetic_bar(bars_2min[-1], rt_bar)
                 bars_for_lookback = bars_2min + [synthetic]
 

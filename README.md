@@ -1,6 +1,6 @@
 # Automated Trading Bot
 
-A Python-based trading automation system that monitors external position data and executes trades through Interactive Brokers. Built for educational and research purposes using paper trading accounts.
+A Python-based automated reasearch and investment system that monitors external position data and executes trades through a broker. Built for educational and research purposes using paper trading accounts.
 
 ## Important Notes
 
@@ -68,19 +68,26 @@ This project demonstrates a complete trading automation workflow, from position 
 │   └── new_positions/       # One JSON per SMB NEW position
 ├── docs/                    # Guides (PostgreSQL, GitHub, snapshot DB, etc.)
 ├── resources/               # Gitignored: cookies, position snapshots
-├── scripts/                 # format_python_code.sh, etc.
+├── scripts/                 # format_python_code.sh, backfills, etc.
 ├── smbweb/                  # Django web application
 │   ├── apps/executions/     # Execution tracking app
+│   ├── apps/market/         # Symbols, OHLCV bars, Alpaca bar import
 │   ├── views/               # API endpoints
-│   └── manage.py             # Django management script
-├── strategies/              # Indicators, bar patterns
-├── trading/                 # Main bot and scripts
+│   └── manage.py            # Django management script
+├── strategies/              # Indicators, bar patterns, fundamentals
+├── trading/                 # Main bot and broker integration
 │   ├── smb_screener.py      # Main monitoring and execution bot
-│   └── run_screener.py      # Polling/once entrypoint
-├── tests/
+│   ├── run_screener.py      # Polling/once entrypoint
+│   └── integrations/      # External data (e.g. Alpaca bars)
+├── watchlist/               # Morning sources, desk-day tickers, AI report flow
+│   ├── sources/             # Per-source fetchers (gameplan, briefing, etc.)
+│   ├── prompts/             # LLM prompt templates
+│   └── repository/          # Gitignored: daily JSON/Markdown outputs
+├── tests/                   # Unit tests for trading and strategies
 ├── logs/                    # Gitignored
 ├── smb_trader_executions/   # Gitignored execution CSVs
-└── pyproject.toml           # Project dependencies
+├── pyproject.toml           # Project dependencies
+└── uv.lock                  # Locked dependency versions (uv)
 ```
 
 ## Technology Stack

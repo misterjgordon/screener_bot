@@ -12,6 +12,7 @@ to avoid duplicate IB requests. When bundle is None, fetches via bar_loader.get_
 from typing import TYPE_CHECKING
 
 from ib_async import IB
+from ib_async import RealTimeBar
 from ib_async import Stock
 
 from strategies.utils import is_rth_session_bar
@@ -119,12 +120,11 @@ def get_ticker_quote(ib: IB | None, symbol: str) -> TickerQuote | None:
         return None
 
 
-def get_realtime_bar(ib: IB | None, symbol: str) -> object | None:
+def get_realtime_bar(ib: IB | None, symbol: str) -> RealTimeBar | None:
     """Subscribe to 5-sec realtime bars, cancel and return latest bar if any, else None.
 
     reqRealTimeBars requires a qualified contract; Stock + qualifyContracts provide that.
-    Returns the latest 5-sec bar (ib_async realtime bar object) or None if none received.
-    Caller should read OHLC via .open/.high/.low/.close or .open_/.high_/.low_/.close_.
+    Returns the latest :class:`~ib_async.objects.RealTimeBar` or None if none received.
     """
     if ib is None or not ib.isConnected():
         return None

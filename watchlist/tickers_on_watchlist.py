@@ -7,7 +7,7 @@ Persists ``tickers_on_watchlist_YYYY-MM-DD.json`` under the same
 ``watchlist/repository/YYYY/MM/DD`` directory when ``save_json`` is True.
 
 shell cmd
-uv run --frozen python -m watchlist.tickers_on_watchlist --date 2026-04-08
+uv run --frozen python -m watchlist.tickers_on_watchlist --date 2026-04-21
 """
 
 import argparse
@@ -38,6 +38,7 @@ if TYPE_CHECKING:
 SOURCE_SMB_GAMEPLAN = 'smb_gameplan'
 SOURCE_MARKET_RUNDOWN = 'market_rundown'
 SOURCE_TRADERTV_WATCHLIST = 'tradertv_watchlist'
+WATCHLIST_IB_CLIENT_ID = 51
 
 RUNDOWN_LINE_TICKER = re.compile(r'^([A-Z]{1,4})\s', re.MULTILINE)
 TRADERTV_PARENTHESES_TICKER = re.compile(r'\(([A-Z]{1,5})\)')
@@ -359,9 +360,15 @@ def main() -> None:
         metavar='YYYY-MM-DD',
         help='Desk date (default: today in local time).',
     )
+    parser.add_argument(
+        '--client-id',
+        type=int,
+        help='Optional IB client ID override for this run.',
+    )
     args = parser.parse_args()
     desk = date.fromisoformat(args.date) if args.date else date.today()
-    ib = connect(readonly=True)
+    client_id = args.client_id if args.client_id is not None else WATCHLIST_IB_CLIENT_ID
+    ib = connect(readonly=True, client_id=client_id)
     try:
         rows = tickers_on_watchlist(desk, ib=ib)
     finally:

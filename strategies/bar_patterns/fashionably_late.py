@@ -20,6 +20,7 @@ from strategies.indicators.ema import ema9
 from strategies.indicators.rvol import rvol
 from strategies.indicators.vwap import vwap
 from trading.bar_loader import TRAILING_STOP_BARS_2MIN
+from trading.models import Bar
 from trading.models import BarSeries
 
 RVOL_MIN = 2.0
@@ -109,12 +110,9 @@ def _trailing_high(bars: list, bar_idx: int) -> float | None:
     return max(highs) if highs else None
 
 
-def _bar_time_in_window(bar: object, start_et: time, end_et: time) -> bool:
+def _bar_time_in_window(bar: Bar, start_et: time, end_et: time) -> bool:
     """True if bar's time (assumed ET) is in [start_et, end_et] inclusive."""
-    bar_dt = getattr(bar, 'date', None)
-    if not hasattr(bar_dt, 'time'):
-        return False
-    t = bar_dt.time()
+    t = bar.date.time()
     return start_et <= t <= end_et
 
 

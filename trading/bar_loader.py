@@ -53,11 +53,25 @@ def get_bars(
         return None
 
 
-def load_bars(ib: IB | None, symbol: str, end_date: date | None = None) -> BarSeries | None:
+def load_bars(
+    ib: IB | None,
+    symbol: str,
+    end_date: date | None = None,
+    *,
+    duration_str_2min: str = '1 D',
+) -> BarSeries | None:
     """Fetch daily and 2-min bars for symbol. Returns None if either fetch fails.
 
     If end_date is set, bars are requested through 4:00 PM ET on that date (for backtesting a specific day).
     Otherwise returns most recent data.
+
+    Parameters
+    ----------
+    duration_str_2min
+        IB ``durationStr`` for the 2-minute request. Default ``1 D``. For desk
+        session windows that include prior-day after-hours, pass
+        ``strategies.indicators.session_range.BARS_2MIN_DURATION_FOR_DESK_SESSION_RANGES``
+        (``'2 D'``).
     """
     if ib is None or not ib.isConnected():
         return None
@@ -76,7 +90,7 @@ def load_bars(ib: IB | None, symbol: str, end_date: date | None = None) -> BarSe
     bars_2min = get_bars(
         ib,
         symbol,
-        duration_str='1 D',
+        duration_str=duration_str_2min,
         bar_size='2 mins',
         use_rth=False,
         end_date=end_date,

@@ -4,7 +4,7 @@ Market rundown is fetched only when ``trade_date`` is a **Thursday** (see
 ``--force-market-rundown`` to override).
 
 shell cmd
-uv run --frozen python -m watchlist.run_sources --date 2026-04-08
+uv run --frozen python -m watchlist.run_sources --date 2026-04-14
 
 if --gmail-interactive-auth is passed, it will open the Google OAuth browser flow to re-authorize the Gmail token
 uv run --frozen python -m watchlist.run_sources --date 2026-04-08 --gmail-interactive-auth
@@ -21,6 +21,8 @@ from trading.integrations.google import get_gmail_api
 from trading.market_data import connect
 from trading.market_data import disconnect
 from trading.smb_api import get_session
+from watchlist.session_range_export import export_session_range_for_watchlist
+from watchlist.sources.briefing_page_one import fetch_briefing_page_one
 from watchlist.sources.market_rundown import fetch_market_rundown
 from watchlist.sources.smb_gameplan import fetch_gameplan_or_none
 from watchlist.sources.tradertv import GmailApi
@@ -117,6 +119,20 @@ def _run_tradertv_watchlist(
     )
 
 
+def _run_briefing_page_one(session: 'requests.Session', trade_date: date) -> tuple[str, str]:
+    """Fetch Briefing.com Page One HTML and save plain text; return status + message."""
+    outcome = fetch_briefing_page_one(
+        session,
+        trade_date,
+        save_text=True,
+    )
+    return (
+        'ok',
+        f'briefing_page_one date={trade_date.isoformat()} url={outcome.source_url!r}'
+        f' path={outcome.snapshot_path}',
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description='Run all watchlist sources for one desk day.')
     parser.add_argument(
@@ -151,10 +167,12 @@ def main() -> None:
         force=args.force_market_rundown,
     )
     run_tradertv = functools.partial(_run_tradertv_watchlist, gmail_api, trade_date)
+    run_briefing = functools.partial(_run_briefing_page_one, session, trade_date)
     steps: list[tuple[str, Callable[[], tuple[str, str]]]] = [
         ('smb_gameplan', run_smb),
         ('market_rundown', run_mr),
         ('tradertv_watchlist', run_tradertv),
+        ('briefing_page_one', run_briefing),
     ]
     ok = 0
     skipped = 0
@@ -187,6 +205,15 @@ def main() -> None:
         print(
             f'tickers_on_watchlist date={trade_date.isoformat()} count={len(wl_rows)}'
             f' with_atr_14={with_atr}'
+        )
+        session_range_payload, p_session = export_session_range_for_watchlist(trade_date, ib=ib)
+        n_sym = len(session_range_payload['tickers'])
+        with_sess = sum(
+            1 for t in session_range_payload['tickers'] if t.get('sessions') is not None
+        )
+        print(
+            f'session_range_export date={trade_date.isoformat()} tickers={n_sym}'
+            f' with_sessions={with_sess} path={p_session!s}',
         )
     finally:
         disconnect(ib)

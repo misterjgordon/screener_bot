@@ -1,25 +1,29 @@
 """Call Anthropic Claude to write the daily watchlist report (no IDE chat).
 
 Loads ``watchlist/prompts/watchlist_report_guide.md`` plus the desk-day bundle
-under ``watchlist/repository/YYYY/MM/DD/`` (newest ``gameplan_*.json`` and
-``trader_tv_*.txt`` for that date, ``tickers_on_watchlist_YYYY-MM-DD.json``).
+under ``watchlist/repository/YYYY/MM/DD/`` (newest ``gameplan_*.json``,
+``trader_tv_*.txt``, ``briefing_page_one_*.txt`` for that date,
+``tickers_on_watchlist_YYYY-MM-DD.json``, optional ``market_rundown_*.txt``).
 Writes ``watchlist_report_YYYY-MM-DD_HHMMSS.md`` in the same day folder.
 
 Requires ``ANTHROPIC_API_KEY`` (e.g. in repo ``.env``). Optional ``WATCHLIST_REPORT_MODEL``
 overrides the default model name.
 
 shell cmd
-uv run --frozen python -m watchlist.run_watchlist_report --date 2026-03-31
-uv run --frozen python -m watchlist.run_watchlist_report --dry-run
+uv run --frozen python -m watchlist.run_ai_watchlist --date 2026-04-21
+uv run --frozen python -m watchlist.run_ai_watchlist --dry-run
 """
 
 import argparse
 import os
+import re
 from datetime import date
 from datetime import datetime
 from pathlib import Path
 
 from anthropic import Anthropic
+from anthropic.types import Message
+from anthropic.types import TextBlock
 from dotenv import load_dotenv
 
 from trading.local_time import local_zone
@@ -78,6 +82,7 @@ def _build_user_prompt(
     p_tickers: Path | None,
     p_gameplan: Path | None,
     p_trader_tv: Path | None,
+    p_briefing_page_one: Path | None,
     p_market_rundown: Path | None,
 ) -> str:
     parts: list[str] = [
@@ -108,6 +113,13 @@ def _build_user_prompt(
     )
     parts.append(
         _read_text_or_stub(
+            'Briefing.com Page One (newest briefing_page_one_YYYY-MM-DD_*.txt for this desk date)',
+            p_briefing_page_one,
+            missing='no Briefing Page One snapshot for this date',
+        ),
+    )
+    parts.append(
+        _read_text_or_stub(
             'Market rundown (optional: market_rundown_*.txt if present)',
             p_market_rundown,
             missing='no market rundown file for this date',
@@ -116,18 +128,42 @@ def _build_user_prompt(
     return '\n'.join(parts)
 
 
-def _extract_report_text(response: object) -> str:
-    out: list[str] = []
-    content = getattr(response, 'content', None)
-    if not isinstance(content, list):
-        return ''
-    for block in content:
-        btype = getattr(block, 'type', None)
-        if btype == 'text':
-            t = getattr(block, 'text', None)
-            if isinstance(t, str):
-                out.append(t)
-    return '\n'.join(out).strip()
+def _extract_report_text(message: Message) -> str:
+    """Concatenate text blocks from a non-streaming ``messages.create`` result."""
+    parts: list[str] = []
+    for block in message.content:
+        if isinstance(block, TextBlock):
+            parts.append(block.text)
+    return '\n'.join(parts).strip()
+
+
+def _colorize_ranking_direction(report_body: str) -> str:
+    """Normalize Direction values in Section 6 ranking table."""
+    section_header = '## Section 6 — Ranking'
+    start = report_body.find(section_header)
+    if start == -1:
+        return report_body
+
+    next_section_match = re.search(r'^##\s+', report_body[start + len(section_header):], re.MULTILINE)
+    section_end = (
+        start + len(section_header) + next_section_match.start()
+        if next_section_match
+        else len(report_body)
+    )
+    section_text = report_body[start:section_end]
+
+    section_text = re.sub(
+        r'(\|\s*)(Long)(\s*\|)',
+        r'\1🟢 Long\3',
+        section_text,
+    )
+    section_text = re.sub(
+        r'(\|\s*)(Short)(\s*\|)',
+        r'\1🔴 Short\3',
+        section_text,
+    )
+
+    return report_body[:start] + section_text + report_body[section_end:]
 
 
 def main() -> None:
@@ -154,6 +190,7 @@ def main() -> None:
     p_tickers = p_day / f'tickers_on_watchlist_{desk_date.isoformat()}.json'
     p_gameplan = _newest_matching(p_day, f'gameplan_{desk_date.isoformat()}_*.json')
     p_trader_tv = _newest_matching(p_day, f'trader_tv_{desk_date.isoformat()}_*.txt')
+    p_briefing = _newest_matching(p_day, f'briefing_page_one_{desk_date.isoformat()}_*.txt')
     p_mr = _resolve_market_rundown_snapshot(p_day, desk_date, p_repository)
 
     print(f'desk_date={desk_date.isoformat()}')
@@ -162,6 +199,7 @@ def main() -> None:
     print(f'tickers_json={p_tickers} exists={p_tickers.is_file()}')
     print(f'gameplan={p_gameplan}')
     print(f'trader_tv={p_trader_tv}')
+    print(f'briefing_page_one={p_briefing}')
     print(f'market_rundown={p_mr}')
 
     if args.dry_run:
@@ -183,6 +221,7 @@ def main() -> None:
         p_tickers=p_tickers if p_tickers.is_file() else None,
         p_gameplan=p_gameplan,
         p_trader_tv=p_trader_tv,
+        p_briefing_page_one=p_briefing,
         p_market_rundown=p_mr,
     )
 
@@ -197,9 +236,12 @@ def main() -> None:
         ),
         messages=[{'role': 'user', 'content': user_prompt}],
     )
+    if not isinstance(response, Message):
+        raise SystemExit('expected non-streaming Message from Anthropic')
     report_body = _extract_report_text(response)
     if not report_body:
         raise SystemExit('empty response from Anthropic')
+    report_body = _colorize_ranking_direction(report_body)
 
     stamp = datetime.now(local_zone()).strftime('%H%M%S')
     p_out = p_day / f'watchlist_report_{desk_date.isoformat()}_{stamp}.md'

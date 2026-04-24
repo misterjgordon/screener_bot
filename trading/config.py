@@ -4,8 +4,13 @@ Single source of truth for IB connection, risk, and run settings.
 Import in other modules; do not import from market_data or smb_screener here.
 """
 
+import os
 from dataclasses import dataclass
 from typing import Literal
+
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Run: "once" = single run and exit; "poll" = every INTERVAL_SECONDS; "off" = disabled
 RUN_MODE = 'poll'
@@ -53,13 +58,25 @@ IB_HOST = '127.0.0.1'
 IB_PORT_LIVE = 7496
 IB_PORT_PAPER = 7497
 
-# Default IB port for non-screener modules (market data, tests, etc.).
+# Default IB API port for screener, market_data, login launcher, etc. (7497 paper, 7496 live).
 IB_PORT = IB_PORT_LIVE
 
-# Screener uses the same port as all other non-default IB connections.
 IB_CLIENT_ID = 1  # smb screener (use different ID from jobot)
 IB_CLIENT_ID_MARKET_DATA = 2  # market_data standalone/tests (1 reserved for screener)
 IB_CLIENT_ID_TRADE_MGMT = 4  # test_trade_mgmt integration tests
+
+# Alpaca: set ALPACA_API_KEY and ALPACA_SECRET_KEY in the environment (.env).
+# Paper trading API (orders, account) vs market data API (bars) use different hosts.
+ALPACA_API_KEY = os.environ.get('ALPACA_API_KEY', '')
+ALPACA_SECRET_KEY = os.environ.get('ALPACA_SECRET_KEY', '')
+ALPACA_PAPER_BASE_URL = os.environ.get(
+    'ALPACA_PAPER_BASE_URL',
+    'https://paper-api.alpaca.markets',
+)
+ALPACA_DATA_BASE_URL = os.environ.get(
+    'ALPACA_DATA_BASE_URL',
+    'https://data.alpaca.markets',
+)
 
 DAILY_STOP = 250  # USD - maximum daily loss allowed
 # SMB screener default: risk only a fraction of the daily stop per trade sizing.

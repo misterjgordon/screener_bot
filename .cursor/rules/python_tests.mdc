@@ -55,10 +55,14 @@ Optional CLI overrides should accept `--date` / `--time` as **local** wall and s
 
 ## Print statements format
 - MUST print at least one summary line per symbol/session run when the test uses symbol names.
+- Must print the VALUES the tests use, these not not have a True/False statement
 - MUST print factor lines that explain pass/fail when factors exist.
 - MUST use this exact structure:
 ```
+**summary for an example which uses 2 values and 2 test factors:**
 symbol | session_date | bar_pattern_or_indicator = True/False
+value_1 = value
+value_2 = value
 factor_1 = value | True/False
 factor_2 = value | True/False
 ...

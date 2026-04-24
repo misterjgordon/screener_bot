@@ -1,6 +1,6 @@
-# Trading Bot - SMB Screener
+# Investing Screener Bot
 
-A Python-based trading bot that monitors positions from the SMB API and executes trades through Interactive Brokers (paper trading account).
+A Python-based trading bot that monitors positions from professional investors using the SMB API along with calls to market data then and executes trades through Interactive Brokers (paper trading account).
 
 ## ⚠️ Important Notes
 

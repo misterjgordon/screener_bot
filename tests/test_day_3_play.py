@@ -20,7 +20,7 @@ from trading.bar_loader import load_bars
 from trading.market_data import connect
 from trading.market_data import disconnect
 
-SYMBOL = 'NBIS'
+SYMBOL = 'SMR'
 
 
 def _parse_and_strip_date() -> date | None:

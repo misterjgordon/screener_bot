@@ -148,6 +148,13 @@ def internal_magnitude_for_trade_stop_amount(trade_stop_amount: float) -> float 
     return (trade_stop_amount / base) * 100.0
 
 
+def apply_stop_offset(stop_price: float, is_long: bool) -> float:
+    """Apply configured stop buffer by side."""
+    if is_long:
+        return round(stop_price - STOP_OFFSET, 2)
+    return round(stop_price + STOP_OFFSET, 2)
+
+
 def get_entry_stop_take_profit(
     ib: 'IB',
     underlying: str,
@@ -192,16 +199,19 @@ def get_entry_stop_take_profit(
             bundle=bundle,
         )
         if trailing_stop:
-            stop_price = round(trailing_stop, 2)
-            print(f'✓ Using trailing stop for {underlying}: ${stop_price:.2f}')
+            stop_price = apply_stop_offset(trailing_stop, is_long)
+            print(
+                f'✓ Using trailing stop for {underlying}: ${
+                    stop_price:.2f} (includes ${STOP_OFFSET:.2f} offset)'
+            )
         else:
             todays_range = get_todays_range(ib, underlying, bundle=bundle)
             if todays_range:
                 day_low, day_high = todays_range.low, todays_range.high
                 if is_long:
-                    stop_price = round(day_low - STOP_OFFSET, 2)
+                    stop_price = apply_stop_offset(day_low, is_long)
                 else:
-                    stop_price = round(day_high + STOP_OFFSET, 2)
+                    stop_price = apply_stop_offset(day_high, is_long)
                 print(
                     f'✓ Using day range stop for {underlying}: ${
                         stop_price:.2f} (day low ${
@@ -214,8 +224,11 @@ def get_entry_stop_take_profit(
                     stop_price = entry_price - (0.5 * adr)
                 else:
                     stop_price = entry_price + (0.5 * adr)
-                stop_price = round(stop_price, 2)
-                print(f'✓ Using ADR stop for {underlying}: ${stop_price:.2f} (ADR: ${adr:.2f})')
+                stop_price = apply_stop_offset(stop_price, is_long)
+                print(
+                    f'✓ Using ADR stop for {underlying}: ${
+                        stop_price:.2f} (ADR: ${adr:.2f}, includes ${STOP_OFFSET:.2f} offset)'
+                )
 
         if stop_price:
             if is_long:

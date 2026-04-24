@@ -1,7 +1,6 @@
 """Print position snapshot table for SMB screener."""
 
 from datetime import datetime
-
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -10,7 +9,23 @@ if TYPE_CHECKING:
 
 def _get_field(r: 'PositionSummary', field: str) -> str | int | float | bool | None:
     """Get field value from PositionSummary by name."""
-    return getattr(r, field, '')  # column name is known only as a string at runtime
+    if field == 'trader':
+        return r.trader
+    if field == 'is_long_term':
+        return r.is_long_term
+    if field == 'symbol':
+        return r.symbol
+    if field == 'instrument_type':
+        return r.instrument_type
+    if field == 'net_side':
+        return r.net_side
+    if field == 'total_magnitude':
+        return r.total_magnitude
+    if field == 'delta_magnitude':
+        return r.delta_magnitude
+    if field == 'change_type':
+        return r.change_type
+    raise KeyError(f'Unknown PositionSummary field: {field}')
 
 
 def print_position_table(summary_rows: list['PositionSummary'], hide_flat: bool = True) -> None:

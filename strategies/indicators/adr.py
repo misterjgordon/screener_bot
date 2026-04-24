@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING
 
 from trading.bar_loader import get_bars
 
+DEFAULT_ADR_DAYS = 20
+
 if TYPE_CHECKING:
     from ib_async import IB
 
@@ -13,7 +15,7 @@ if TYPE_CHECKING:
 def calculate_adr(
     ib: 'IB | None',
     symbol: str,
-    days: int = 20,
+    days: int = DEFAULT_ADR_DAYS,
     bundle: 'BarSeries | None' = None,
 ) -> float | None:
     """Average Daily Range over specified days."""

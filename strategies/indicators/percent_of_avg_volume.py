@@ -1,7 +1,7 @@
 """Percent of average daily volume (intraday windows vs N-day mean of prior full days).
 
 Mirrors TradingView logic in ``scripts/pine/percent_of_avg_volume_pine.py`` on **2-minute** bars:
-five 2m bars approximate a 10-minute Pine window. Session bounds match Pine (ET, naive
+five 2m bars approximate a 10-minute  window. Session bounds match Pine (ET, naive
 datetimes): after-hours combo 16:00–20:00, premarket 04:00–09:30, RTH 09:30–16:00.
 
 **Volume sections (desk workflow, PT):** section 1 is prior regular session after-hours

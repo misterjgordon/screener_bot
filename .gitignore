@@ -45,3 +45,6 @@ smb_trader_executions/
 docs/
 alerts/
 scripts/pine/
+
+# repository files
+watchlist/repository/

@@ -5,7 +5,7 @@ SMB models: NormalizedRecord, PositionSummary represent SMB API positions (not d
 Execution: one row of the executions CSV (order/execution log).
 SEC: :class:`SecTickers` / :class:`SecTickerRow` for ``all_tickers.json`` (SEC company_tickers_exchange format).
 Watchlist: :class:`TickerSummary` for unioned symbols per source and desk day (technicals optional:
-``atr_14``, ``percent_of_avg_volume``, ``gap_percent``, ``gap_atr``).
+    ``atr_14``, ``percent_of_avg_volume``, ``gap_percent``, ``gap_atr``).
 """
 
 import json

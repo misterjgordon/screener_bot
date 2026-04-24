@@ -24,7 +24,7 @@ Use **today’s ingested sources** (SMB gameplan → structural list + narrative
 
 ## Section 2 — Movers
 
-**Goal:** Highlight names that qualify as **potential outsized directional movers today**, using **strict inclusion rules** below. This is not a full market scan—only what the **provided sources** justify.
+**Goal:** Highlight names that qualify as **potential outsized directional movers today**, using **strict inclusion rules** below. Justify why the symbols were selected and why any of the **core inclusion criteria** below are noteable. Prove 1 - 2 senetecnes as to the criteria is significant. 
 
 ### Core inclusion criteria (apply in order)
 
@@ -34,12 +34,12 @@ A stock may not have a news catalyst, it may have an upcming announcement or eve
 
 **i) Earnings**
 
-- EPS / revenue beat or miss
+- EPS / revenue beat or miss - was it a triple beat or miss? Did they beat by a noteable amount? 
 - Guidance changes
 - Margins, bookings, or segment surprises
 
 **ii) Non-earnings**
-
+- new contract or deal - eg) what percent of revenue does the contract represent?
 - Upcoming events or announcements
 - M&A (acquisition, divestiture, stake)
 - Analyst actions (**only if impactful** and sourced)
@@ -55,26 +55,25 @@ A stock may not have a news catalyst, it may have an upcming announcement or eve
 - Regulatory approvals / rejections
 #### b) Price movement
 
-- Must show **meaningful extended-hours** price movement **as described in the sources** (or clearly implied with evidence).
-- Move should be **outside normal ATR behavior** *when ATR or range context is available*; if not available, say so and rely on **% change vs typical** only if the source provides comparables.
-- Typically: large **%** change **relative to its usual range**, and/or **abnormal volatility expansion** when data supports it.
+- Use the gap_atr from the json file to determine if the stock has moved more than 1.5 ATR from the prior day's close. If it has, it is a potential mover.
 
 #### c) Time window (strict)
 
 - **Morning report:** From **prior regular-session close** through **6:20 a.m. PT** (pre-market window for this report).
 
 
-#### d) Surprise classification (mandatory per included name)
+#### d) Bias (per included ticker)
 
-For **each** included ticker, label catalyst surprise as one of:
+Section 2 table includes a **Bias** column (not “Surprise”). For **each** included ticker, set Bias to one of:
 
-| Label    | Meaning |
-|----------|---------|
+| Label   | Meaning |
+|---------|---------|
 | Bullish | Better than expected / bullish development |
 | Bearish | Miss, downgrade, adverse event |
-| Mixed    | Conflicting signals (e.g. revenue beat + EPS miss) |
-| Neutral  | Flow-driven or catalyst unclear |
+| Mixed   | Conflicting signals (e.g. revenue beat + EPS miss) |
+| Neutral | Flow-driven or catalyst unclear |
 
+Catalyst and **Why it matters** should still spell out **why** that bias follows from the sources.
 
 #### 6) Relevance filter
 
@@ -92,7 +91,7 @@ For **each** included ticker, label catalyst surprise as one of:
 
 **Output format for Section 2:**
 
-- Table or bullet list: **Ticker — Catalyst — Surprise — Why it matters today — Key risk / invalidation**
+- Markdown table (preferred) or bullet list: **Ticker — Catalyst — Bias — Why it matters — Key risk** (key risk may include what would invalidate the thesis). **Bias** uses the labels in **d)** above.
 - If **no names** qualify, say so explicitly.
 
 ---
@@ -132,20 +131,31 @@ If the bundle lacks a calendar: **Insufficient data**.
 
 **Goal:** Rank the **top trading ideas for today** (from Sections 2–4), not every mentioned. Each of the ranking dimensions have points associated with them, and the sum of the points is the total rank.
 
+**Output format for Section 6 (markdown table — required):**
+
+One **GitHub-flavored markdown table**: header row, separator row, one row per ranked name (same order as rank).  Headers and columns must have the same width. Use **numeric cells only** for score columns (no “TBD” once technical rules exist; until then use `—` or `TBD` consistently in that column only). **Total** = sum of the scored columns in that row.
+
+| Rank | Ticker   | Direction  | Catalyst (0–40) | Move (0–30) | Market cap (0–10) | Short interest (0–5) | Volume % (0–10)| Technical (0–10) | Total |
+|------|----------|------------|-----------------|-------------|-------------------|----------------------|----------------|------------------|-------|
+| 1    | ONCO     |    Long    | 25              | 20          | 5                 | 3                    | 5              | TBD              | 58    |
+| 2    | BB       |    Short   | 30              | 25          | 15                | 3                    | 2              | TBD              | 75    |
+
+Column headers should match this set (wording may normalize casing). Brief methodology notes may appear **below** the table, not inside cells.
+
 **Ranking dimensions:**
 
 1. **Catalyst** (0-40) (impact of news on the value of the stock, ex. it completely changes the company's valuation from $100M to $200M would be a 40/40 point score)
 2. **After-hours + pre-market move** (0-30)(30 would equal a 1 ATR move from the prior day's close, so a 2 ATR move would also be 30)
-3. **Market cap** (0-10) (small cap stocks are 0-10, mid cap stocks are 10-20, large cap stocks are 20-30)
+3. **Market cap** (0–30) (small cap 0–10, mid cap 10–20, large cap 20–30 within that band)
 4. **Short Interest*** (0-5)
-5. **Precent of average volume** (0-5) - if the percent_of_avg_volume value in the json file is < 10=0 point, 10-15 = 2 points, 15-25 = 3 points, 25-35 = 4 points, > 35 = 5 points
+5. **Percent of average volume** (0-10) - rank percent_of_avg_volume value in the json file between 0 and 10 point. 0 points = <5 percent_of_avg_volume, 10 points >=35  percent_of_avg_volume. p = points. AV = percent_of_avg_volume. p = round(max(0, min(10, (AV - 5) / 3))) -> follow this logic exactly, do not invent any other logic.
 6. **Technical position** (0-10) - unclear what the qualifications are yet so for now this will be left blank
 
 ---
 
 ## Section 7 — Performance (placeholder)
 
-**Goal (future):** Compare **prior rankings** to **realized intraday behavior**: which ideas moved in the suggested direction, magnitude vs expectation, **false negatives** (big movers not suggested).
+**Goal (future):** Compare **prior rankings** to **realized intraday behavior**: from  /Users/joel/Github/trading/watchlist/repository/YYYY/MM/DD/session_range__YYYY_MM_DD.json.
 
 **Rankings storage:** Persist Section 6 output as **one file per desk day** under the same day folder (e.g. `watchlist/repository/YYYY/MM/DD/ranking_YYYY-MM-DD.json` or similar). Section 7 reads **yesterday’s** ranking file vs today’s outcomes.
 

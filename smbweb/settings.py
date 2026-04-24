@@ -1,10 +1,13 @@
 """Django settings for smbweb project."""
 import os
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
+
+# Alpaca keys and URLs: trading.config (import there when implementing bar ingest).
 
 # Build paths inside the project
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -25,6 +28,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'smbweb.apps.executions',
+    'smbweb.apps.market',
 ]
 
 MIDDLEWARE = [

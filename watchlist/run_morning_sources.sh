@@ -10,6 +10,6 @@ trade_date="$(date +%F)"
 cd "$REPO_ROOT"
 "$UV_BIN" run --frozen python -m watchlist.run_sources --date "$trade_date"
 
-if ! "$UV_BIN" run --frozen python -m watchlist.run_watchlist_report --date "$trade_date"; then
+if ! "$UV_BIN" run --frozen python -m watchlist.run_ai_watchlist --date "$trade_date"; then
     echo 'watchlist report (Claude API) failed; ingest above completed.' >&2
 fi

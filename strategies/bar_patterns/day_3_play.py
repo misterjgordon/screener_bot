@@ -79,7 +79,7 @@ def _day_3_bars_and_synthetic(
     if rt_bar is None:
         return day_3_bars
     o, h_rt, l_rt, c, dt = _realtime_bar_ohlc(rt_bar)
-    if dt is None or dt.date() != day_3_date or h_rt < l_rt:
+    if dt.date() != day_3_date or h_rt < l_rt:
         return day_3_bars
     synthetic = _synthetic_bar(day_3_bars[-1], rt_bar)
     return day_3_bars + [synthetic]

@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
 from ib_async.objects import ExecutionFilter
+from ib_async.objects import Fill
 
 from trading.market_data import connect
 from trading.market_data import disconnect
@@ -277,7 +278,7 @@ def backfill_file(ib: IB, fp: Path) -> int:
             flush=True,
         )
 
-        norm_fills = []
+        norm_fills: list[Fill] = []
         for fl in fills:
             ft = _to_et_naive(fl.time)
             if min_ts <= ft <= max_ts:
@@ -290,11 +291,8 @@ def backfill_file(ib: IB, fp: Path) -> int:
             candidates = [fl for fl in norm_fills if ev_start <= _to_et_naive(fl.time) <= ev_end]
 
             if ev.order_id is not None:
-                candidates = [
-                    fl
-                    for fl in candidates
-                    if int(getattr(fl.execution, 'orderId', 0) or 0) == ev.order_id
-                ]
+                oid = ev.order_id
+                candidates = [fl for fl in candidates if fl.execution.orderId == oid]
 
             expected = ev.expected_shares
 
