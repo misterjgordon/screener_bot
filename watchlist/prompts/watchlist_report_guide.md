@@ -3,7 +3,20 @@
 Purpose: to create a structured market and stock summary for a **US day trader** who wants to **capitalize on directional, outsized moves** in individual names.
 **Audience:** Active intraday trader, not a long-form macro newsletter reader. Prefer **actionable**, **specific** over generic filler.
 
-**Output:** One coherent report with the sections below. Use clear headings exactly as numbered. If data for a section is missing, say **Insufficient data** and list what would be needed—do not invent catalysts or tickers. Provide a 
+**Output contract (required):**
+
+1. First line must be exactly `WATCHLIST_JSON_V1`.
+2. Then output one valid JSON object only (no markdown fences), with this top-level shape:
+   - `desk_date` (string `YYYY-MM-DD`)
+   - `movers` (array of JSON objects for Section 2)
+   - `ranking` (array of JSON objects for Section 6)
+   - `movers` and `ranking` must each include **every unique symbol** from `tickers_on_watchlist_*.json` (full watchlist coverage in JSON)
+3. Then output one line exactly `END_WATCHLIST_JSON`.
+4. After that, output the full markdown report with the sections below.
+
+**JSON first rule:** Build JSON first, then render markdown Section 2 and Section 6 from that JSON. Markdown may show only top-ranked rows, but JSON must include the full watchlist.
+
+**Output:** One coherent report with the sections below. Use clear headings exactly as numbered. If data for a section is missing, say **Insufficient data** and list what would be needed—do not invent catalysts or tickers.
 
 Use **today’s ingested sources** (SMB gameplan → structural list + narrative in JSON payload. Trader_tv →  macro commentary and stock movers/, tickers_on_watchlist_*.json → union of symbols + atr_14 + percent_of_avg_volume + gap_percent + gap_atr) from todays date watchlist/repository/YYYY/MM/DD/ on the current day into a market commentary and stock summary report usign the 6 sections below. Based on the understanding of the marck and specific stock news, we know "where the stocks have moved from" we want a best estimate of "which are most likely to move the most in the direction of our bias".
 
@@ -91,8 +104,9 @@ Catalyst and **Why it matters** should still spell out **why** that bias follows
 
 **Output format for Section 2:**
 
-- Markdown table (preferred) or bullet list: **Ticker — Catalyst — Bias — Why it matters — Key risk** (key risk may include what would invalidate the thesis). **Bias** uses the labels in **d)** above.
-- If **no names** qualify, say so explicitly.
+- JSON rows in `movers` must use these keys: `symbol`, `Catalyst`, `Bias`, `Why it matters`, `Key risk`.
+- Markdown Section 2 table must be rendered from `movers` JSON rows with matching values and order.
+- If **no names** qualify, still output an empty `movers` array and explicitly say so in markdown.
 
 ---
 
@@ -129,7 +143,7 @@ If the bundle lacks a calendar: **Insufficient data**.
 
 ## Section 6 — Ranking
 
-**Goal:** Rank the **top trading ideas for today** (from Sections 2–4), not every mentioned. Each of the ranking dimensions have points associated with them, and the sum of the points is the total rank.
+**Goal:** Rank all the trading ideas for today (from Sections 2–4), and display them highest to lowest. Each of the ranking dimensions have points associated with them, and the sum of the points is the total rank.
 
 **Output format for Section 6 (markdown table — required):**
 
@@ -142,11 +156,13 @@ One **GitHub-flavored markdown table**: header row, separator row, one row per r
 
 Column headers should match this set (wording may normalize casing). Brief methodology notes may appear **below** the table, not inside cells.
 
+Ranking JSON rows in `ranking` must include exactly these keys: `symbol`, `Rank`, `Total`, `Direction`, `Catalyst`, `Move`, `Market cap`, `Short interest`, `Volume %`, `Technical`. Keep `Direction` as plain `Long` or `Short` in JSON (no emoji). Markdown Section 6 table should be rendered from the `ranking` JSON rows.
+
 **Ranking dimensions:**
 
 1. **Catalyst** (0-40) (impact of news on the value of the stock, ex. it completely changes the company's valuation from $100M to $200M would be a 40/40 point score)
 2. **After-hours + pre-market move** (0-30)(30 would equal a 1 ATR move from the prior day's close, so a 2 ATR move would also be 30)
-3. **Market cap** (0–30) (small cap 0–10, mid cap 10–20, large cap 20–30 within that band)
+3. **Market cap** (0–10) (use the Section 6 table range exactly: small cap closer to 10, mid cap around the middle, large cap closer to 0)
 4. **Short Interest*** (0-5)
 5. **Percent of average volume** (0-10) - rank percent_of_avg_volume value in the json file between 0 and 10 point. 0 points = <5 percent_of_avg_volume, 10 points >=35  percent_of_avg_volume. p = points. AV = percent_of_avg_volume. p = round(max(0, min(10, (AV - 5) / 3))) -> follow this logic exactly, do not invent any other logic.
 6. **Technical position** (0-10) - unclear what the qualifications are yet so for now this will be left blank
@@ -157,7 +173,11 @@ Column headers should match this set (wording may normalize casing). Brief metho
 
 **Goal (future):** Compare **prior rankings** to **realized intraday behavior**: from  /Users/joel/Github/trading/watchlist/repository/YYYY/MM/DD/session_range__YYYY_MM_DD.json.
 
-**Rankings storage:** Persist Section 6 output as **one file per desk day** under the same day folder (e.g. `watchlist/repository/YYYY/MM/DD/ranking_YYYY-MM-DD.json` or similar). Section 7 reads **yesterday’s** ranking file vs today’s outcomes.
+**Rankings storage:** Persist Section 6 output as **one file per desk day** under the same day folder: `watchlist/repository/YYYY/MM/DD/ranking_YYYY-MM-DD.json`.
+
+**Movers storage:** Persist Section 2 output as `watchlist/repository/YYYY/MM/DD/movers_YYYY-MM-DD.json`.
+
+Each persisted file should include metadata (`schema_version`, `desk_date`, `generated_local`, `model`, `report_filename`) plus section rows.
 
 **For now:** Write **Not evaluated — historical outcomes not yet wired** unless yesterday’s ranking file and realized data are supplied.
 

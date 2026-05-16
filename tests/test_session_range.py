@@ -249,6 +249,8 @@ class TestSessionRangeIntegration(unittest.TestCase):
             if (
                 seg.change is not None
                 and seg.adr_change_percent is not None
+                and seg.open is not None
+                and seg.close is not None
                 and seg.high is not None
                 and seg.low is not None
                 and adr_row
@@ -261,7 +263,9 @@ class TestSessionRangeIntegration(unittest.TestCase):
                     places=5,
                     msg=f'{name} change',
                 )
-                expected_ratio = round(raw_change / adr_row, 2)
+                raw_net = float(seg.close) - float(seg.open)
+                signed_range = raw_change if raw_net >= 0 else -raw_change
+                expected_ratio = round(signed_range / adr_row, 2)
                 self.assertAlmostEqual(
                     seg.adr_change_percent,
                     expected_ratio,

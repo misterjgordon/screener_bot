@@ -8,12 +8,13 @@ Windows are half-open ``[start, end)`` on bar **start** time (2m bar ``date``).
 **ADR (average daily range)** is the mean of daily high-low over N sessions; see
 :mod:`strategies.indicators.adr` and :func:`~strategies.indicators.adr.calculate_adr`.
 
-**Session range fields:** ``change`` is **high minus low** over the window (not an
-absolute value of something else—just the span), **rounded to 2 decimals**. When ADR is
-finite and ``> 0``, ``adr_change_percent`` is ``(high - low) / ADR`` as a unitless ratio
-(``0.8`` means the range equals 80% of ADR), **not** multiplied by ``100``, **rounded to
-2 decimals**. Example: ADR ``1.0`` and range ``0.80`` yield
-``change`` ``0.8`` and ``adr_change_percent`` ``0.8``.
+**Session range fields:** ``change`` is **high minus low** over the window (the span),
+**rounded to 2 decimals**. When ADR is finite and ``> 0``, ``adr_change_percent`` is
+``(high - low) / ADR`` with a **sign** from session direction: positive when ``close > open``,
+negative when ``close < open``. When ``close == open`` (no net direction), the ratio stays
+**positive** (unsigned range). Same unitless ratio as before (not multiplied by ``100``),
+**rounded to 2 decimals**.
+Example: ADR ``1.0``, range ``0.80``, net up → ``adr_change_percent`` ``0.8``; net down → ``-0.8``.
 Pass ``adr`` from :func:`strategies.indicators.adr.calculate_adr`, or pass ``bars_1d``
 and leave ``adr`` unset so this module calls :func:`~strategies.indicators.adr.calculate_adr` on that series.
 
@@ -122,9 +123,11 @@ def _aggregate_session(
     lo = min(float(b.low) for b in window_bars)
     c = float(window_bars[-1].close)
     change = hi - lo
+    net_move = c - o
     ratio: float | None = None
     if adr is not None and adr > 0:
-        ratio = round(change / adr, 2)
+        signed_range = change if net_move >= 0 else -change
+        ratio = round(signed_range / adr, 2)
     return SessionOhlcAdr(
         open=o,
         high=hi,
@@ -137,7 +140,7 @@ def _aggregate_session(
 
 @dataclass(frozen=True)
 class SessionOhlcAdr:
-    """OHLC for bars in a desk window plus ``change`` (high minus low) and ADR ratio."""
+    """OHLC plus span ``change`` (high minus low) and ADR-normalized signed range."""
 
     open: float | None
     high: float | None
@@ -152,7 +155,7 @@ class DeskSessionRanges:
     """Six desk sessions (PT definitions, naive-ET bar timestamps).
 
     Each :class:`SessionOhlcAdr` stores ``change`` (high minus low, 2 decimals) and
-    ``adr_change_percent`` (range over ADR, 2 decimals, not scaled by 100).
+    ``adr_change_percent`` (signed ``(high - low) / ADR`` from net direction; 2 decimals).
     """
 
     prior_day_ah_session: SessionOhlcAdr
@@ -171,7 +174,7 @@ def compute_desk_session_ranges(
     bars_1d: list | None = None,
     eval_as_of: datetime | None = None,
 ) -> DeskSessionRanges | None:
-    """Aggregate 2m bars into desk session OHLC and range metrics vs ADR.
+    """Aggregate 2m bars into desk session OHLC, span (high-low), and signed range vs ADR.
 
     Parameters
     ----------

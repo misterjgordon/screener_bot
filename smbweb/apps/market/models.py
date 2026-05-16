@@ -2,9 +2,8 @@
 import logging
 from datetime import UTC
 from datetime import datetime as dt
-from typing import TYPE_CHECKING
+from datetime import timedelta
 from typing import Self
-from typing import cast
 from typing import override
 
 import pandas as pd
@@ -16,16 +15,51 @@ from django.db.models import PositiveSmallIntegerField
 from django.db.models import Q
 from django.db.models import Value
 from django.db.models.functions import Coalesce
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from smbweb.apps.market.bar_time import floor_now_utc_to_interval_minutes
 from smbweb.dbconn import db
 from trading.integrations.alpaca_bars import DEFAULT_BAR_SIZE_MINUTES
 from trading.integrations.alpaca_bars import fetch_stock_bars_dataframe
 
-if TYPE_CHECKING:
-    from pandas._typing import DtypeArg
-
 log = logging.getLogger(__name__)
+
+_CHUNK_ROWS_MARKET_BARS = 5000
+
+
+def _append_market_bars_conflict_ignore(df_bars: pd.DataFrame) -> None:
+    """Append OHLC rows via INSERT … ON CONFLICT DO NOTHING (idempotent re-ingest)."""
+    if len(df_bars) == 0:
+        return
+
+    md = sa.MetaData()
+    tbl = sa.Table(
+        'market_bars',
+        md,
+        sa.Column('symbol', sa.String(20)),
+        sa.Column('interval', sa.SmallInteger),
+        sa.Column('timestamp', sa.DateTime(timezone=True)),
+        sa.Column('open', sa.Numeric(16, 2)),
+        sa.Column('high', sa.Numeric(16, 2)),
+        sa.Column('low', sa.Numeric(16, 2)),
+        sa.Column('close', sa.Numeric(16, 2)),
+        sa.Column('volume', sa.Numeric(16, 0)),
+        sa.Column('vwap', sa.Numeric(16, 2)),
+    )
+
+    df_local = df_bars.assign(
+        vwap=df_bars.vwap.where(pd.notna(df_bars.vwap), None),
+    )
+
+    with db.engine.begin() as conn:
+        for chunk_start in range(0, len(df_local), _CHUNK_ROWS_MARKET_BARS):
+            chunk = df_local.iloc[chunk_start:chunk_start + _CHUNK_ROWS_MARKET_BARS]
+            rows = chunk.to_dict(orient='records')
+            stmt = pg_insert(tbl).values(rows)
+            stmt = stmt.on_conflict_do_nothing(
+                index_elements=['interval', 'symbol', 'timestamp'],
+            )
+            conn.execute(stmt)
 
 
 class SymbolQuerySet(models.QuerySet):
@@ -39,6 +73,7 @@ class SymbolQuerySet(models.QuerySet):
         'low',
         'close',
         'volume',
+        'vwap',
     ]
 
     def active(self) -> Self:
@@ -56,7 +91,10 @@ class SymbolQuerySet(models.QuerySet):
             self,
             interval: int = DEFAULT_BAR_SIZE_MINUTES,
             start: dt | None = None,
-            end: dt | None = None) -> pd.DataFrame:
+            end: dt | None = None,
+            *,
+            chunk_calendar_days: int | None = None,
+    ) -> pd.DataFrame:
         symbols = list(self.annotate_max_dates(interval))
         end_utc = end or floor_now_utc_to_interval_minutes(interval)
         if end_utc.tzinfo is None:
@@ -78,22 +116,56 @@ class SymbolQuerySet(models.QuerySet):
                 log.warning('start >= end, skipping %s', sym.symbol)
                 continue
 
-            log.info('%s: fetching %s to %s', sym.symbol, start_utc, end_utc)
+            if chunk_calendar_days is not None and chunk_calendar_days <= 0:
+                raise ValueError('chunk_calendar_days must be positive when set')
 
-            df_fetch = fetch_stock_bars_dataframe(
-                symbols=[sym.symbol],
-                start=start_utc,
-                end=end_utc,
-                bar_size_minutes=interval,
+            chunk_delta = (
+                timedelta(days=chunk_calendar_days)
+                if chunk_calendar_days is not None
+                else None
             )
+            windows: list[tuple[dt, dt]] = []
+            if chunk_delta is None:
+                windows.append((start_utc, end_utc))
+            else:
+                cursor = start_utc
+                while cursor < end_utc:
+                    nxt = min(cursor + chunk_delta, end_utc)
+                    windows.append((cursor, nxt))
+                    cursor = nxt
 
-            if len(df_fetch) == 0:
+            parts: list[pd.DataFrame] = []
+            for win_start, win_end in windows:
+                if win_start >= win_end:
+                    continue
+                log.info('%s: fetching %s to %s', sym.symbol, win_start, win_end)
+                df_part = fetch_stock_bars_dataframe(
+                    symbols=[sym.symbol],
+                    start=win_start,
+                    end=win_end,
+                    bar_size_minutes=interval,
+                )
+                if len(df_part) == 0:
+                    continue
+                parts.append(df_part)
+
+            if not parts:
                 continue
 
+            df_fetch = pd.concat(parts, ignore_index=True)
+
+            # Explicit ``start``: include bars whose open equals the window start.
+            # Watermark mode (``start`` None): keep strict ``>`` so we only append after DB max_date.
+            naive_floor = start_raw.replace(tzinfo=None)
             if df_fetch.timestamp.dt.tz is not None:
-                df_fetch = df_fetch[df_fetch.timestamp > start_utc]
+                if start is None:
+                    df_fetch = df_fetch[df_fetch.timestamp > start_utc]
+                else:
+                    df_fetch = df_fetch[df_fetch.timestamp >= start_utc]
+            elif start is None:
+                df_fetch = df_fetch[df_fetch.timestamp > naive_floor]
             else:
-                df_fetch = df_fetch[df_fetch.timestamp > start_raw.replace(tzinfo=None)]
+                df_fetch = df_fetch[df_fetch.timestamp >= naive_floor]
 
             df_fetch = df_fetch[~df_fetch.duplicated(subset=['symbol', 'timestamp'])]
             dfs.append(df_fetch)
@@ -109,8 +181,16 @@ class SymbolQuerySet(models.QuerySet):
             self,
             interval: int = DEFAULT_BAR_SIZE_MINUTES,
             start: dt | None = None,
-            end: dt | None = None) -> pd.DataFrame:
-        df = self.get_new_bar_data(interval=interval, start=start, end=end)
+            end: dt | None = None,
+            *,
+            chunk_calendar_days: int | None = None,
+    ) -> pd.DataFrame:
+        df = self.get_new_bar_data(
+            interval=interval,
+            start=start,
+            end=end,
+            chunk_calendar_days=chunk_calendar_days,
+        )
 
         if len(df) == 0:
             log.info('market_bars: no new rows')
@@ -123,20 +203,12 @@ class SymbolQuerySet(models.QuerySet):
         else:
             df = df.assign(timestamp=df.timestamp.dt.tz_convert('UTC'))
 
+        df = df.drop_duplicates(subset=['interval', 'symbol', 'timestamp'], keep='last')
+
         tickers = df.symbol.unique()
         log.info('market_bars: importing %s rows for %s', len(df), tickers)
 
-        df.to_sql(
-            'market_bars',
-            con=db.engine,
-            if_exists='append',
-            chunksize=5000,
-            index=False,
-            dtype=cast(
-                'DtypeArg',
-                {'timestamp': sa.DateTime(timezone=True)},
-            ),
-        )
+        _append_market_bars_conflict_ignore(df)
 
         return df
 
@@ -192,6 +264,7 @@ class Bars(models.Model):
     low = models.DecimalField(max_digits=16, decimal_places=2)
     close = models.DecimalField(max_digits=16, decimal_places=2)
     volume = models.DecimalField(max_digits=16, decimal_places=0)
+    vwap = models.DecimalField(max_digits=16, decimal_places=2, null=True, blank=True)
 
     class Meta:
         db_table = 'market_bars'

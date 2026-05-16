@@ -1,4 +1,4 @@
-.PHONY: help install format format-file lint lint-file type-check type-check-file run screener clean smb-install smb-reload smb-start smb-stop smb-status smb-logs smb-unload watchlist-install watchlist-reload watchlist-start watchlist-status watchlist-unload watchlist-run-now watchlist-sources-install watchlist-sources-reload watchlist-sources-start watchlist-sources-status watchlist-sources-unload watchlist-sources-run-now
+.PHONY: help install format format-file lint lint-file type-check type-check-file run screener clean import-alpaca smb-install smb-reload smb-start smb-stop smb-status smb-logs smb-unload watchlist-install watchlist-reload watchlist-start watchlist-status watchlist-unload watchlist-run-now watchlist-sources-install watchlist-sources-reload watchlist-sources-start watchlist-sources-status watchlist-sources-unload watchlist-sources-run-now tickers-watchlist watchlist-ai ai-watchlist watchlist-ai-run-now
 
 # Default target
 help:
@@ -12,6 +12,7 @@ help:
 	@echo "  make type-check-file FILE=... - Run ty type checker on specific file"
 	@echo "  make run                  - Run trading/smb_screener.py"
 	@echo "  make smb                  - Run trading/smb_screener.py"
+	@echo "  make import-alpaca        - Run Django import_alpaca_bars (see smbweb command module)"
 
 	@echo "  make clean                - Clean Python cache files"
 	@echo ""
@@ -39,6 +40,11 @@ help:
 	@echo "  make watchlist-sources-status   - Show watchlist sources agent status"
 	@echo "  make watchlist-sources-unload   - Unload and remove watchlist sources LaunchAgent"
 	@echo "  make watchlist-sources-run-now  - Run watchlist source orchestration once now"
+	@echo "  make tickers-watchlist          - Build tickers_on_watchlist for today"
+	@echo ""
+	@echo "AI Watchlist commands:"
+	@echo "  make watchlist-ai               - Run AI watchlist report for current day"
+	@echo "  make ai-watchlist               - Run AI watchlist report for current day"
 
 # Install dependencies
 install:
@@ -91,6 +97,10 @@ run:
 # Run screener script
 smb:
 	uv run python -m trading.smb_screener
+
+# Alpaca bars → market_bars (symbol list + window from import_alpaca_bars.py)
+import-alpaca:
+	uv run --frozen python smbweb/manage.py import_alpaca_bars
 
 # Clean Python cache files
 clean:
@@ -283,3 +293,14 @@ watchlist-sources-run-now:
 	uv run --frozen python -m watchlist.run_sources --date $$(date +%F)
 
 watchlist-run-now: watchlist-sources-run-now
+
+tickers-watchlist:
+	uv run --frozen python -m watchlist.tickers_on_watchlist --date $$(date +%F)
+
+watchlist-ai:
+	uv run --frozen python -m watchlist.run_ai_watchlist
+
+ai-watchlist:
+	@$(MAKE) watchlist-ai
+
+watchlist-ai-run-now: ai-watchlist

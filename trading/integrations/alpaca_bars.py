@@ -78,7 +78,7 @@ def bar_set_to_dataframe(
 ) -> pd.DataFrame:
     """Turn a BarSet into a sorted DataFrame ready for DB ingest.
 
-    Columns: symbol, interval, timestamp, open, high, low, close, volume.
+    Columns: symbol, interval, timestamp, open, high, low, close, volume, vwap.
     interval is bar length in minutes (matches jambot market_security.interval).
     Timestamps are UTC. symbol is the equity ticker (matches market_symbol.symbol).
     """
@@ -96,6 +96,7 @@ def bar_set_to_dataframe(
                     'low': float(bar.low),
                     'close': float(bar.close),
                     'volume': float(bar.volume),
+                    'vwap': float(bar.vwap) if bar.vwap is not None else None,
                 }
             )
 
@@ -108,6 +109,7 @@ def bar_set_to_dataframe(
         'low',
         'close',
         'volume',
+        'vwap',
     ]
 
     if not rows:
@@ -148,7 +150,7 @@ def fetch_stock_bars_dataframe(
     Returns
     -------
     pd.DataFrame
-        Columns: symbol, interval, timestamp, open, high, low, close, volume.
+        Columns: symbol, interval, timestamp, open, high, low, close, volume, vwap.
     """
     if not symbols:
         return bar_set_to_dataframe(BarSet({}), bar_size_minutes=bar_size_minutes)

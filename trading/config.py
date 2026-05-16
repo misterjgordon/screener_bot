@@ -16,6 +16,11 @@ load_dotenv()
 RUN_MODE = 'poll'
 INTERVAL_SECONDS = 10  # SMB updates every 10 seconds
 
+# After each snapshot write, sync position *change* rows to PostgreSQL ``positions`` (database_smb).
+# Set env SAVE_POSITION_CHANGES_TO_DB=1 when Django DB credentials are configured (same as executions).
+_SAVE_POSITION_CHANGES_RAW = os.environ.get('SAVE_POSITION_CHANGES_TO_DB', '').strip().lower()
+SAVE_POSITION_CHANGES_TO_DB = _SAVE_POSITION_CHANGES_RAW in ('1', 'true', 'yes', 'on')
+
 # Browser-like User-Agent for outbound HTTP (SMB login, gameplan, Google Doc export).
 # Not hardware-specific; some endpoints expect a typical browser string. Change here
 # if you standardize on another profile across machines.
@@ -23,6 +28,11 @@ HTTP_BROWSER_USER_AGENT = (
     'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 '
     '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 )
+
+# SEC files.sec.gov: identify requests (app name + contact). Used by fetch_sec_all_tickers_cli.
+SEC_HTTP_USER_AGENT = os.environ.get('SEC_HTTP_USER_AGENT', '').strip()
+# If SEC_HTTP_USER_AGENT is unset, fetch_sec_all_tickers_cli can build ``trading-research <email>``.
+SEC_HTTP_CONTACT_EMAIL = os.environ.get('SEC_HTTP_CONTACT_EMAIL', '').strip()
 
 ACTIVE_TRADING = True  # Set True to enable order execution to IB
 # Per-trader toggle: set True to mirror trades for that trader
@@ -53,12 +63,20 @@ NEW_ORDER_ENTRY_POLICY_BY_TRADER: dict[str, NewOrderEntryPolicy] = {
     'Jeff Holden': NewOrderEntryPolicy(enabled=True, mode='ema9_fallback'),
 }
 
+# Position change sizing policy for ADD/TRIM:
+# - 'fixed_percent': size changes by configured POSITION_*_PERCENT of current position.
+# - 'delta_magnitude': legacy behavior using screener delta magnitude.
+PositionChangeSizingMode = Literal['fixed_percent', 'delta_magnitude']
+POSITION_CHANGE_SIZING_MODE: PositionChangeSizingMode = 'fixed_percent'
+POSITION_TRIM_PERCENT = 0.25
+POSITION_ADD_PERCENT = 0.25
+
 # TWS/Gateway: Configure → API → Settings → enable API, set port. 7497 paper, 7496 live, 4001 Gateway paper
 IB_HOST = '127.0.0.1'
 IB_PORT_LIVE = 7496
 IB_PORT_PAPER = 7497
 
-# Default IB API port for screener, market_data, login launcher, etc. (7497 paper, 7496 live).
+# Default IB API port for screener, market_data, login launcher, etc. (live 7496; paper 7497).
 IB_PORT = IB_PORT_LIVE
 
 IB_CLIENT_ID = 1  # smb screener (use different ID from jobot)

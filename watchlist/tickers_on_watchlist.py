@@ -7,7 +7,7 @@ Persists ``tickers_on_watchlist_YYYY-MM-DD.json`` under the same
 ``watchlist/repository/YYYY/MM/DD`` directory when ``save_json`` is True.
 
 shell cmd
-uv run --frozen python -m watchlist.tickers_on_watchlist --date 2026-04-21
+uv run --frozen python -m watchlist.tickers_on_watchlist --date 2026-05-05
 """
 
 import argparse

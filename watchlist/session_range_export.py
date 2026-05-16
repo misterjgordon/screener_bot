@@ -42,7 +42,7 @@ if TYPE_CHECKING:
 
 
 class SessionOhlcAdrJson(TypedDict):
-    """JSON-ready OHLC plus ``change`` and ``adr_change_percent`` as plain numbers."""
+    """JSON-ready OHLC plus ``change`` (high-low) and signed range-over-ADR (see session_range)."""
 
     open: float | None
     high: float | None

@@ -12,6 +12,9 @@ from trading.bar_loader import load_bars
 from trading.config import ACTIVE_TRADING
 from trading.config import DAILY_STOP
 from trading.config import DEFAULT_RISK_FRACTION
+from trading.config import POSITION_ADD_PERCENT
+from trading.config import POSITION_CHANGE_SIZING_MODE
+from trading.config import POSITION_TRIM_PERCENT
 from trading.config import RISK_FRACTION_DECIMALS
 from trading.config import RISK_FRACTION_ROUND_UP_STEP
 from trading.config import SCREENER_DAILY_STOP_FRACTION
@@ -333,6 +336,9 @@ def place_add_order(
     has_existing_position = (is_long and current_position > 0) or (not is_long and current_position < 0)
 
     if has_existing_position:
+        add_fraction = abs(delta_magnitude) / 100.0
+        if POSITION_CHANGE_SIZING_MODE == 'fixed_percent':
+            add_fraction = POSITION_ADD_PERCENT
         trade_stop_percent = abs(delta_magnitude) / 100.0
         trade_stop_amount = (DAILY_STOP * SCREENER_DAILY_STOP_FRACTION) * trade_stop_percent
         available_funds = get_available_funds(ib)
@@ -368,12 +374,16 @@ def place_add_order(
         num_shares_to_add = (
             shares_override
             if shares_override is not None
-            else calculate_num_shares_from_risk(
-                trade_stop_amount=trade_stop_amount,
-                entry_price=market.entry_price,
-                stop_loss_price=scaling_stop_price,
-                is_long=is_long,
-                available_funds=available_funds,
+            else (
+                max(1, abs(int(current_position * add_fraction)))
+                if POSITION_CHANGE_SIZING_MODE == 'fixed_percent'
+                else calculate_num_shares_from_risk(
+                    trade_stop_amount=trade_stop_amount,
+                    entry_price=market.entry_price,
+                    stop_loss_price=scaling_stop_price,
+                    is_long=is_long,
+                    available_funds=available_funds,
+                )
             )
         )
         csv_risk_per_share = trade_stop_amount / num_shares_to_add if num_shares_to_add else None
@@ -706,6 +716,8 @@ def process_trim(
             else:
                 if shares_override is not None:
                     exit_size = shares_override
+                elif POSITION_CHANGE_SIZING_MODE == 'fixed_percent':
+                    exit_size = max(1, abs(int(current_position * POSITION_TRIM_PERCENT)))
                 else:
                     exit_size = abs(int(current_position * (abs(delta_magnitude) / 100.0)))
                 if exit_size >= abs(current_position):

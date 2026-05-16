@@ -1,6 +1,6 @@
 """
 Purpose: This script is used to screen for positions from the SMB API
-and execute trades in IB (interactive brokers paper account by default). For educational purposes only.
+and execute trades in IB (host/port from ``trading.config``).
 """
 # IB imports - need event loop setup before importing ib_async
 import asyncio
@@ -15,11 +15,13 @@ import requests
 asyncio.set_event_loop(asyncio.new_event_loop())
 from ib_async import IB  # noqa: E402
 
+from smbweb.apps.executions.snapshot_db import save_snapshot_from_file  # noqa: E402
 from trading.config import ACTIVE_TRADING  # noqa: E402
 from trading.config import IB_HOST  # noqa: E402
 from trading.config import IB_PORT  # noqa: E402
 from trading.config import INTERVAL_SECONDS  # noqa: E402
 from trading.config import RUN_MODE  # noqa: E402
+from trading.config import SAVE_POSITION_CHANGES_TO_DB  # noqa: E402
 from trading.smb_api import fetch_positions  # noqa: E402
 from trading.smb_api import get_session  # noqa: E402
 from trading.snapshot_mgmt import SNAPSHOT_FILE  # noqa: E402
@@ -35,6 +37,8 @@ from trading.trade_mgmt import process_execution_change  # noqa: E402
 if TYPE_CHECKING:
     from trading.models import NormalizedRecord
     from trading.models import PositionSummary
+
+logger = logging.getLogger(__name__)
 
 """
 IB Connection
@@ -212,6 +216,24 @@ def run_single_cycle(
 
     # Always persist full snapshot so we never retry by omitting; diagnose real causes when orders aren't placed.
     save_snapshot(summary_rows)
+
+    if SAVE_POSITION_CHANGES_TO_DB:
+        db_result = save_snapshot_from_file(
+            snapshot_file=SNAPSHOT_FILE,
+            save_only_changes=True,
+            save_flat_positions=False,
+        )
+        err_msg = db_result.get('error_message')
+        if err_msg:
+            logger.warning('Position DB sync: %s', err_msg)
+        elif db_result.get('errors'):
+            logger.warning('Position DB sync finished with errors=%s', db_result.get('errors'))
+        elif db_result.get('has_changes') and db_result.get('saved', 0):
+            logger.info(
+                'Position DB sync: saved=%s skipped=%s',
+                db_result.get('saved'),
+                db_result.get('skipped'),
+            )
 
     # look for conflicts
     conflicts = [r for r in summary_rows if r.conflict]

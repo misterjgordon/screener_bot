@@ -1,7 +1,22 @@
-"""Relative Volume: current bar volume / SMA(volume, period) over prior bars.
+"""Relative Volume: current bar volume divided by average volume of prior bars only.
 
-Per TradingView: Average Volume is SMA of the past N periods, not including the
-current volume bar. Relative Volume = volume / average volume.
+TradingView defines **Relative Volume** (not "at time") as::
+
+    Relative Volume = volume / average volume
+
+where *average volume* is a **Simple Moving Average of the past N periods, not
+including the current bar**. Their Pine example::
+
+    AvgVol = ta.sma(volume, 10)
+    plot(volume / AvgVol[1], title='Relative Volume')
+
+So the divisor is ``ta.sma(volume, N)[1]`` on the current bar (SMA as of the
+previous bar). This module matches that for ``bars_1d``: mean of the prior
+``period`` completed daily volumes vs the last bar's volume.
+
+**Relative Volume at Time** (separate TV metric): average volume of the **same
+clock-time bar** over the last N days (screener uses 5m); not implemented here.
+
 See: https://www.tradingview.com/support/solutions/43000635874-how-do-we-calculate-relative-volume-and-relative-volume-at-time/
 """
 
