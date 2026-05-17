@@ -13,6 +13,10 @@ The following rules ALWAYS apply when working with python code.
 - Variable names should match class names in snake_case: `my_class = MyClass()`, not `obj = MyClass()`
 - if you're writing code in a working file (anything in /notebooks) code can be more "rough" - don't worry about docstrings. this is code to be tested out in an interactive interpreter. don't create new notebook files.
 
+## Dates and calendars
+- Do not construct `date(...)`, `datetime(...)`, or `time(...)` with raw calendar literals **inside function bodies** unless the user **explicitly** asks for that pattern—use **module-level** named constants, parameters, or config-driven values and reference those names in logic.
+- At **module** scope, avoid repeating the same raw `date` / `datetime` / `time` literals in many places; centralize scenario dates in named constants (typically after imports) so one assignment defines the scenario.
+
 ## Code Structure
 - ALWAYS ensure your code is clean and DRY
 - **NEVER put imports inside functions/methods** - ALL imports go at the top of the file. The ONLY exception is circular import avoidance with TYPE_CHECKING blocks.

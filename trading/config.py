@@ -6,10 +6,13 @@ Import in other modules; do not import from market_data or smb_screener here.
 
 import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Literal
 
 from dotenv import load_dotenv
 
+_p_repo_root = Path(__file__).resolve().parent.parent
+load_dotenv(_p_repo_root / '.env')
 load_dotenv()
 
 # Run: "once" = single run and exit; "poll" = every INTERVAL_SECONDS; "off" = disabled
@@ -95,6 +98,18 @@ ALPACA_DATA_BASE_URL = os.environ.get(
     'ALPACA_DATA_BASE_URL',
     'https://data.alpaca.markets',
 )
+
+# Cold OHLCV Parquet (Massive REST ingest). Set OHLCV_COLD_ROOT to your data directory.
+OHLCV_COLD_ROOT = os.environ.get('OHLCV_COLD_ROOT', '').strip()
+# Optional override for ticker list file (default is shortlist under trading/data/symbols/).
+OHLCV_SYMBOL_LIST_PATH = os.environ.get('OHLCV_SYMBOL_LIST_PATH', '').strip()
+
+# Massive Stocks REST — custom bars (aggregates). See docs/massive_rest_stocks_custom_bars.md
+MASSIVE_API_KEY = os.environ.get('MASSIVE_API_KEY', '').strip()
+MASSIVE_REST_BASE_URL = os.environ.get(
+    'MASSIVE_REST_BASE_URL',
+    'https://api.massive.com',
+).strip().rstrip('/')
 
 DAILY_STOP = 250  # USD - maximum daily loss allowed
 # SMB screener default: risk only a fraction of the daily stop per trade sizing.

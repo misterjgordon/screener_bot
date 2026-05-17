@@ -22,6 +22,8 @@ from alpaca.data.timeframe import TimeFrame
 from alpaca.data.timeframe import TimeFrameUnit
 
 from trading import config as cf
+from trading.storage.ohlcv.ohlcv_schema import BAR_FRAME_COLUMNS
+from trading.storage.ohlcv.ohlcv_schema import empty_bars_dataframe
 
 # Default bar size for SMB mirror (1-minute bars; was 15 in jambot crypto).
 DEFAULT_BAR_SIZE_MINUTES = 1
@@ -100,24 +102,13 @@ def bar_set_to_dataframe(
                 }
             )
 
-    cols = [
-        'symbol',
-        'interval',
-        'timestamp',
-        'open',
-        'high',
-        'low',
-        'close',
-        'volume',
-        'vwap',
-    ]
-
     if not rows:
-        return pd.DataFrame.from_dict({c: [] for c in cols})
+        return empty_bars_dataframe()
 
     df = pd.DataFrame(rows)
 
     return df \
+        .loc[:, BAR_FRAME_COLUMNS] \
         .sort_values(['symbol', 'timestamp']) \
         .reset_index(drop=True)
 

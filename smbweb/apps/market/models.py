@@ -21,6 +21,7 @@ from smbweb.apps.market.bar_time import floor_now_utc_to_interval_minutes
 from smbweb.dbconn import db
 from trading.integrations.alpaca_bars import DEFAULT_BAR_SIZE_MINUTES
 from trading.integrations.alpaca_bars import fetch_stock_bars_dataframe
+from trading.storage.ohlcv.ohlcv_schema import BAR_FRAME_COLUMNS
 
 log = logging.getLogger(__name__)
 
@@ -63,18 +64,12 @@ def _append_market_bars_conflict_ignore(df_bars: pd.DataFrame) -> None:
 
 
 class SymbolQuerySet(models.QuerySet):
+    """Bar fetch / empty-frame column order (same contract as ``Bars`` + ingest DataFrames)."""
+
     default_date = dt(2026, 1, 1)
-    default_bar_columns = [
-        'symbol',
-        'interval',
-        'timestamp',
-        'open',
-        'high',
-        'low',
-        'close',
-        'volume',
-        'vwap',
-    ]
+    # Re-export schema tuple for callers (e.g. empty ``pd.DataFrame`` dict keys); literals stay
+    # in ``trading.storage.ohlcv.ohlcv_schema`` to avoid circular imports if schema referenced models.
+    default_bar_columns = list(BAR_FRAME_COLUMNS)
 
     def active(self) -> Self:
         return self.filter(is_active=True)

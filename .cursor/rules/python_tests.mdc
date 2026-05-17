@@ -8,11 +8,14 @@ alwaysApply: false
 
 # Python test modules
 # using barseries 
-- NEVER mock or manually construct market-data objects in tests.
+- NEVER mock or manually construct **barseries** market-data objects in tests.
 - This includes `Bar`, `BarSeries`, `TickerQuote`, and similar quote/bar containers.
 - Do NOT use literals like `TickerQuote(bid=..., ask=...)` in tests.
-- Tests must fetch real bars/quotes from IB (`load_bars`, `get_ticker_quote`).
-- If IB data is unavailable, skip the test with `self.skipTest(...)`.
+- Tests that exercise the interactive barseries / IB stack must fetch real bars/quotes from IB (`load_bars`, `get_ticker_quote`). If IB data is unavailable, skip the test with `self.skipTest(...)`.
+
+## Cold OHLCV / ingested Parquet tests
+
+Tests that cold OHLCV is **gathered, normalized, and stored correctly** should read Parquet under ``OHLCV_COLD_ROOT`` (populated by ``scripts/ingest_ohlcv_cold.py`` or the same write path). Skip when the root is unset or no per-symbol file exists yet. Massive live calls (``MASSIVE_API_KEY`` set) must **fail** on HTTP errors so bad keys, base URL, or vendor responses surface in logs—do not catch ``requests.HTTPError`` to skip those. Live fetch + ``write_bars`` round-trip tests may use a temporary ``OHLCV_COLD_ROOT`` via ``monkeypatch``. ``scripts/ingest_ohlcv_cold.py`` enforces a default **symbol-day** budget unless ``--allow-high-volume-ingest``; use ``--max-symbols`` for small runs. Path and ticker-list helpers may still use repo CSV paths. Do not fabricate OHLCV bar rows to stand in for ingested data.
 
 ## Deprecation warnings (`unittest`)
 
@@ -33,6 +36,8 @@ def setUpClass(cls) -> None:
 After imports, define **named variables** for literals used in more than one place (symbols, thresholds, paths, sizes). Keep a single assignment readers can change (e.g. `SYMBOL = 'ibit'`).
 
 ### Fixture dates in tests
+
+Do not build `date(...)`, `datetime(...)`, or `time(...)` with raw literals **inside** test functions unless the user **explicitly** directs that pattern—define fixture moments as **module-level** named constants and reuse them.
 
 When several tests in the same module use the same calendar day for paths, filenames, or header strings, define **one** module-level date (e.g. `Trading_Date = date(...)`) and derive expected strings and directory segments from it (`isoformat()`, `strftime`). Avoid repeating raw `date(Y, M, D)` literals across test methods so changing the scenario updates every assertion in one place.
 
