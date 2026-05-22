@@ -25,6 +25,8 @@ dependencies = [
     "alpaca-py>=0.43.2",
     "pyarrow>=24.0.0",
     "polars>=1.40.1",
+    "pydantic>=2.12.5",
+    "pyyaml>=6.0.3",
 ]
 
 [dependency-groups]
@@ -39,7 +41,7 @@ dev = [
 default-groups = ["dev"]
 
 [tool.ty.src]
-include = ["smb", "smbweb", "tests", "trading", "watchlist"]
+include = ["smb", "smbweb", "tests", "trading", "watchlist", "backtesting"]
 [tool.ty.rules]
 invalid-argument-type = "warn"
 
@@ -158,6 +160,6 @@ convention = "numpy"
 
 [tool.ruff.lint.isort]
 force-single-line = true
-known-first-party = ["jgutils", "trading"]
+known-first-party = ["jgutils", "trading", "backtesting"]
 
 

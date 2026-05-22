@@ -11,7 +11,7 @@ DEFAULT_INGEST_SYMBOL_DAY_BUDGET = 250
 # Default Massive ingest window when ``--start`` / ``--end`` are omitted (UTC calendar days,
 # inclusive of full last day for REST — same bounds as ``tests/test_ohlcv_bars_cold.py``).
 OHLCV_DEFAULT_INGEST_START_DATE = date(2021, 5, 20)
-OHLCV_DEFAULT_INGEST_END_DATE = date(2022, 5, 20)
+OHLCV_DEFAULT_INGEST_END_DATE = date(2026, 5, 15)
 
 
 def utc_calendar_span_inclusive_days(start: datetime, end: datetime) -> int:

@@ -80,7 +80,7 @@ IB_PORT_LIVE = 7496
 IB_PORT_PAPER = 7497
 
 # Default IB API port for screener, market_data, login launcher, etc. (live 7496; paper 7497).
-IB_PORT = IB_PORT_LIVE
+IB_PORT = IB_PORT_PAPER
 
 IB_CLIENT_ID = 1  # smb screener (use different ID from jobot)
 IB_CLIENT_ID_MARKET_DATA = 2  # market_data standalone/tests (1 reserved for screener)

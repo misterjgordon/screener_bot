@@ -25,7 +25,7 @@ from trading.market_data import connect
 from trading.market_data import disconnect
 from trading.models import BarSeries
 
-SYMBOL = 'HIMS'
+SYMBOL = 'APLD'
 
 
 def _bar_timestamp_as_naive_datetime(bar_dt: object) -> datetime:

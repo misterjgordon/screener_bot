@@ -1,0 +1,187 @@
+# Single source of truth for bar-table indicators (see INDICATOR_PIPELINE_PLAN.md).
+# default_pipeline_ids: ids run when IndicatorPipeline() is constructed without explicit ids
+# series_fn: module:callable in strategies/indicators/
+# inputs: kwarg name -> column on frame.bars (or daily column name on frame.daily_bars)
+# params: passed to series_fn after inputs
+# requires: indicator ids that must run first
+# daily_inputs: kwarg -> column on frame.daily_bars
+# bar_interval_minutes: frame interval this entry expects
+
+default_pipeline_ids:
+  - trading_date
+  - ema9
+  - ema21
+  - ema50
+  - vwap
+  - rvol
+  - rvol_time
+  - adr
+  - atr
+
+indicators:
+  - id: trading_date
+    kind: indicator
+    description: Exchange session calendar date (America/New_York) from UTC timestamp
+    version: '1'
+    series_fn: strategies.indicators.trading_date:trading_date_series_utc
+    inputs:
+      timestamp_utc: timestamp
+    params: {}
+    outputs:
+      - trading_date
+    requires: []
+    bar_interval_minutes: 1
+
+  - id: ema9
+    kind: indicator
+    description: 9-period EMA of close
+    version: '1'
+    series_fn: strategies.indicators.ema:ema_series
+    inputs:
+      close: close
+    params:
+      period: 9
+    outputs:
+      - ema9
+    requires: []
+    bar_interval_minutes: 1
+
+  - id: ema21
+    kind: indicator
+    description: 21-period EMA of close
+    version: '1'
+    series_fn: strategies.indicators.ema:ema_series
+    inputs:
+      close: close
+    params:
+      period: 21
+    outputs:
+      - ema21
+    requires: []
+    bar_interval_minutes: 1
+
+  - id: ema50
+    kind: indicator
+    description: 50-period EMA of close
+    version: '1'
+    series_fn: strategies.indicators.ema:ema_series
+    inputs:
+      close: close
+    params:
+      period: 50
+    outputs:
+      - ema50
+    requires: []
+    bar_interval_minutes: 1
+
+  - id: vwap
+    kind: indicator
+    description: Cumulative VWAP from first bar of trading_date (hlc3 typical price)
+    version: '1'
+    series_fn: strategies.indicators.vwap:vwap_series
+    inputs:
+      high: high
+      low: low
+      close: close
+      volume: volume
+      trading_date: trading_date
+    params: {}
+    outputs:
+      - vwap
+    requires:
+      - trading_date
+    bar_interval_minutes: 1
+
+  - id: cumulative_avg_volume
+    kind: indicator
+    description: >
+      Mean cumulative volume at this ET bar time over the prior period session days (RVOL
+      denominator). PM, RTH, and AH included.
+    version: '1'
+    series_fn: strategies.indicators.cumulative_avg_volume:cumulative_avg_volume_series
+    inputs:
+      trading_date: trading_date
+      volume: volume
+      timestamp_utc: timestamp
+    params:
+      period: 10
+    outputs:
+      - cumulative_avg_volume
+    requires:
+      - trading_date
+    requires_history_bars: true
+    bar_interval_minutes: 1
+
+  - id: rvol
+    kind: indicator
+    description: >
+      Cumulative volume so far on trading_date / cumulative_avg_volume at this bar. PM, RTH,
+      and AH included.
+    version: '1'
+    series_fn: strategies.indicators.rvol:rvol_series
+    inputs:
+      trading_date: trading_date
+      volume: volume
+      timestamp_utc: timestamp
+      cumulative_avg_volume: cumulative_avg_volume
+    params: {}
+    outputs:
+      - rvol
+    requires:
+      - trading_date
+      - cumulative_avg_volume
+    requires_history_bars: true
+    bar_interval_minutes: 1
+
+  - id: rvol_time
+    kind: indicator
+    description: >
+      Relative Volume at Time — current 1m bar volume / mean SMA(volume, sma_period) at this ET
+      bar time over the prior period session days.
+    version: '1'
+    series_fn: strategies.indicators.rvol_time:rvol_time_series
+    inputs:
+      trading_date: trading_date
+      volume: volume
+      timestamp_utc: timestamp
+    params:
+      period: 10
+      sma_period: 20
+    outputs:
+      - rvol_time
+    requires:
+      - trading_date
+    requires_history_bars: true
+    bar_interval_minutes: 1
+
+  - id: adr
+    kind: indicator
+    description: Average daily range (RTH daily bars) mapped to each minute by trading_date
+    version: '1'
+    series_fn: strategies.indicators.adr:adr_series
+    inputs:
+      trading_date: trading_date
+    params:
+      days: 14
+    outputs:
+      - adr
+    requires:
+      - trading_date
+    requires_daily_bars: true
+    bar_interval_minutes: 1
+
+  - id: atr
+    kind: indicator
+    description: ATR on RTH daily bars mapped to each minute by trading_date
+    version: '1'
+    series_fn: strategies.indicators.atr:atr_series
+    inputs:
+      trading_date: trading_date
+    params:
+      period: 14
+    outputs:
+      - atr
+    requires:
+      - trading_date
+    requires_daily_bars: true
+    bar_interval_minutes: 1

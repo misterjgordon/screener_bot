@@ -1,4 +1,4 @@
-.PHONY: help install format format-file lint lint-file type-check type-check-file run screener clean import-alpaca smb-install smb-reload smb-start smb-stop smb-status smb-logs smb-unload watchlist-install watchlist-reload watchlist-start watchlist-status watchlist-unload watchlist-run-now watchlist-sources-install watchlist-sources-reload watchlist-sources-start watchlist-sources-status watchlist-sources-unload watchlist-sources-run-now tickers-watchlist watchlist-ai ai-watchlist watchlist-ai-run-now
+.PHONY: help install format format-file lint lint-file type-check type-check-file run screener clean import-alpaca massive_import smb-install smb-reload smb-start smb-stop smb-status smb-logs smb-unload watchlist-install watchlist-reload watchlist-start watchlist-status watchlist-unload watchlist-run-now watchlist-sources-install watchlist-sources-reload watchlist-sources-start watchlist-sources-status watchlist-sources-unload watchlist-sources-run-now tickers-watchlist watchlist-ai ai-watchlist watchlist-ai-run-now
 
 # Default target
 help:
@@ -13,6 +13,7 @@ help:
 	@echo "  make run                  - Run trading/smb_screener.py"
 	@echo "  make smb                  - Run trading/smb_screener.py"
 	@echo "  make import-alpaca        - Run Django import_alpaca_bars (see smbweb command module)"
+	@echo "  make massive_import       - Ingest Massive minute bars to cold Parquet (requires OHLCV_COLD_ROOT, MASSIVE_API_KEY)"
 
 	@echo "  make clean                - Clean Python cache files"
 	@echo ""
@@ -101,6 +102,10 @@ smb:
 # Alpaca bars → market_bars (symbol list + window from import_alpaca_bars.py)
 import-alpaca:
 	uv run --frozen python smbweb/manage.py import_alpaca_bars
+
+# Massive REST → cold OHLCV Parquet (default window + symbol list; high-volume opt-in)
+massive_import:
+	uv run --frozen python scripts/ingest_ohlcv_cold.py --allow-high-volume-ingest --jobs 1
 
 # Clean Python cache files
 clean:

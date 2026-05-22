@@ -1,0 +1,13 @@
+# Canonical IANA timezone names for market data and backtest tooling.
+# Never store fixed UTC offsets here — offsets vary with DST; resolve at runtime via zoneinfo.
+
+roles:
+  exchange: America/New_York
+  display: America/Los_Angeles
+  local: America/Vancouver
+
+registry:
+  - UTC
+  - America/New_York
+  - America/Los_Angeles
+  - America/Vancouver

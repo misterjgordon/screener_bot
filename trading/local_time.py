@@ -1,37 +1,26 @@
 """Local wall clock vs naive US/Eastern for IB bar timestamps.
 
-Use this module for the **local** IANA timezone only. Default is **Vancouver**
-(``America/Vancouver``). Another developer can set env ``LOCAL_TZ`` to any
-IANA name (e.g. ``Europe/London``).
+Local IANA zone: :func:`trading.market_timezones.local_timezone_name` (``LOCAL_TZ`` env,
+default from ``market_timezones.yaml``). Exchange zone: :func:`exchange_zone`.
 
 Bar data and ``strategies.utils`` session boundaries stay **naive Eastern**;
 ``local_wall_to_naive_et`` is the single conversion from local date+time into
 that convention. Do not change BarSeries or indicators here.
 """
 
-import os
 from datetime import date
 from datetime import datetime
 from datetime import time
 from zoneinfo import ZoneInfo
 
-DEFAULT_LOCAL_TZ_NAME = 'America/Vancouver'
-_ENV_LOCAL_TZ = 'LOCAL_TZ'
-
-
-def local_timezone_name() -> str:
-    """Active local IANA zone: ``LOCAL_TZ`` env or Vancouver."""
-    return os.environ.get(_ENV_LOCAL_TZ, DEFAULT_LOCAL_TZ_NAME)
-
-
-def local_zone() -> ZoneInfo:
-    """ZoneInfo for :func:`local_timezone_name`."""
-    return ZoneInfo(local_timezone_name())
+from trading.market_timezones import exchange_zone
+from trading.market_timezones import local_timezone_name
+from trading.market_timezones import local_zone
 
 
 def session_et_zone() -> ZoneInfo:
     """US/Eastern: naive IB bar datetimes are interpreted in this zone."""
-    return ZoneInfo('America/New_York')
+    return exchange_zone()
 
 
 def local_wall_to_naive_et(d: date, t: time) -> datetime:

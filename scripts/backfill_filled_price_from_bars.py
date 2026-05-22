@@ -7,21 +7,19 @@ from datetime import date
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
-from zoneinfo import ZoneInfo
 
 from strategies.utils import bar_date
 from trading.bar_loader import get_bars
 from trading.market_data import connect
 from trading.market_data import disconnect
+from trading.market_timezones import display_zone
+from trading.market_timezones import exchange_zone
 
 if TYPE_CHECKING:
     from ib_async import IB
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 EXEC_DIR = REPO_ROOT / 'smb_trader_executions'
-
-PACIFIC_TZ = ZoneInfo('America/Los_Angeles')
-EASTERN_TZ = ZoneInfo('America/New_York')
 
 EVENT_TYPES_EXIT = {'ADD', 'TRIM', 'CLOSE'}
 EVENT_TYPES_NEW = {'NEW'}
@@ -43,8 +41,8 @@ def parse_ts_pacific_to_et_naive(ts: str) -> datetime | None:
     # Handle microseconds.
     for fmt in ('%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M'):
         try:
-            dt_p = datetime.strptime(ts2, fmt).replace(tzinfo=PACIFIC_TZ)
-            return dt_p.astimezone(EASTERN_TZ).replace(tzinfo=None)
+            dt_p = datetime.strptime(ts2, fmt).replace(tzinfo=display_zone())
+            return dt_p.astimezone(exchange_zone()).replace(tzinfo=None)
         except ValueError:
             continue
     return None

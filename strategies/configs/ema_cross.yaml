@@ -1,0 +1,58 @@
+# EMA 9/21 crossover — long-only, RTH opening range only.
+# Used as the bootstrap config for CLI smoke runs and test_strategy_config_load.py.
+id: ema_cross
+version: "1.0"
+signal_timeframe_minutes: 1
+
+session_config:
+  allowed_sessions:
+    - RTH
+  intraday_start: "09:30"
+  intraday_end: "11:30"
+  timezone: "America/New_York"
+
+# Trigger: EMA9 crosses above EMA21 (edge, not level)
+triggers:
+  - id: ema9_cross_above_ema21
+    column: ema9
+    op: cross_above
+    ref_column: ema21
+
+# Filters: evaluated at the entry bar (level checks)
+filters:
+  - id: rvol
+    column: rvol
+    op: ">="
+    value: 1.5
+
+# Max bars after trigger fires before arming expires
+arming_window: 30
+
+# Reset once-per-day latch on trading session date (ET)
+day_boundary: session
+
+# Emit only the first entry per symbol per day
+entry_rule: first
+
+# One stop and one target per strategy (derived from entry fill at sim time)
+stop_loss:
+  type: pct_from_entry
+  pct: 0.02
+
+take_profit:
+  type: pct_from_entry
+  pct: 0.04
+
+# Discretionary / rule-based exits (market close); cancels outstanding stop and target
+other_exits:
+  - id: end_of_session
+    type: end_of_session
+  # Example (not wired in sim yet):
+  # - id: close_below_ema21
+  #   type: close_past_ema
+  #   side: long
+  #   ema_column: ema21
+
+sizing:
+  method: fixed_dollars
+  amount: 5000

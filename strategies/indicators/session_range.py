@@ -33,17 +33,15 @@ from datetime import date
 from datetime import datetime
 from datetime import time
 from datetime import timedelta
-from zoneinfo import ZoneInfo
 
 from strategies.indicators.adr import calculate_adr
 from strategies.utils import last_trading_day
+from trading.market_timezones import display_zone
+from trading.market_timezones import exchange_zone
 from trading.models import BarSeries
 
 # IB reqHistoricalData duration for 2m bars when aggregating desk windows for ``session_date``.
 BARS_2MIN_DURATION_FOR_DESK_SESSION_RANGES = '2 D'
-
-_DESK_TZ = ZoneInfo('America/Los_Angeles')
-_SCRIPT_TZ = ZoneInfo('America/New_York')
 
 # PT session bounds (desk clock, America/Los_Angeles)
 _PRIOR_DAY_AH_START = time(13, 0)
@@ -52,7 +50,7 @@ _PM_START = time(1, 0)
 _PM_END = time(6, 30)
 _OPENING_RANGE_START = time(6, 30)
 _OPENING_RANGE_END = time(6, 45)
-_MORNING_START = time(6, 30)
+_MORNING_START = time(6, 45)
 _MORNING_END = time(8, 30)
 _AFTERNOON_START = time(8, 30)
 _AFTERNOON_END = time(11, 0)
@@ -65,7 +63,7 @@ def _to_script_clock_datetime(bar_dt: object) -> datetime | None:
     if isinstance(bar_dt, datetime):
         if bar_dt.tzinfo is None:
             return bar_dt
-        return bar_dt.astimezone(_SCRIPT_TZ).replace(tzinfo=None)
+        return bar_dt.astimezone(exchange_zone()).replace(tzinfo=None)
     return None
 
 
@@ -80,10 +78,10 @@ def _desk_window_to_script_bounds(
     end_local: time,
 ) -> tuple[datetime, datetime]:
     """Map [start_local, end_local) on anchor_date in desk clock to script clock."""
-    start_desk = datetime.combine(anchor_date, start_local, tzinfo=_DESK_TZ)
-    end_desk = datetime.combine(anchor_date, end_local, tzinfo=_DESK_TZ)
-    start_script = start_desk.astimezone(_SCRIPT_TZ).replace(tzinfo=None)
-    end_script = end_desk.astimezone(_SCRIPT_TZ).replace(tzinfo=None)
+    start_desk = datetime.combine(anchor_date, start_local, tzinfo=display_zone())
+    end_desk = datetime.combine(anchor_date, end_local, tzinfo=display_zone())
+    start_script = start_desk.astimezone(exchange_zone()).replace(tzinfo=None)
+    end_script = end_desk.astimezone(exchange_zone()).replace(tzinfo=None)
     return (start_script, end_script)
 
 

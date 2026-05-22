@@ -29,13 +29,11 @@ Add ``--force`` to insert again if duplicate key would skip. Uses same constants
 import os
 import sys
 import unittest
-from datetime import UTC
 from datetime import date
 from datetime import datetime
 from decimal import Decimal
 from unittest.mock import MagicMock
 from unittest.mock import patch
-from zoneinfo import ZoneInfo
 
 import django
 
@@ -48,6 +46,8 @@ from django.db import connections  # noqa: E402
 from smbweb.apps.executions.models import Execution  # noqa: E402
 from trading.execution_db import _parse_timestamp  # noqa: E402
 from trading.execution_db import save_execution_to_db  # noqa: E402
+from trading.market_timezones import UTC  # noqa: E402
+from trading.market_timezones import local_zone  # noqa: E402
 from trading.record_executions import format_timestamp  # noqa: E402
 from trading.record_executions import get_executions_filename  # noqa: E402
 
@@ -77,7 +77,7 @@ EXECUTIONS_TEST_DB_NAME = os.environ.get('EXECUTIONS_TEST_DB_NAME', 'test_databa
 def _expected_utc_naive_for_vancouver_wall_time(date_part: str, time_part: str) -> datetime:
     """Reference UTC-naive instant for a Vancouver local wall time on that calendar date."""
     local = datetime.strptime(f'{date_part} {time_part}', '%Y-%m-%d %H:%M:%S').replace(
-        tzinfo=ZoneInfo('America/Vancouver'),
+        tzinfo=local_zone(),
     )
     return local.astimezone(UTC).replace(tzinfo=None)
 
@@ -133,7 +133,7 @@ class TestFormatTimestamp(unittest.TestCase):
         self.assertEqual(format_timestamp(dt_naive), '2026-03-25 06:33:53')
 
     def test_aware_vancouver_passthrough_wall_string(self) -> None:
-        dt_local = datetime(2026, 3, 25, 6, 33, 53, tzinfo=ZoneInfo('America/Vancouver'))
+        dt_local = datetime(2026, 3, 25, 6, 33, 53, tzinfo=local_zone())
         self.assertEqual(format_timestamp(dt_local), '2026-03-25 06:33:53')
 
 

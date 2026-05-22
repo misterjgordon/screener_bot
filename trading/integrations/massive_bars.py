@@ -38,6 +38,9 @@ MASSIVE_HTTP_BASE_BACKOFF_S = 1.0
 MASSIVE_HTTP_MAX_BACKOFF_S = 120.0
 MASSIVE_HTTP_RETRY_STATUS: frozenset[int] = frozenset({429, 500, 502, 503, 504})
 
+# Aggregate bar fields read from Massive JSON (``vw`` is intentionally omitted).
+MASSIVE_AGG_BAR_FIELDS: tuple[str, ...] = ('t', 'o', 'h', 'l', 'c', 'v')
+
 
 def _require_massive_api_key() -> str:
     key = cf.MASSIVE_API_KEY.strip()
@@ -139,6 +142,22 @@ def _json_number(raw: object) -> float:
     return float(cast('int | float', raw))
 
 
+def _append_massive_agg_row(
+        r: Mapping[str, object],
+        *,
+        t_list: list[float],
+        o_list: list[float],
+        h_list: list[float],
+        l_list: list[float],
+        c_list: list[float],
+        v_list: list[float],
+) -> None:
+    """Append one aggregate row using :data:`MASSIVE_AGG_BAR_FIELDS` only (never ``vw``)."""
+    lists = (t_list, o_list, h_list, l_list, c_list, v_list)
+    for field, lst in zip(MASSIVE_AGG_BAR_FIELDS, lists, strict=True):
+        lst.append(_json_number(r[field]))
+
+
 def massive_minute_aggs_first_page_url(
         symbol: str,
         start: datetime,
@@ -180,7 +199,8 @@ def fetch_stock_minute_bars_dataframe(
     (``/v2/aggs/ticker/.../range/...``). ``start``/``end``
     are converted to UTC millisecond bounds in the URL.
 
-    ``vwap`` is always left unset (NaN): Massive aggregate ``vw`` is not loaded.
+    Output ``vwap`` is always NaN. Massive JSON field ``vw`` (per-minute VWAP) is never read;
+    session VWAP is computed later from OHLCV (see ``IndicatorPipeline`` / ``vwap_series``).
 
     Rows are assembled column-wise (one pass per page over ``results``). Sorting is
     left to ``merge_and_write`` so ingest avoids a redundant full-frame sort here.
@@ -229,12 +249,15 @@ def fetch_stock_minute_bars_dataframe(
                 if not isinstance(item, dict):
                     continue
                 r = cast('Mapping[str, object]', item)
-                t_list.append(_json_number(r['t']))
-                o_list.append(_json_number(r['o']))
-                h_list.append(_json_number(r['h']))
-                l_list.append(_json_number(r['l']))
-                c_list.append(_json_number(r['c']))
-                v_list.append(_json_number(r['v']))
+                _append_massive_agg_row(
+                    r,
+                    t_list=t_list,
+                    o_list=o_list,
+                    h_list=h_list,
+                    l_list=l_list,
+                    c_list=c_list,
+                    v_list=v_list,
+                )
             next_url = payload.get('next_url')
             if not next_url or not isinstance(next_url, str):
                 break

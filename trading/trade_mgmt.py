@@ -158,6 +158,100 @@ def apply_stop_offset(stop_price: float, is_long: bool) -> float:
     return round(stop_price + STOP_OFFSET, 2)
 
 
+# Bracket TP uses 0.6 * ADR; ADR fallback stop uses 0.5 * ADR → TP distance = 1.2 * stop risk.
+TAKE_PROFIT_STOP_RISK_MULTIPLE = 1.2
+
+
+def risk_per_share_at_stop(entry_price: float, stop_price: float, is_long: bool) -> float | None:
+    """Dollars at risk per share for entry/stop; None when stop is on wrong side of entry."""
+    if is_long:
+        risk = entry_price - stop_price
+    else:
+        risk = stop_price - entry_price
+    if risk <= 0:
+        return None
+    return risk
+
+
+def is_usable_stop(entry_price: float, stop_price: float | None, is_long: bool) -> bool:
+    """True when stop is present and strictly on the protective side of entry."""
+    if stop_price is None:
+        return False
+    return risk_per_share_at_stop(entry_price, stop_price, is_long) is not None
+
+
+def resolve_stop_price(
+    ib: 'IB',
+    underlying: str,
+    is_long: bool,
+    entry_price: float,
+    bundle: 'BarSeries | None',
+    adr: float | None,
+) -> float | None:
+    """Stop from trailing 2-min bars, else day range, else 0.5 * ADR (when ADR is available)."""
+    position_side_str = 'long' if is_long else 'short'
+    trailing_stop = calculate_trailing_stop(
+        ib,
+        underlying,
+        prior_bars=7,
+        position_side=position_side_str,
+        bundle=bundle,
+    )
+    if trailing_stop:
+        stop_price = apply_stop_offset(trailing_stop, is_long)
+        print(
+            f'✓ Using trailing stop for {underlying}: ${
+                stop_price:.2f} (includes ${STOP_OFFSET:.2f} offset)'
+        )
+        return stop_price
+
+    todays_range = get_todays_range(ib, underlying, bundle=bundle)
+    if todays_range:
+        day_low, day_high = todays_range.low, todays_range.high
+        if is_long:
+            stop_price = apply_stop_offset(day_low, is_long)
+        else:
+            stop_price = apply_stop_offset(day_high, is_long)
+        print(
+            f'✓ Using day range stop for {underlying}: ${
+                stop_price:.2f} (day low ${
+                day_low:.2f} / high ${
+                day_high:.2f}, ${
+                STOP_OFFSET:.2f} offset)'
+        )
+        return stop_price
+
+    if adr:
+        if is_long:
+            stop_price = entry_price - (0.5 * adr)
+        else:
+            stop_price = entry_price + (0.5 * adr)
+        stop_price = apply_stop_offset(stop_price, is_long)
+        print(
+            f'✓ Using ADR stop for {underlying}: ${
+                stop_price:.2f} (ADR: ${adr:.2f}, includes ${STOP_OFFSET:.2f} offset)'
+        )
+        return stop_price
+
+    return None
+
+
+def take_profit_from_adr(entry_price: float, adr: float, is_long: bool) -> float:
+    """Take-profit at 0.6 * ADR from entry (same as prior bracket logic)."""
+    if is_long:
+        return round(entry_price + (0.6 * adr), 2)
+    return round(entry_price - (0.6 * adr), 2)
+
+
+def take_profit_fallback_from_stop(entry_price: float, stop_price: float, is_long: bool) -> float:
+    """TP from stop distance when ADR is unavailable (1.2x risk mirrors 0.6/0.5 ADR bracket)."""
+    risk = risk_per_share_at_stop(entry_price, stop_price, is_long)
+    assert risk is not None
+    if is_long:
+        return round(entry_price + TAKE_PROFIT_STOP_RISK_MULTIPLE * risk, 2)
+    return round(entry_price - TAKE_PROFIT_STOP_RISK_MULTIPLE * risk, 2)
+
+
 def get_entry_stop_take_profit(
     ib: 'IB',
     underlying: str,
@@ -173,6 +267,12 @@ def get_entry_stop_take_profit(
         return None
     entry_price = round(entry_price, 2)
     bundle = load_bars(ib, underlying)
+    if bundle is None:
+        print(
+            f'⚠️  WARNING: Could not load daily/2-min bars for {underlying} '
+            '(historical data unavailable — check TWS session / competing login)'
+        )
+
     adjusted_magnitude = abs(delta_magnitude)
     if change_type == 'NEW':
         gap_percentage = calculate_gap_percentage(ib, underlying, entry_price, bundle=bundle)
@@ -186,59 +286,27 @@ def get_entry_stop_take_profit(
             )
 
     adr = calculate_adr(ib, underlying, bundle=bundle)
-    stop_price: float | None = None
-    take_profit_price: float | None = None
-    if not adr:
-        print(
-            f'⚠️  WARNING: ADR not available for {underlying} - cannot calculate take profit, will send entry-only order'
-        )
-    else:
-        position_side_str = 'long' if is_long else 'short'
-        trailing_stop = calculate_trailing_stop(
-            ib,
-            underlying,
-            prior_bars=7,
-            position_side=position_side_str,
-            bundle=bundle,
-        )
-        if trailing_stop:
-            stop_price = apply_stop_offset(trailing_stop, is_long)
-            print(
-                f'✓ Using trailing stop for {underlying}: ${
-                    stop_price:.2f} (includes ${STOP_OFFSET:.2f} offset)'
-            )
-        else:
-            todays_range = get_todays_range(ib, underlying, bundle=bundle)
-            if todays_range:
-                day_low, day_high = todays_range.low, todays_range.high
-                if is_long:
-                    stop_price = apply_stop_offset(day_low, is_long)
-                else:
-                    stop_price = apply_stop_offset(day_high, is_long)
-                print(
-                    f'✓ Using day range stop for {underlying}: ${
-                        stop_price:.2f} (day low ${
-                        day_low:.2f} / high ${
-                        day_high:.2f}, ${
-                        STOP_OFFSET:.2f} offset)'
-                )
-            else:
-                if is_long:
-                    stop_price = entry_price - (0.5 * adr)
-                else:
-                    stop_price = entry_price + (0.5 * adr)
-                stop_price = apply_stop_offset(stop_price, is_long)
-                print(
-                    f'✓ Using ADR stop for {underlying}: ${
-                        stop_price:.2f} (ADR: ${adr:.2f}, includes ${STOP_OFFSET:.2f} offset)'
-                )
+    if adr is None:
+        print(f'⚠️  WARNING: ADR not available for {underlying} - take profit may use stop-distance fallback')
 
-        if stop_price:
-            if is_long:
-                take_profit_price = entry_price + (0.6 * adr)
-            else:
-                take_profit_price = entry_price - (0.6 * adr)
-            take_profit_price = round(take_profit_price, 2)
+    stop_price = resolve_stop_price(ib, underlying, is_long, entry_price, bundle, adr)
+    take_profit_price: float | None = None
+    if is_usable_stop(entry_price, stop_price, is_long):
+        assert stop_price is not None
+        if adr:
+            take_profit_price = take_profit_from_adr(entry_price, adr, is_long)
+        else:
+            take_profit_price = take_profit_fallback_from_stop(entry_price, stop_price, is_long)
+            print(
+                f'✓ Using stop-distance take profit for {underlying}: ${take_profit_price:.2f} '
+                f'(ADR unavailable, {TAKE_PROFIT_STOP_RISK_MULTIPLE:.1f}x stop risk)'
+            )
+    elif stop_price is not None:
+        print(
+            f'⚠️  WARNING: Stop ${stop_price:.2f} is not usable for {underlying} '
+            f'(entry ${entry_price:.2f}, side {"long" if is_long else "short"})'
+        )
+        stop_price = None
 
     return EntryStopTakeProfit(
         entry_price=entry_price,
@@ -280,36 +348,32 @@ def place_new_order(
         print(f'Skipping NEW order for {underlying} ({trader}): entry_mode_skip')
         return NewAddPlacementResult(None, None, None, None, None, 'entry_mode_skip')
 
-    if market.stop_price and market.take_profit_price:
-        result = send_bracket_order(
-            ib,
-            underlying,
-            is_long,
-            entry_mode.entry_price,
-            market.stop_price,
-            market.take_profit_price,
-            market.adjusted_magnitude,
-            trader,
-            entry_order_type=entry_mode.order_type,
-            num_shares=shares_override,
+    if not is_usable_stop(market.entry_price, market.stop_price, is_long):
+        no_place_reason = 'new_requires_stop'
+        print(
+            f'Skipping NEW order for {underlying} ({trader}): {no_place_reason} '
+            '(stop required for share sizing; no entry-only on NEW)'
         )
-    else:
-        if not market.stop_price:
-            print(f'⚠️  WARNING: No stop loss available for {underlying} (trailing stop and ADR both failed)')
-        else:
-            print(
-                f'WARNING: ADR not available for {underlying} - cannot calculate take profit, sending entry-only order'
-            )
-        result = send_entry_only_order(
-            ib,
-            underlying,
-            is_long,
-            entry_mode.entry_price,
-            market.adjusted_magnitude,
-            trader,
-            entry_order_type=entry_mode.order_type,
-            num_shares=shares_override,
-        )
+        return NewAddPlacementResult(None, None, None, None, None, no_place_reason)
+
+    if market.take_profit_price is None:
+        no_place_reason = 'new_requires_take_profit'
+        print(f'Skipping NEW order for {underlying} ({trader}): {no_place_reason}')
+        return NewAddPlacementResult(None, None, None, None, None, no_place_reason)
+
+    assert market.stop_price is not None
+    result = send_bracket_order(
+        ib,
+        underlying,
+        is_long,
+        entry_mode.entry_price,
+        market.stop_price,
+        market.take_profit_price,
+        market.adjusted_magnitude,
+        trader,
+        entry_order_type=entry_mode.order_type,
+        num_shares=shares_override,
+    )
     no_place_reason = result.skip_reason if result.order_id is None else None
     return NewAddPlacementResult(
         result.order_id,

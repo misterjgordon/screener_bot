@@ -4,11 +4,9 @@ import csv
 from datetime import date
 from datetime import datetime
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
+from trading.market_timezones import local_zone
 from trading.models import Execution
-
-_VANCOUVER_TZ = ZoneInfo('America/Vancouver')
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 EXECUTIONS_DIR = str(_REPO_ROOT / 'smb_trader_executions')
@@ -33,17 +31,17 @@ def format_timestamp(dt: datetime | None = None) -> str:
         str: Formatted timestamp string (24h Pacific wall clock)
     """
     if dt is None:
-        dt = datetime.now(_VANCOUVER_TZ)
+        dt = datetime.now(local_zone())
     elif dt.tzinfo is None:
-        dt = dt.replace(tzinfo=_VANCOUVER_TZ)
+        dt = dt.replace(tzinfo=local_zone())
     else:
-        dt = dt.astimezone(_VANCOUVER_TZ)
+        dt = dt.astimezone(local_zone())
     return dt.strftime('%Y-%m-%d %H:%M:%S')
 
 
 def vancouver_today() -> date:
-    """Calendar date in America/Vancouver (for daily CSV filename)."""
-    return datetime.now(_VANCOUVER_TZ).date()
+    """Calendar date in the configured local zone (for daily CSV filename)."""
+    return datetime.now(local_zone()).date()
 
 
 def ensure_executions_dir() -> None:

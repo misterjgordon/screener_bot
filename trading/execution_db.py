@@ -10,13 +10,14 @@ WARNING/ERROR; the screener does not raise on DB errors.
 
 import logging
 import os
-from datetime import UTC
 from datetime import datetime
 from decimal import Decimal
 from decimal import InvalidOperation
-from zoneinfo import ZoneInfo
 
 import django
+
+from trading.market_timezones import UTC
+from trading.market_timezones import local_zone
 
 if not os.environ.get('DJANGO_SETTINGS_MODULE'):
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'smbweb.settings')
@@ -43,7 +44,6 @@ def _parse_timestamp(timestamp_str: str) -> datetime | None:
         if s.endswith(suffix):
             s = s[:-len(suffix)].strip()
             break
-    vancouver = ZoneInfo('America/Vancouver')
     for fmt in [
         '%Y-%m-%dT%H:%M:%S',
         '%Y-%m-%dT%H:%M:%S.%f',
@@ -57,7 +57,7 @@ def _parse_timestamp(timestamp_str: str) -> datetime | None:
     ]:
         try:
             dt = datetime.strptime(s, fmt)
-            dt_local = dt.replace(tzinfo=vancouver)
+            dt_local = dt.replace(tzinfo=local_zone())
             dt_utc = dt_local.astimezone(UTC)
             return dt_utc.replace(tzinfo=None)
         except ValueError:

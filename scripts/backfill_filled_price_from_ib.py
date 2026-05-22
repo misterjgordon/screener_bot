@@ -8,13 +8,14 @@ from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
-from zoneinfo import ZoneInfo
 
 from ib_async.objects import ExecutionFilter
 from ib_async.objects import Fill
 
 from trading.market_data import connect
 from trading.market_data import disconnect
+from trading.market_timezones import display_zone
+from trading.market_timezones import exchange_zone
 
 if TYPE_CHECKING:
     from ib_async import IB
@@ -27,9 +28,6 @@ TARGET_TRADERS = {'Justin Spero', 'Jeff Holden'}
 EVENT_TYPES_EXIT = {'ADD', 'TRIM', 'CLOSE'}
 NEW_TYPE = 'NEW'
 
-PACIFIC_TZ = ZoneInfo('America/Los_Angeles')
-EASTERN_TZ = ZoneInfo('America/New_York')
-
 
 def _parse_ts_pacific(ts: str) -> datetime | None:
     ts2 = (ts or '').strip()
@@ -37,8 +35,8 @@ def _parse_ts_pacific(ts: str) -> datetime | None:
         return None
     for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M'):
         try:
-            dt_p = datetime.strptime(ts2, fmt).replace(tzinfo=PACIFIC_TZ)
-            return dt_p.astimezone(EASTERN_TZ).replace(tzinfo=None)
+            dt_p = datetime.strptime(ts2, fmt).replace(tzinfo=display_zone())
+            return dt_p.astimezone(exchange_zone()).replace(tzinfo=None)
         except ValueError:
             continue
     return None
@@ -72,7 +70,7 @@ def _to_et_naive(dt: datetime) -> datetime:
     if dt.tzinfo is None:
         # ib_async typically returns naive datetimes; assume Eastern naive.
         return dt
-    return dt.astimezone(EASTERN_TZ).replace(tzinfo=None)
+    return dt.astimezone(exchange_zone()).replace(tzinfo=None)
 
 
 def _pick_execution_csv_dates(last_n: int) -> list[str]:

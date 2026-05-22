@@ -16,13 +16,11 @@ Examples:
 """
 import argparse
 import csv
-from datetime import UTC
 from datetime import datetime
 from decimal import Decimal
 from decimal import InvalidOperation
 from pathlib import Path
 from typing import cast
-from zoneinfo import ZoneInfo
 
 import pandas as pd
 from django.core.management.base import BaseCommand
@@ -30,6 +28,8 @@ from django.core.management.base import CommandError
 from django.db import transaction
 
 from smbweb.apps.executions.models import Execution
+from trading.market_timezones import UTC
+from trading.market_timezones import local_zone
 from trading.models import round_money_2
 
 
@@ -198,8 +198,6 @@ class Command(BaseCommand):
         # Excel / hand-edited CSV may use double spaces between date and time.
         timestamp_str = ' '.join(timestamp_str.split())
 
-        pst_tz = ZoneInfo('America/Vancouver')
-
         for fmt in [
             '%Y-%m-%dT%H:%M:%S',
             '%Y-%m-%dT%H:%M:%S.%f',
@@ -215,7 +213,7 @@ class Command(BaseCommand):
                 dt = datetime.strptime(timestamp_str, fmt)
                 # Localize to PST timezone, then convert to naive UTC datetime
                 # Django with USE_TZ=False will store this, and PostgreSQL will interpret correctly
-                dt_pst = dt.replace(tzinfo=pst_tz)
+                dt_pst = dt.replace(tzinfo=local_zone())
                 # Convert to UTC, then make naive (for USE_TZ=False)
                 # This ensures PostgreSQL stores the correct UTC time
                 dt_utc = dt_pst.astimezone(UTC)

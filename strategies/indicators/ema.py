@@ -2,8 +2,37 @@
 
 from typing import TYPE_CHECKING
 
+import pandas as pd
+
 if TYPE_CHECKING:
     from trading.models import BarSeries
+
+INDICATOR_DECIMAL_PLACES = 2
+
+
+def ema_series(close: pd.Series, period: int) -> pd.Series:
+    """EMA of ``close`` for every bar, matching ``ema()`` on the same trailing window per row.
+
+    For index *i*, uses the last ``period * 2`` closes through *i* (same as scalar ``ema``).
+    Earlier rows (before ``period - 1``) are NaN.
+    """
+    if period < 1:
+        msg = f'period must be >= 1, got {period}'
+        raise ValueError(msg)
+
+    closes = close.astype('float64')
+    k = 2.0 / (1.0 + period)
+    out: list[float] = []
+    for i in range(len(closes)):
+        if i < period - 1:
+            out.append(float('nan'))
+            continue
+        window = closes.iloc[max(0, i + 1 - period * 2): i + 1].tolist()
+        ema_val = sum(window[:period]) / period
+        for price in window[period:]:
+            ema_val = (price - ema_val) * k + ema_val
+        out.append(round(ema_val, INDICATOR_DECIMAL_PLACES))
+    return pd.Series(out, index=close.index, dtype='float64')
 
 
 def ema(bar_series: 'BarSeries', period: int) -> float | None:
@@ -25,7 +54,7 @@ def ema(bar_series: 'BarSeries', period: int) -> float | None:
     k = 2.0 / (1.0 + period)
     for c in closes[period:]:
         ema_val = (c - ema_val) * k + ema_val
-    return round(ema_val, 2)
+    return round(ema_val, INDICATOR_DECIMAL_PLACES)
 
 
 def ema9(bar_series: 'BarSeries') -> float | None:
