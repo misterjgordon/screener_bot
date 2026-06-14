@@ -3,10 +3,12 @@
 import json
 from typing import TYPE_CHECKING
 
+
 from backtesting.conditions.condition_spec import ConditionKind
 from backtesting.conditions.condition_spec import ConditionSpec
 
 if TYPE_CHECKING:
+    import pandas as pd
     from backtesting.frames.symbol_bar_frame import SymbolBarFrame
 
 
@@ -67,20 +69,28 @@ class ConditionRegistry:
 CONDITION_REGISTRY = ConditionRegistry()
 
 
-def _compute_vwap_conditions(frame: 'SymbolBarFrame') -> 'SymbolBarFrame':
-    """Assign VWAP level filters and cross triggers (requires ``close`` and ``vwap``)."""
+def vwap_condition_column_series(frame: 'SymbolBarFrame') -> dict[str, 'pd.Series']:
+    """VWAP level filters and cross triggers (requires ``close`` and ``vwap``)."""
     if 'close_above_vwap' in frame.column_names:
-        return frame
+        return {}
     close = frame.bars.close
     vwap_col = frame.bars.vwap
     prev_close = close.shift(1)
     prev_vwap = vwap_col.shift(1)
-    return frame.with_columns(
-        close_above_vwap=close > vwap_col,
-        close_below_vwap=close < vwap_col,
-        trigger_vwap_cross_up=(close > vwap_col) & (prev_close <= prev_vwap),
-        trigger_vwap_cross_down=(close < vwap_col) & (prev_close >= prev_vwap),
-    )
+    return {
+        'close_above_vwap': close > vwap_col,
+        'close_below_vwap': close < vwap_col,
+        'trigger_vwap_cross_up': (close > vwap_col) & (prev_close <= prev_vwap),
+        'trigger_vwap_cross_down': (close < vwap_col) & (prev_close >= prev_vwap),
+    }
+
+
+def _compute_vwap_conditions(frame: 'SymbolBarFrame') -> 'SymbolBarFrame':
+    """Assign VWAP level filters and cross triggers (requires ``close`` and ``vwap``)."""
+    assign_kw = vwap_condition_column_series(frame)
+    if not assign_kw:
+        return frame
+    return frame.with_columns(**assign_kw)
 
 
 def _register_defaults() -> None:

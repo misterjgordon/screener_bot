@@ -248,6 +248,9 @@ watchlist-sources-install:
 	@launchctl bootout gui/$$(id -u) ~/Library/LaunchAgents/watchlist.sources.plist 2>/dev/null || true
 	@launchctl bootout gui/$$(id -u) ~/Library/LaunchAgents/com.trading.watchlist.sources.plist 2>/dev/null || true
 	@launchctl bootout gui/$$(id -u) ~/Library/LaunchAgents/com.watchlist.sources.plist 2>/dev/null || true
+	@rm -f ~/Library/LaunchAgents/com.joel.trading.watchlist.sources.plist
+	@rm -f ~/Library/LaunchAgents/watchlist.sources.plist
+	@rm -f ~/Library/LaunchAgents/com.trading.watchlist.sources.plist
 	@cp com.watchlist.sources.plist ~/Library/LaunchAgents/com.watchlist.sources.plist
 	@launchctl bootstrap gui/$$(id -u) ~/Library/LaunchAgents/com.watchlist.sources.plist
 	@launchctl enable gui/$$(id -u)/com.watchlist.sources
@@ -261,6 +264,9 @@ watchlist-sources-reload:
 	@launchctl bootout gui/$$(id -u) ~/Library/LaunchAgents/watchlist.sources.plist 2>/dev/null || true
 	@launchctl bootout gui/$$(id -u) ~/Library/LaunchAgents/com.trading.watchlist.sources.plist 2>/dev/null || true
 	@launchctl bootout gui/$$(id -u) ~/Library/LaunchAgents/com.watchlist.sources.plist 2>/dev/null || true
+	@rm -f ~/Library/LaunchAgents/com.joel.trading.watchlist.sources.plist
+	@rm -f ~/Library/LaunchAgents/watchlist.sources.plist
+	@rm -f ~/Library/LaunchAgents/com.trading.watchlist.sources.plist
 	@cp com.watchlist.sources.plist ~/Library/LaunchAgents/com.watchlist.sources.plist
 	@launchctl bootstrap gui/$$(id -u) ~/Library/LaunchAgents/com.watchlist.sources.plist
 	@launchctl enable gui/$$(id -u)/com.watchlist.sources

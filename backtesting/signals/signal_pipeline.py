@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING
 
 
-from backtesting.signals.arming import apply_entry_columns
+from backtesting.signals.arming import entry_column_assign_kw
 from backtesting.signals.filter_evaluator import all_filters_ok_series
 from backtesting.signals.filter_evaluator import evaluate_filter_columns
 from backtesting.signals.signal_columns import ALL_FILTERS_OK_COLUMN
@@ -54,10 +54,12 @@ class SignalPipeline:
                 combined = combined & trigger_cols[name]
             assign_kw[ALL_TRIGGERS_OK_COLUMN] = combined.astype('bool')
 
-        result = frame.with_columns(**assign_kw) if assign_kw else frame
-        return apply_entry_columns(
-            result,
-            self._strategy,
-            trigger_cols,
-            all_filters_ok=filters_ok,
+        assign_kw.update(
+            entry_column_assign_kw(
+                frame,
+                self._strategy,
+                trigger_cols,
+                all_filters_ok=filters_ok,
+            ),
         )
+        return frame.with_columns(**assign_kw) if assign_kw else frame

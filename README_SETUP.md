@@ -2,7 +2,7 @@
 
 A Python-based trading bot that monitors positions from professional investors using the SMB API along with calls to market data then and executes trades through Interactive Brokers (paper trading account).
 
-## ⚠️ Important Notes
+## Important Notes
 
 - **Educational purposes only** - This bot is designed for learning and testing trading automation
 - **Paper trading account** - Configured to use Interactive Brokers paper trading account
@@ -98,19 +98,6 @@ Press `Ctrl+C` to gracefully stop the bot. The IB connection will be closed auto
    - **TRIM**: Reduces position size
    - **CLOSE**: Exits entire position
 5. **Execution Logging**: Records all executions to CSV files in `smb_trader_executions/`
-
-## File Structure
-
-```
-├── trading/                 # Main bot and scripts
-│   └── smb_screener.py     # Main bot script
-├── position_snapshot.json   # Current position snapshot (auto-generated)
-├── smb_cookies.pkl         # Session cookies (auto-generated)
-├── smb_trader_executions/  # Execution logs (CSV files)
-│   └── executions_YYYY-MM-DD.csv
-├── smbweb/                 # Django web app for execution tracking
-└── .env                    # Environment variables (not in git)
-```
 
 ## Execution Logs
 

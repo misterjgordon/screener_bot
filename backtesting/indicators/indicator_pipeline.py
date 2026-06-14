@@ -1,14 +1,13 @@
 """Run registered indicators on a ``SymbolBarFrame``."""
 
-from typing import TYPE_CHECKING
 
 from backtesting.frames.bar_price_round import normalize_symbol_bar_frame_prices
+from backtesting.frames.symbol_bar_frame import SymbolBarFrame
+from backtesting.indicators.indicator_catalog_load import catalog_entry_by_id
 from backtesting.indicators.indicator_catalog_load import default_indicator_ids
 from backtesting.indicators.indicator_catalog_load import topological_indicator_order
+from backtesting.indicators.indicator_compute import compute_indicator_series
 from backtesting.indicators.indicator_registry import INDICATOR_REGISTRY
-
-if TYPE_CHECKING:
-    from backtesting.frames.symbol_bar_frame import SymbolBarFrame
 
 
 class IndicatorPipeline:
@@ -23,10 +22,29 @@ class IndicatorPipeline:
     def indicator_ids(self) -> tuple[str, ...]:
         return self._indicator_ids
 
-    def run(self, frame: 'SymbolBarFrame') -> 'SymbolBarFrame':
+    def run(self, frame: SymbolBarFrame) -> SymbolBarFrame:
         """Return a new frame with all configured indicator columns assigned."""
-        result = frame
+        if not self._indicator_ids:
+            return frame
+
+        bars = frame.bars.copy()
+        working = SymbolBarFrame(
+            symbol=frame.symbol,
+            interval_minutes=frame.interval_minutes,
+            bars=bars,
+            daily_bars=frame.daily_bars,
+            history_bars=frame.history_bars,
+        )
+        entries = catalog_entry_by_id()
         for indicator_id in self._indicator_ids:
-            spec = INDICATOR_REGISTRY.spec(indicator_id)
-            result = spec.compute_fn(result)
+            entry = entries[indicator_id]
+            output_col = entry.outputs[0]
+            bars[output_col] = compute_indicator_series(working, entry)
+        result = SymbolBarFrame(
+            symbol=frame.symbol,
+            interval_minutes=frame.interval_minutes,
+            bars=bars,
+            daily_bars=frame.daily_bars,
+            history_bars=frame.history_bars,
+        )
         return normalize_symbol_bar_frame_prices(result)

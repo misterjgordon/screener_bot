@@ -1,13 +1,18 @@
 """Load a symbol universe: cold bars → indicators → conditions → session gates."""
 
+from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import as_completed
+from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Protocol
+from typing import cast
 
 from backtesting.conditions.condition_pipeline import ConditionPipeline
 from backtesting.frames.universe_bar_frames import UniverseBarFrames
 from backtesting.indicators.indicator_pipeline import IndicatorPipeline
+from backtesting.io.cold_bar_source import ColdBarSource
 from backtesting.signals.signal_pipeline import SignalPipeline
 from backtesting.strategy.pipeline_ids import resolve_pipeline_condition_ids
 from backtesting.strategy.pipeline_ids import resolve_pipeline_indicator_ids
@@ -25,9 +30,14 @@ if TYPE_CHECKING:
 class BarSourceProtocol(Protocol):
     """Minimal cold-read interface used by :func:`load_universe_bars`."""
 
-    start: date
-    end: date
-    interval_minutes: int
+    @property
+    def start(self) -> date: ...
+
+    @property
+    def end(self) -> date: ...
+
+    @property
+    def interval_minutes(self) -> int: ...
 
     def load(self, symbol: str) -> 'SymbolBarFrame':
         """Load one symbol's analysis window (and history for indicators)."""
@@ -52,6 +62,194 @@ def _run_pipelines(
     return result
 
 
+@dataclass(frozen=True)
+class _ColdSymbolLoadRequest:
+    """Picklable per-symbol cold load + prep (for process pool workers)."""
+
+    sym: str
+    start: date
+    end: date
+    interval_minutes: int
+    warmup_bars: int
+    indicator_ids: tuple[str, ...]
+    condition_ids: tuple[str, ...]
+    strategy: 'StrategyConfig | None'
+
+
+@dataclass(frozen=True)
+class _SymbolLoadOutcome:
+    """Per-symbol load result merged into :class:`UniverseLoadReport`."""
+
+    sym: str
+    frame: 'SymbolBarFrame | None' = None
+    skipped_no_parquet: bool = False
+    skipped_empty: bool = False
+    skipped_error: bool = False
+    message: str = ''
+
+
+def _load_and_prep_symbol_cold(request: _ColdSymbolLoadRequest) -> _SymbolLoadOutcome:
+    """Worker: ``ColdBarSource.load`` then indicator/condition/signal pipelines."""
+    sym = request.sym
+    et_range = f'{request.start.isoformat()}..{request.end.isoformat()}'
+    source = ColdBarSource(
+        request.start,
+        request.end,
+        interval_minutes=request.interval_minutes,
+        warmup_bars=request.warmup_bars,
+    )
+    try:
+        frame = source.load(sym)
+    except FileNotFoundError:
+        p_parquet = symbol_path(sym, interval_minutes=request.interval_minutes)
+        return _SymbolLoadOutcome(
+            sym=sym,
+            skipped_no_parquet=True,
+            message=f'skip {sym}: cold Parquet not found at {p_parquet}',
+        )
+    except OSError as exc:
+        return _SymbolLoadOutcome(
+            sym=sym,
+            skipped_error=True,
+            message=f'skip {sym}: read failed ({exc})',
+        )
+    except ValueError as exc:
+        return _SymbolLoadOutcome(
+            sym=sym,
+            skipped_error=True,
+            message=f'skip {sym}: invalid bars ({exc})',
+        )
+
+    if frame.bars.empty:
+        return _SymbolLoadOutcome(
+            sym=sym,
+            skipped_empty=True,
+            message=f'skip {sym}: no bars in ET range {et_range}',
+        )
+
+    try:
+        prepped = _run_pipelines(
+            frame,
+            indicator_ids=request.indicator_ids,
+            condition_ids=request.condition_ids,
+            strategy=request.strategy,
+        )
+    except Exception as exc:
+        return _SymbolLoadOutcome(
+            sym=sym,
+            skipped_error=True,
+            message=f'skip {sym}: pipeline failed ({type(exc).__name__}: {exc})',
+        )
+
+    return _SymbolLoadOutcome(
+        sym=sym,
+        frame=prepped,
+        message=f'loaded {sym}: {len(prepped.bars)} analysis bars',
+    )
+
+
+def _load_and_prep_symbol_inprocess(
+    sym: str,
+    source: BarSourceProtocol,
+    *,
+    et_range: str,
+    indicator_ids: tuple[str, ...],
+    condition_ids: tuple[str, ...],
+    strategy: 'StrategyConfig | None',
+) -> _SymbolLoadOutcome:
+    """Load one symbol from an in-process ``BarSourceProtocol`` (tests, stubs)."""
+    try:
+        frame = source.load(sym)
+    except FileNotFoundError:
+        p_parquet = symbol_path(sym, interval_minutes=source.interval_minutes)
+        return _SymbolLoadOutcome(
+            sym=sym,
+            skipped_no_parquet=True,
+            message=f'skip {sym}: cold Parquet not found at {p_parquet}',
+        )
+    except OSError as exc:
+        return _SymbolLoadOutcome(
+            sym=sym,
+            skipped_error=True,
+            message=f'skip {sym}: read failed ({exc})',
+        )
+    except ValueError as exc:
+        return _SymbolLoadOutcome(
+            sym=sym,
+            skipped_error=True,
+            message=f'skip {sym}: invalid bars ({exc})',
+        )
+
+    if frame.bars.empty:
+        return _SymbolLoadOutcome(
+            sym=sym,
+            skipped_empty=True,
+            message=f'skip {sym}: no bars in ET range {et_range}',
+        )
+
+    try:
+        prepped = _run_pipelines(
+            frame,
+            indicator_ids=indicator_ids,
+            condition_ids=condition_ids,
+            strategy=strategy,
+        )
+    except Exception as exc:
+        return _SymbolLoadOutcome(
+            sym=sym,
+            skipped_error=True,
+            message=f'skip {sym}: pipeline failed ({type(exc).__name__}: {exc})',
+        )
+
+    return _SymbolLoadOutcome(
+        sym=sym,
+        frame=prepped,
+        message=f'loaded {sym}: {len(prepped.bars)} analysis bars',
+    )
+
+
+def _merge_symbol_outcome(
+    outcome: _SymbolLoadOutcome,
+    *,
+    loaded: dict[str, 'SymbolBarFrame'],
+    skipped_no_parquet: list[str],
+    skipped_empty: list[str],
+    skipped_errors: list[str],
+    messages: list[str],
+) -> None:
+    messages.append(outcome.message)
+    if outcome.skipped_no_parquet:
+        skipped_no_parquet.append(outcome.sym)
+        return
+    if outcome.skipped_empty:
+        skipped_empty.append(outcome.sym)
+        return
+    if outcome.skipped_error:
+        skipped_errors.append(outcome.sym)
+        return
+    if outcome.frame is not None:
+        loaded[outcome.sym] = outcome.frame
+
+
+def _partition_requested_symbols(
+    requested: tuple[str, ...],
+    *,
+    interval_minutes: int,
+) -> tuple[tuple[str, ...], list[str], list[str]]:
+    """Split symbols into loadable vs missing Parquet (no read)."""
+    to_load: list[str] = []
+    skipped_no_parquet: list[str] = []
+    messages: list[str] = []
+    for sym in requested:
+        p_parquet = symbol_path(sym, interval_minutes=interval_minutes)
+        if not p_parquet.is_file():
+            skipped_no_parquet.append(sym)
+            messages.append(f'skip {sym}: no cold Parquet at {p_parquet}')
+        else:
+            to_load.append(sym)
+    return tuple(to_load), skipped_no_parquet, messages
+
+
 def load_universe_bars(
     symbols: list[str],
     source: BarSourceProtocol,
@@ -59,11 +257,15 @@ def load_universe_bars(
     strategy: 'StrategyConfig | None' = None,
     indicator_ids: tuple[str, ...] | None = None,
     condition_ids: tuple[str, ...] | None = None,
+    jobs: int = 1,
 ) -> tuple[UniverseBarFrames, UniverseLoadReport]:
     """Load each symbol, run prep pipelines, and collect frames that succeeded.
 
     Missing cold Parquet, empty analysis windows, and per-symbol load failures are
     recorded in :class:`UniverseLoadReport` without aborting the full universe pass.
+
+    When ``jobs > 1`` and ``source`` is :class:`~backtesting.io.cold_bar_source.ColdBarSource`,
+    symbols are loaded and prepped in parallel worker processes.
     """
     resolved_indicator_ids = resolve_pipeline_indicator_ids(
         strategy,
@@ -83,47 +285,60 @@ def load_universe_bars(
 
     interval = source.interval_minutes
     et_range = f'{source.start.isoformat()}..{source.end.isoformat()}'
+    symbols_to_load, missing, missing_msgs = _partition_requested_symbols(
+        requested,
+        interval_minutes=interval,
+    )
+    skipped_no_parquet.extend(missing)
+    messages.extend(missing_msgs)
 
-    for sym in requested:
-        p_parquet = symbol_path(sym, interval_minutes=interval)
-        if not p_parquet.is_file():
-            skipped_no_parquet.append(sym)
-            messages.append(f'skip {sym}: no cold Parquet at {p_parquet}')
-            continue
+    worker_count = max(1, jobs)
+    use_process_pool = worker_count > 1 and isinstance(source, ColdBarSource)
 
-        try:
-            frame = source.load(sym)
-        except FileNotFoundError:
-            skipped_no_parquet.append(sym)
-            messages.append(f'skip {sym}: cold Parquet not found at {p_parquet}')
-            continue
-        except OSError as exc:
-            skipped_errors.append(sym)
-            messages.append(f'skip {sym}: read failed ({exc})')
-            continue
-        except ValueError as exc:
-            skipped_errors.append(sym)
-            messages.append(f'skip {sym}: invalid bars ({exc})')
-            continue
-
-        if frame.bars.empty:
-            skipped_empty.append(sym)
-            messages.append(f'skip {sym}: no bars in ET range {et_range}')
-            continue
-
-        try:
-            loaded[sym] = _run_pipelines(
-                frame,
+    if use_process_pool:
+        cold_source = cast('ColdBarSource', source)
+        requests = [
+            _ColdSymbolLoadRequest(
+                sym=sym,
+                start=cold_source.start,
+                end=cold_source.end,
+                interval_minutes=cold_source.interval_minutes,
+                warmup_bars=cold_source.warmup_bar_count,
                 indicator_ids=resolved_indicator_ids,
                 condition_ids=resolved_condition_ids,
                 strategy=strategy,
             )
-        except Exception as exc:
-            skipped_errors.append(sym)
-            messages.append(f'skip {sym}: pipeline failed ({type(exc).__name__}: {exc})')
-            continue
-
-        messages.append(f'loaded {sym}: {len(loaded[sym].bars)} analysis bars')
+            for sym in symbols_to_load
+        ]
+        with ProcessPoolExecutor(max_workers=worker_count) as pool:
+            futures = {pool.submit(_load_and_prep_symbol_cold, req): req.sym for req in requests}
+            for fut in as_completed(futures):
+                _merge_symbol_outcome(
+                    fut.result(),
+                    loaded=loaded,
+                    skipped_no_parquet=skipped_no_parquet,
+                    skipped_empty=skipped_empty,
+                    skipped_errors=skipped_errors,
+                    messages=messages,
+                )
+    else:
+        for sym in symbols_to_load:
+            outcome = _load_and_prep_symbol_inprocess(
+                sym,
+                source,
+                et_range=et_range,
+                indicator_ids=resolved_indicator_ids,
+                condition_ids=resolved_condition_ids,
+                strategy=strategy,
+            )
+            _merge_symbol_outcome(
+                outcome,
+                loaded=loaded,
+                skipped_no_parquet=skipped_no_parquet,
+                skipped_empty=skipped_empty,
+                skipped_errors=skipped_errors,
+                messages=messages,
+            )
 
     report = UniverseLoadReport(
         requested_symbols=requested,
@@ -146,6 +361,7 @@ def load_prepared_universe(
     universe_resolve: UniverseResolveResult | None = None,
     indicator_ids: tuple[str, ...] | None = None,
     condition_ids: tuple[str, ...] | None = None,
+    jobs: int = 1,
 ) -> tuple[UniverseBarFrames, UniverseLoadReport, UniverseResolveResult]:
     """Resolve symbols then load and prep each (skips missing Parquet / empty windows)."""
     if universe_resolve is not None:
@@ -167,6 +383,7 @@ def load_prepared_universe(
         strategy=strategy,
         indicator_ids=indicator_ids,
         condition_ids=condition_ids,
+        jobs=jobs,
     )
     return universe, report, resolved
 

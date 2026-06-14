@@ -88,14 +88,14 @@ def entry_event_series(
     return (entry_signal & ~prior_fired).astype('bool')
 
 
-def apply_entry_columns(
+def entry_column_assign_kw(
     frame: 'SymbolBarFrame',
     strategy: 'StrategyConfig',
     trigger_columns: dict[str, 'pd.Series'],
     *,
     all_filters_ok: 'pd.Series | None' = None,
-) -> 'SymbolBarFrame':
-    """Add ``armed``, ``entry_signal``, ``strategy_fired_today``, and ``entry_event``."""
+) -> dict[str, 'pd.Series']:
+    """Series for ``armed``, ``entry_signal``, ``strategy_fired_today``, and ``entry_event``."""
     if TRADING_DATE_COLUMN not in frame.column_names:
         msg = f'{frame.symbol}: missing {TRADING_DATE_COLUMN!r} for day_boundary'
         raise SignalColumnError(msg)
@@ -128,11 +128,26 @@ def apply_entry_columns(
         entry_rule=strategy.entry_rule,
     )
 
-    return frame.with_columns(
-        **{
-            ARMED_COLUMN: armed,
-            ENTRY_SIGNAL_COLUMN: entry_signal,
-            STRATEGY_FIRED_TODAY_COLUMN: fired_today,
-            ENTRY_EVENT_COLUMN: entry_event,
-        },
+    return {
+        ARMED_COLUMN: armed,
+        ENTRY_SIGNAL_COLUMN: entry_signal,
+        STRATEGY_FIRED_TODAY_COLUMN: fired_today,
+        ENTRY_EVENT_COLUMN: entry_event,
+    }
+
+
+def apply_entry_columns(
+    frame: 'SymbolBarFrame',
+    strategy: 'StrategyConfig',
+    trigger_columns: dict[str, 'pd.Series'],
+    *,
+    all_filters_ok: 'pd.Series | None' = None,
+) -> 'SymbolBarFrame':
+    """Add ``armed``, ``entry_signal``, ``strategy_fired_today``, and ``entry_event``."""
+    assign_kw = entry_column_assign_kw(
+        frame,
+        strategy,
+        trigger_columns,
+        all_filters_ok=all_filters_ok,
     )
+    return frame.with_columns(**assign_kw)

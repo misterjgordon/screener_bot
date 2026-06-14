@@ -59,6 +59,7 @@ def run_backtest(
     warmup_bars: int,
     indicator_ids: tuple[str, ...] | None = None,
     condition_ids: tuple[str, ...] | None = None,
+    jobs: int = 1,
 ) -> BacktestRunResult:
     """Load universe from cold Parquet, prep bars, and simulate trades.
 
@@ -85,6 +86,7 @@ def run_backtest(
         universe_resolve=universe_resolve,
         indicator_ids=resolved_indicator_ids,
         condition_ids=condition_ids,
+        jobs=jobs,
     )
     load_seconds = time.perf_counter() - load_started
     sim_started = time.perf_counter()

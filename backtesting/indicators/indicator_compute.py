@@ -3,6 +3,8 @@
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
+import pandas as pd
+
 from backtesting.indicators.indicator_catalog_load import IndicatorCatalogEntry
 from backtesting.indicators.indicator_catalog_load import IndicatorCatalogError
 from backtesting.indicators.indicator_catalog_load import resolve_series_callable
@@ -10,6 +12,8 @@ from backtesting.indicators.indicator_spec import IndicatorKind
 from backtesting.indicators.indicator_spec import IndicatorSpec
 
 if TYPE_CHECKING:
+    import pandas as pd
+
     from backtesting.frames.symbol_bar_frame import SymbolBarFrame
     from backtesting.indicators.indicator_catalog_models import IndicatorSeriesKwarg
 
@@ -52,23 +56,30 @@ def _series_kwargs(
     return kw
 
 
-def make_indicator_compute_fn(entry: IndicatorCatalogEntry) -> Callable[['SymbolBarFrame'], 'SymbolBarFrame']:
-    """Return a picklable compute function for one catalog entry."""
-    series_fn = resolve_series_callable(entry.series_fn)
-    output_col = entry.outputs[0]
+def compute_indicator_series(
+    frame: 'SymbolBarFrame',
+    entry: IndicatorCatalogEntry,
+) -> 'pd.Series':
+    """Evaluate one catalog indicator; returns the output column series."""
+    if entry.bar_interval_minutes != frame.interval_minutes:
+        msg = (
+            f'Indicator {entry.id!r} expects bar_interval_minutes={entry.bar_interval_minutes}, '
+            f'frame has {frame.interval_minutes}'
+        )
+        raise IndicatorCatalogError(msg)
     if len(entry.outputs) != 1:
         msg = f'Indicator {entry.id!r} must have exactly one output column for generic adapter'
         raise IndicatorCatalogError(msg)
+    series_fn = resolve_series_callable(entry.series_fn)
+    return series_fn(**_series_kwargs(frame, entry))
+
+
+def make_indicator_compute_fn(entry: IndicatorCatalogEntry) -> Callable[['SymbolBarFrame'], 'SymbolBarFrame']:
+    """Return a picklable compute function for one catalog entry."""
+    output_col = entry.outputs[0]
 
     def compute(frame: 'SymbolBarFrame') -> 'SymbolBarFrame':
-        if entry.bar_interval_minutes != frame.interval_minutes:
-            msg = (
-                f'Indicator {entry.id!r} expects bar_interval_minutes={entry.bar_interval_minutes}, '
-                f'frame has {frame.interval_minutes}'
-            )
-            raise IndicatorCatalogError(msg)
-        kw = _series_kwargs(frame, entry)
-        series = series_fn(**kw)
+        series = compute_indicator_series(frame, entry)
         return frame.with_columns(**{output_col: series})
 
     compute.__name__ = f'_compute_{entry.id}'

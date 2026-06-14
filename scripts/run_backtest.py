@@ -13,7 +13,7 @@ Example::
     uv run --frozen python scripts/run_backtest.py --strategy ema_cross --symbol AAPL \\
         --start 2026-05-15 --end 2026-05-15
     uv run --frozen python scripts/run_backtest.py --strategy ema_cross --start 2023-05-15 \\
-        --end 2026-05-15 --summary-only
+        --end 2026-05-15 --jobs 8
     uv run --frozen python scripts/run_backtest.py --strategy ema_cross --symbol AAPL \\
         --start 2026-05-15 --end 2026-05-15
 """
@@ -99,9 +99,9 @@ def _parse_args() -> argparse.Namespace:
         help='CSV symbol list instead of default (all 1m/*.parquet stems)',
     )
     parser.add_argument(
-        '--summary-only',
+        '--trades-detail',
         action='store_true',
-        help='Print aggregate stats only (skip per-trade trades_detail lines)',
+        help='Print each trade under trades_detail (default: totals and pnl_by_symbol only)',
     )
     parser.add_argument(
         '--warmup-bars',
@@ -120,6 +120,17 @@ def _parse_args() -> argparse.Namespace:
         nargs='+',
         metavar='CONDITION_ID',
         help='Optional condition registry ids (default: strategy conditions: list)',
+    )
+    default_jobs = max(1, os.cpu_count() or 1)
+    parser.add_argument(
+        '--jobs',
+        type=int,
+        default=default_jobs,
+        metavar='N',
+        help=(
+            f'Parallel symbol load/prep workers (default: {default_jobs}, CPU count). '
+            'Use 1 for single-process (tests, debugging).'
+        ),
     )
     return parser.parse_args()
 
@@ -164,6 +175,7 @@ def main() -> None:
             warmup_bars=args.warmup_bars,
             indicator_ids=indicator_ids,
             condition_ids=condition_ids,
+            jobs=max(1, args.jobs),
         )
     except ValueError as exc:
         raise SystemExit(str(exc)) from exc
@@ -175,7 +187,7 @@ def main() -> None:
             et_start=args.start,
             et_end=args.end,
             p_strategy_config=p_strategy,
-            summary_only=args.summary_only,
+            summary_only=not args.trades_detail,
         ))
         raise SystemExit('No symbols loaded; cannot simulate')
 
@@ -185,7 +197,7 @@ def main() -> None:
         et_start=args.start,
         et_end=args.end,
         p_strategy_config=p_strategy,
-        summary_only=args.summary_only,
+        summary_only=not args.trades_detail,
     ))
 
 

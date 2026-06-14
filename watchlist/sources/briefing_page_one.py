@@ -43,6 +43,17 @@ def _snapshot_filename(trade_date: date, *, fetched_at_utc: datetime) -> str:
     return f'briefing_page_one_{trade_date.isoformat()}_{stamp}.txt'
 
 
+def _existing_snapshot(trade_date: date, repository_dir: Path | None) -> Path | None:
+    """Return newest on-disk briefing_page_one snapshot for ``trade_date``, if any."""
+    out_dir = repository_dir if repository_dir is not None else repository_day_dir(trade_date)
+    if not out_dir.is_dir():
+        return None
+    matches = list(out_dir.glob(f'briefing_page_one_{trade_date.isoformat()}_*.txt'))
+    if not matches:
+        return None
+    return max(matches, key=lambda p: p.stat().st_mtime)
+
+
 def extract_briefing_page_one_plain_text(html: str) -> str:
     """Parse Page One HTML and return a readable plain-text body.
 
@@ -83,7 +94,14 @@ def save_briefing_page_one_text(
     fetched_at_utc: datetime | None = None,
     repository_dir: Path | None = None,
 ) -> Path:
-    """Write plain text under ``watchlist/repository/YYYY/MM/DD``."""
+    """Write plain text under ``watchlist/repository/YYYY/MM/DD``.
+
+    If a snapshot for ``trade_date`` already exists, returns that path without writing.
+    """
+    existing = _existing_snapshot(trade_date, repository_dir)
+    if existing is not None:
+        return existing
+
     fetched_at = fetched_at_utc or datetime.now(UTC)
     out_dir = repository_dir if repository_dir is not None else repository_day_dir(trade_date)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -106,7 +124,21 @@ def fetch_briefing_page_one(
     html_url: str = BRIEFING_PAGE_ONE_HTML_URL,
     repository_dir: Path | None = None,
 ) -> BriefingPageOneOutcome:
-    """GET Page One HTML, extract plain text, and optionally save."""
+    """GET Page One HTML, extract plain text, and optionally save.
+
+    If a snapshot for ``trade_date`` already exists on disk, returns the cached
+    text without making an HTTP request.
+    """
+    if save_text:
+        existing = _existing_snapshot(trade_date, repository_dir)
+        if existing is not None:
+            return BriefingPageOneOutcome(
+                existing.read_text(encoding='utf-8'),
+                existing,
+                trade_date,
+                html_url,
+            )
+
     resp = session.get(html_url, headers=_BROWSER_HEADERS, timeout=timeout_sec)
     resp.raise_for_status()
     text = extract_briefing_page_one_plain_text(resp.text)
