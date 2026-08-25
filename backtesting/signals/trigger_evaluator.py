@@ -8,8 +8,6 @@ from backtesting.signals.signal_columns import SignalColumnError
 from backtesting.signals.signal_columns import trigger_column_name
 
 if TYPE_CHECKING:
-    import pandas as pd
-
     from backtesting.frames.symbol_bar_frame import SymbolBarFrame
     from backtesting.strategy.strategy_config import TriggerOp
     from backtesting.strategy.strategy_config import TriggerRule
@@ -42,13 +40,18 @@ def trigger_edge_series(
     rule: 'TriggerRule',
 ) -> 'pd.Series':
     """Evaluate one trigger rule as a boolean series aligned to ``frame.bars``."""
-    ref_name = rule.ref_column
-    if ref_name is None:
-        msg = f'Trigger {rule.id!r} op={rule.op!r} requires ref_column'
-        raise SignalColumnError(msg)
-    _require_bar_columns(frame, (rule.column, ref_name))
+    _require_bar_columns(frame, (rule.column,))
     left = frame.bars[rule.column]
-    right = frame.bars[ref_name]
+
+    if rule.ref_column is not None:
+        _require_bar_columns(frame, (rule.ref_column,))
+        right = frame.bars[rule.ref_column]
+    elif rule.ref_value is not None:
+        right = pd.Series(rule.ref_value, index=left.index)
+    else:
+        msg = f'Trigger {rule.id!r} op={rule.op!r} requires ref_column or ref_value'
+        raise SignalColumnError(msg)
+
     return _cross_edge_series(left, right, rule.op)
 
 

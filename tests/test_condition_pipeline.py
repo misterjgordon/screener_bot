@@ -17,6 +17,7 @@ SESSION_CFG = SessionConfig(
 
 
 def _one_bar_frame() -> SymbolBarFrame:
+    # 14:30 UTC = 09:30 ET — RTH bar. session column pre-populated as indicator pipeline would.
     ts = pd.Timestamp('2026-05-15 14:30:00', tz='UTC')
     return SymbolBarFrame(
         symbol='TEST',
@@ -31,6 +32,7 @@ def _one_bar_frame() -> SymbolBarFrame:
                 'volume': [1000.0],
                 'vwap': [100.25],
                 'symbol': ['TEST'],
+                SESSION_COLUMN: ['RTH'],
             },
         ),
     )

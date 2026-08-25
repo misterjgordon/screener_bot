@@ -9,6 +9,7 @@
 
 default_pipeline_ids:
   - trading_date
+  - session
   - ema9
   - ema21
   - ema50
@@ -29,6 +30,20 @@ indicators:
     params: {}
     outputs:
       - trading_date
+    requires: []
+    bar_interval_minutes: 1
+
+  - id: session
+    kind: session_column
+    description: Exchange session label (PM/RTH/AH) from UTC timestamp
+    version: '1'
+    series_fn: strategies.indicators.session:session_series
+    inputs:
+      timestamp_utc: timestamp
+    params:
+      timezone: 'America/New_York'
+    outputs:
+      - session
     requires: []
     bar_interval_minutes: 1
 
@@ -185,3 +200,126 @@ indicators:
       - trading_date
     requires_daily_bars: true
     bar_interval_minutes: 1
+
+  - id: bar_range
+    kind: indicator
+    description: Bar range (high - low) for each bar
+    version: '1'
+    series_fn: strategies.indicators.bar_range:bar_range_series
+    inputs:
+      high: high
+      low: low
+    params: {}
+    outputs:
+      - bar_range
+    requires: []
+    bar_interval_minutes: 1
+
+  - id: lod
+    kind: indicator
+    description: Cumulative RTH low of day through each bar. NaN on PM and AH bars.
+    version: '1'
+    series_fn: strategies.indicators.lod:lod_series
+    inputs:
+      low: low
+      session: session
+      trading_date: trading_date
+    params: {}
+    outputs:
+      - lod
+    requires:
+      - trading_date
+      - session
+    bar_interval_minutes: 1
+
+  - id: hod
+    kind: indicator
+    description: Cumulative RTH high of day through each bar. NaN on PM and AH bars.
+    version: '1'
+    series_fn: strategies.indicators.hod:hod_series
+    inputs:
+      high: high
+      session: session
+      trading_date: trading_date
+    params: {}
+    outputs:
+      - hod
+    requires:
+      - trading_date
+      - session
+    bar_interval_minutes: 1
+
+  - id: extension_long
+    kind: indicator
+    description: Session down-from-open in ATR units. (rth_open - lod) / atr. NaN on PM and AH.
+    version: '1'
+    series_fn: strategies.indicators.extension:extension_long_series
+    inputs:
+      open: open
+      session: session
+      trading_date: trading_date
+      lod: lod
+      atr: atr
+    params: {}
+    outputs:
+      - extension_long
+    requires:
+      - trading_date
+      - session
+      - lod
+      - atr
+    bar_interval_minutes: 1
+
+  - id: extension_short
+    kind: indicator
+    description: Session up-from-open in ATR units. (hod - rth_open) / atr. NaN on PM and AH.
+    version: '1'
+    series_fn: strategies.indicators.extension:extension_short_series
+    inputs:
+      open: open
+      session: session
+      trading_date: trading_date
+      hod: hod
+      atr: atr
+    params: {}
+    outputs:
+      - extension_short
+    requires:
+      - trading_date
+      - session
+      - hod
+      - atr
+    bar_interval_minutes: 1
+
+  - id: rb_reversal_bar
+    kind: indicator
+    description: >
+      True for the 2-min snap bar that qualifies as a rubberband reversal: top-N range in
+      inner RTH window, session extension >= atr_extension_min ATR in bar-color direction,
+      prior bar break, RVOL >= rvol_min, range > prior bar. At most one bar per session.
+    version: '1'
+    series_fn: strategies.indicators.rb_reversal_bar:rb_reversal_bar_series
+    inputs:
+      open: open
+      high: high
+      low: low
+      close: close
+      session: session
+      trading_date: trading_date
+      extension_long: extension_long
+      extension_short: extension_short
+      rvol: rvol
+    params:
+      atr_extension_min: 2.0
+      rvol_min: 2.0
+      top_sized_bar_count: 5
+      exclude_edge_bars: 2
+    outputs:
+      - rb_reversal_bar
+    requires:
+      - trading_date
+      - session
+      - extension_long
+      - extension_short
+      - rvol
+    bar_interval_minutes: 2

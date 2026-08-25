@@ -11,9 +11,31 @@ from watchlist.tickers_on_watchlist import tickers_on_watchlist
 
 watchlist_date = date(2026, 3, 26)
 
+_NEW_FORMAT_TRADERTV_SNIPPET = """
+Premarket Trading
+TRADING HIGHER:
+ANET +12% - AI-networking beat; BKNG +6.6% - travel demand; NVDA +1.9% - chip share
+TRADING LOWER:
+AMD -8.6% - SpaceX chip-share loss; INTC -1.4% - Nvidia preference
+Stocks in Focus
+SpaceX - SPCX
+SPCX, TSLA, NVDA
+Sandisk (SNDK):
+Sandisk reports after the close.
+Western Digital (WDC):
+Western Digital reports fiscal Q4 after the close.
+"""
+
 
 class TestTickersOnWatchlist(unittest.TestCase):
     """Only the desk date is fixed: gameplan/rundown content comes from ``watchlist/repository``."""
+
+    def test_symbols_from_new_html_derived_tradertv_format(self) -> None:
+        symbols = _symbols_from_tradertv_text(_NEW_FORMAT_TRADERTV_SNIPPET)
+        self.assertEqual(
+            symbols,
+            ['ANET', 'BKNG', 'NVDA', 'AMD', 'INTC', 'SPCX', 'TSLA', 'SNDK', 'WDC'],
+        )
 
     def _p_repository_day(self, desk: date) -> Path:
         return (

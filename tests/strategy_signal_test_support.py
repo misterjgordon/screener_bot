@@ -65,6 +65,7 @@ def frame_with_session(
         'vwap': pd.Series([100.0] * n),
         'symbol': pd.Series([TEST_SYMBOL] * n),
         'trading_date': pd.Series([TRADING_DATE] * n),
+        'session': pd.Series(['RTH'] * n, dtype='string'),
     }
     for col in strategy.referenced_bar_columns():
         if col not in base and col not in series_kw:

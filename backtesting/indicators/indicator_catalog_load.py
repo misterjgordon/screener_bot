@@ -70,6 +70,25 @@ def history_bar_lookback_calendar_days() -> int:
     return session_need + 8
 
 
+def warmup_bars_for_indicators(indicator_ids: tuple[str, ...]) -> int:
+    """Minimum 1m warmup bars so intraday indicators are non-NaN at analysis window start.
+
+    Uses 3x the longest period for EMA-style indicators.
+    History-based (RVOL) and daily-based (ADR/ATR) indicators are covered separately
+    by ``history_bar_lookback_calendar_days`` and ``daily_bar_lookback_calendar_days``.
+    """
+    by_id = catalog_entry_by_id()
+    max_warmup = 0
+    for iid in indicator_ids:
+        entry = by_id.get(iid)
+        if entry is None or entry.requires_history_bars or entry.requires_daily_bars:
+            continue
+        period = entry.params.get('period')
+        if period is not None:
+            max_warmup = max(max_warmup, int(period) * 3)
+    return max_warmup
+
+
 def daily_bar_lookback_calendar_days() -> int:
     """Calendar days of daily (or 1m→daily) history for ``requires_daily_bars`` indicators."""
     need = min_daily_sessions_for_indicators()

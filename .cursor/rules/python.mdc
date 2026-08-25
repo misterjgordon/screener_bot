@@ -67,6 +67,7 @@ scripts/format_python_code.sh --strict <file_paths>  # also fail on warnings
 
 ## General
 - NEVER create markdown summaries unless explicitly requested
+- NEVER use emojis in code, print statements, log messages, comments, or any output
 
 ## External Services (IB, APIs, etc.)
 - Minimize calls to outside sources (e.g. IB, market data APIs). Prefer batching, caching, or fetching once and passing data through rather than repeated round-trips.

@@ -105,7 +105,7 @@ def test_run_backtest_simulates_loaded_universe(monkeypatch: 'pytest.MonkeyPatch
         start=SESSION_DATE,
         end=SESSION_DATE,
         explicit_symbols=(SYMBOL,),
-        warmup_bars=0,
+        initial_capital=10_000.0,
     )
 
     trade_count = result.sim_result.trade_count

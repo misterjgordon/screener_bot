@@ -1653,7 +1653,7 @@ wheels = [
 [[package]]
 name = "trading"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "alpaca-py" },
     { name = "anthropic" },

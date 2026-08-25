@@ -164,12 +164,13 @@ def massive_minute_aggs_first_page_url(
         end: datetime,
         *,
         interval_minutes: int = 1,
+        adjusted: bool = True,
         base_url: str | None = None,
 ) -> str:
     """Build the first-page Massive aggregates GET URL (``apiKey`` added at request time).
 
-    Path shape: ``/v2/aggs/ticker/{SYM}/range/1/minute/{from_ms}/{to_ms}`` with
-    ``limit=50000&sort=asc`` query (before ``apiKey``).
+    Massive defaults to adjusted=true server-side; we pass it explicitly so the
+    intent is auditable in logs and tests.
     """
     if interval_minutes != 1:
         msg = 'massive_minute_aggs_first_page_url only supports interval_minutes=1'
@@ -181,7 +182,8 @@ def massive_minute_aggs_first_page_url(
     from_ms = int(start_utc.timestamp() * 1000)
     to_ms = int(end_utc.timestamp() * 1000)
     path = f'/v2/aggs/ticker/{sym}/range/1/minute/{from_ms}/{to_ms}'
-    return f'{base}{path}?limit=50000&sort=asc'
+    adj_str = 'true' if adjusted else 'false'
+    return f'{base}{path}?adjusted={adj_str}&limit=50000&sort=asc'
 
 
 def fetch_stock_minute_bars_dataframe(
@@ -190,6 +192,7 @@ def fetch_stock_minute_bars_dataframe(
         end: datetime,
         *,
         interval_minutes: int = 1,
+        adjusted: bool = True,
         session: requests.Session | None = None,
         timeout_s: float = 60.0,
 ) -> pd.DataFrame:
@@ -213,6 +216,8 @@ def fetch_stock_minute_bars_dataframe(
         Inclusive-ish window; both should be timezone-aware for correct UTC instants.
     interval_minutes
         Must be ``1`` for this helper (path uses ``minute`` timespan).
+    adjusted
+        Pass ``False`` only when you explicitly need raw unadjusted prices.
     session
         Optional shared ``requests.Session`` for connection reuse.
     """
@@ -222,7 +227,7 @@ def fetch_stock_minute_bars_dataframe(
 
     api_key = _require_massive_api_key()
     sym = symbol.strip().upper()
-    url = massive_minute_aggs_first_page_url(sym, start, end, interval_minutes=1)
+    url = massive_minute_aggs_first_page_url(sym, start, end, interval_minutes=1, adjusted=adjusted)
 
     own_session = session is None
     sess = session or requests.Session()

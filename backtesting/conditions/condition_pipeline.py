@@ -1,14 +1,12 @@
-"""Regime columns on ``SymbolBarFrame``: session gates + optional registry conditions."""
+"""Condition columns on ``SymbolBarFrame``: signal_eligible gate + optional registry conditions."""
 
 from typing import TYPE_CHECKING
-
 
 from backtesting.conditions.condition_registry import CONDITION_REGISTRY
 from backtesting.conditions.condition_registry import _compute_vwap_conditions
 from backtesting.conditions.condition_registry import vwap_condition_column_series
 from backtesting.conditions.session_regime import SESSION_COLUMN
 from backtesting.conditions.session_regime import SIGNAL_ELIGIBLE_COLUMN
-from backtesting.conditions.session_regime import session_label_series
 from backtesting.conditions.session_regime import signal_eligible_series
 
 if TYPE_CHECKING:
@@ -64,12 +62,24 @@ class ConditionPipeline:
         return self._session_config
 
     def run(self, frame: 'SymbolBarFrame') -> 'SymbolBarFrame':
-        """Return a new frame with session and/or registry condition columns."""
+        """Return a new frame with signal_eligible and/or registry condition columns.
+
+        ``session`` is expected to already be present from the indicator pipeline.
+        """
         assign_kw: dict[str, pd.Series] = {}
         if self._session_config is not None:
             ts = frame.bars.timestamp
-            assign_kw[SESSION_COLUMN] = session_label_series(ts, self._session_config.timezone)
-            assign_kw[SIGNAL_ELIGIBLE_COLUMN] = signal_eligible_series(ts, self._session_config)
+            if SESSION_COLUMN not in frame.bars.columns:
+                msg = (
+                    f'bars missing {SESSION_COLUMN!r}; ensure session is in the indicator pipeline '
+                    f'(default_pipeline_ids includes it)'
+                )
+                raise ValueError(msg)
+            assign_kw[SIGNAL_ELIGIBLE_COLUMN] = signal_eligible_series(
+                frame.bars[SESSION_COLUMN],
+                ts,
+                self._session_config,
+            )
 
         seen_compute: set[int] = set()
         for condition_id in self._condition_ids:

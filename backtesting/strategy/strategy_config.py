@@ -39,17 +39,22 @@ class SessionConfig(BaseModel):
 
 
 class TriggerRule(BaseModel):
-    """Edge trigger evaluated on consecutive bars (arms entry setup)."""
+    """Edge trigger evaluated on consecutive bars (arms entry setup).
+
+    One of ``ref_column`` (another bar column) or ``ref_value`` (constant) must be set
+    for ``cross_above``/``cross_below`` ops.
+    """
 
     id: str
     column: str
     op: TriggerOp
     ref_column: str | None = None
+    ref_value: float | None = None
 
     @model_validator(mode='after')
-    def _cross_requires_ref_column(self) -> 'TriggerRule':
-        if self.op in ('cross_above', 'cross_below') and not self.ref_column:
-            msg = f'Trigger {self.id!r} with op={self.op!r} requires ref_column'
+    def _cross_requires_ref(self) -> 'TriggerRule':
+        if self.op in ('cross_above', 'cross_below') and self.ref_column is None and self.ref_value is None:
+            msg = f'Trigger {self.id!r} with op={self.op!r} requires ref_column or ref_value'
             raise ValueError(msg)
         return self
 

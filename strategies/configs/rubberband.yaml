@@ -1,0 +1,52 @@
+# Rubber band scalp — break of the prior 2-min bar after an extended leg (long and short).
+#
+# Signal: rb_reversal_bar (2-min indicator, broadcast to 1-min):
+#   - Top-N bars by range in inner RTH window (excludes first/last 2 bars)
+#   - Session extension >= 2 ATR in bar-color direction
+#   - Prior bar break (green: high > prior high; red: low < prior low)
+#   - RVOL >= 2.0, bar range > prior bar range
+#
+# Entry: at the bar following the snap bar trigger. Stop below LOD (long) or above HOD (short).
+# The stop/target below use percentage approximations; the original algo sizes from LOD/HOD.
+id: rubberband
+version: "1.0"
+signal_timeframe_minutes: 1
+
+session_config:
+  allowed_sessions:
+    - RTH
+  intraday_start: "09:30"
+  intraday_end: "15:58"
+  timezone: "America/New_York"
+
+# Trigger: rb_reversal_bar transitions from False (0) to True (1) on the snap bar.
+triggers:
+  - id: rb_snap
+    column: rb_reversal_bar
+    op: cross_above
+    ref_value: 0
+
+filters: []
+
+# Allow entry within 4 1-min bars of the trigger (covers the 2-min snap bar window).
+arming_window: 4
+
+day_boundary: session
+entry_rule: first
+
+# Approximate stop/target — the live algo uses LOD/HOD; pct gives ~1-1.5× ATR stop on a $15 stock.
+stop_loss:
+  type: pct_from_entry
+  pct: 0.015
+
+take_profit:
+  type: pct_from_entry
+  pct: 0.03
+
+other_exits:
+  - id: end_of_session
+    type: end_of_session
+
+sizing:
+  method: fixed_dollars
+  amount: 5000

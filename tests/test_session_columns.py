@@ -54,7 +54,8 @@ def test_signal_eligible_rth_opening_range() -> None:
             _ts_et('2026-05-15', 12, 0),
         ],
     )
-    eligible = signal_eligible_series(ts, cfg)
+    session = session_label_series(ts, exchange_timezone_name())
+    eligible = signal_eligible_series(session, ts, cfg)
     assert not eligible.iloc[0]
     assert eligible.iloc[1]
     assert eligible.iloc[2]
@@ -69,11 +70,13 @@ def test_signal_eligible_requires_allowed_session() -> None:
         timezone=exchange_timezone_name(),
     )
     ts = pd.Series([_ts_et('2026-05-15', 8, 0)])
-    assert not signal_eligible_series(ts, cfg).iloc[0]
+    session = session_label_series(ts, exchange_timezone_name())
+    assert not signal_eligible_series(session, ts, cfg).iloc[0]
 
 
 def test_session_pipeline_adds_columns() -> None:
     ts = pd.Series([_ts_et('2026-05-15', 10, 0)])
+    # session is pre-populated as the indicator pipeline would produce it.
     frame = SymbolBarFrame(
         symbol='TEST',
         interval_minutes=1,
@@ -87,6 +90,7 @@ def test_session_pipeline_adds_columns() -> None:
                 'volume': [1000],
                 'vwap': [100.0],
                 'symbol': ['TEST'],
+                'session': ['RTH'],
             },
         ),
     )

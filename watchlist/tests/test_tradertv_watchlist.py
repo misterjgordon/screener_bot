@@ -8,6 +8,8 @@ from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock
 
 from watchlist.sources.tradertv import _gmail_query_for_trade_date
+from watchlist.sources.tradertv import _html_to_plain_text
+from watchlist.sources.tradertv import _is_plain_text_stub
 from watchlist.sources.tradertv import _strip_image_lines
 from watchlist.sources.tradertv import fetch_tradertv_watchlist_email_or_none
 from watchlist.sources.tradertv import save_tradertv_watchlist_text
@@ -23,7 +25,31 @@ class TestTraderTvWatchlist(unittest.TestCase):
     def test_query_contains_sender_and_subject(self) -> None:
         query = _gmail_query_for_trade_date(FIXTURE_DESK_DAY)
         self.assertIn('from:(tradertv-live@mail.beehiiv.com)', query)
+        self.assertIn('subject:("TraderTV Watchlist - March 30, 2026")', query)
         self.assertIn('subject:("Trader TV Watchlist - March 30, 2026")', query)
+        self.assertIn(' OR ', query)
+
+    def test_plain_text_stub_detection(self) -> None:
+        stub = (
+            '———\n\nYou are reading a plain text version of this post. '
+            'For the best experience, copy and paste this link in your browser '
+            'to view the post online:\n'
+            'https://tradertv-live.beehiiv.com/p/tradertv-watchlist-august-5-2026'
+        )
+        self.assertTrue(_is_plain_text_stub(stub))
+        self.assertFalse(_is_plain_text_stub('# **Premarket Trading:**\nAAPL: TSLA'))
+        self.assertFalse(_is_plain_text_stub('AAPL'))
+
+    def test_html_to_plain_text_keeps_premarket(self) -> None:
+        html = (
+            '<html><body><h1>Premarket Trading</h1>'
+            '<p>TRADING HIGHER: ANET +12% - beat; NVDA +1.9% - chips</p>'
+            '<p>Sandisk (SNDK): reports after close</p></body></html>'
+        )
+        text = _html_to_plain_text(html)
+        self.assertIn('Premarket Trading', text)
+        self.assertIn('ANET', text)
+        self.assertIn('SNDK', text)
 
     def test_fetch_returns_none_when_no_messages(self) -> None:
         gmail_api = MagicMock()

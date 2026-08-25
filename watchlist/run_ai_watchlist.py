@@ -34,7 +34,7 @@ from watchlist.sources.smb_gameplan import repository_day_dir
 
 _WATCHLIST_PKG = Path(__file__).resolve().parent
 _GUIDE_PATH = _WATCHLIST_PKG / 'prompts' / 'watchlist_report_guide.md'
-_DEFAULT_MODEL = 'claude-sonnet-4-20250514'
+_DEFAULT_MODEL = 'claude-sonnet-4-6'
 _JSON_START_MARKER = 'WATCHLIST_JSON_V1'
 _JSON_END_MARKER = 'END_WATCHLIST_JSON'
 _SCHEMA_VERSION = 1
@@ -514,20 +514,22 @@ def main() -> None:
     )
 
     client = Anthropic(api_key=api_key)
-    response = client.messages.create(
-        model=model,
-        max_tokens=16384,
-        system=(
-            'You are an assistant for a US day trader. Follow the guide document in the user '
-            'message exactly for structure, headings, and rules. Do not invent tickers or '
-            'catalysts; use only the supplied sources. Output exactly two sections in one response: '
-            f'line 1 is `{_JSON_START_MARKER}`, then valid JSON only, then a line with '
-            f'`{_JSON_END_MARKER}`, then the full markdown report. Do not use markdown fences.'
-        ),
-        messages=[{'role': 'user', 'content': user_prompt}],
+    system_prompt = (
+        'You are an assistant for a US day trader. Follow the guide document in the user '
+        'message exactly for structure, headings, and rules. Do not invent tickers or '
+        'catalysts; use only the supplied sources. Output exactly two sections in one response: '
+        f'line 1 is `{_JSON_START_MARKER}`, then valid JSON only, then a line with '
+        f'`{_JSON_END_MARKER}`, then the full markdown report. Do not use markdown fences.'
     )
+    with client.messages.stream(
+        model=model,
+        max_tokens=32768,
+        system=system_prompt,
+        messages=[{'role': 'user', 'content': user_prompt}],
+    ) as stream:
+        response = stream.get_final_message()
     if not isinstance(response, Message):
-        raise SystemExit('expected non-streaming Message from Anthropic')
+        raise SystemExit('expected Message from Anthropic stream')
     report_payload = _extract_report_text(response)
     if not report_payload:
         raise SystemExit('empty response from Anthropic')

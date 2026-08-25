@@ -9,36 +9,38 @@ Each symbol is one **wide table**: `SymbolBarFrame.bars` — one row per minute,
 | Layer | Package | Column type | Time shape | Role on the table |
 |-------|---------|-------------|------------|-------------------|
 | **Indicators** | `backtesting/indicators/` | Numeric (`ema9`, `rvol`, `vwap`, …) | Every bar | Facts — inputs to conditions and signals |
-| **Conditions** | `backtesting/conditions/` | Boolean + `session` label (`signal_eligible`, `close_above_vwap`, …) | **Many bars** — sustained state / regime | “Is this regime true **right now**?” |
+| **Conditions** | `backtesting/conditions/` | Boolean + `session` label (`signal_eligible`, `close_above_vwap`, …) | **Many bars** — sustained state | “Is this condition true **right now**?” |
 | **Signals** | `backtesting/signals/` | Boolean (`trigger_*`, `filter_*`, …) | **Point in time** for triggers; filters sampled at decision bar | Strategy YAML rules on existing columns |
 | **Entry logic** (step 8) | `backtesting/signals/` (arming) | Boolean (`armed`, `entry_event`, …) | Combines layers | When a row becomes a portfolio event |
 | **Simulation** (step 9) | `backtesting/portfolio/` | Trades / equity (not on bar table) | Event stream | Capital, fills, exits |
 
 **Conditions vs signals (intentional separation)**
 
-- **Conditions** — **state over time** (one pipeline: `ConditionPipeline`):
-  - **Structural session regime** (always when a strategy runs): `session` (PM/RTH/AH), `signal_eligible` (strategy clock + allowed sessions from `SessionConfig`). Multi-bar — e.g. `signal_eligible` is `True` from 09:30–11:30 ET for `ema_cross`.
-  - **Optional pattern regime** from `CONDITION_REGISTRY` (VWAP, etc.): strategies opt in via `conditions:` in YAML.
-  - Math for session regime lives in `backtesting/conditions/session_regime.py`; orchestration is the first step inside `ConditionPipeline` when `session_config` is set.
-- **Signals** — **separate on purpose**: not “another condition,” but the **strategy rule engine** for YAML `triggers:` (edges / point-in-time) and `filters:` (level checks at the action bar). `SignalPipeline` reads columns already on the table (indicators or conditions); it does not register reusable regime packs. **Why not fold signals into conditions?** Every strategy would need registry entries for `ema9 cross_above ema21`; YAML + generic evaluators avoid that. **Filters** in the signals layer can gate on condition columns (`close_above_vwap == true`) or indicators (`rvol >= 1.5`).
+- **Conditions** — **sustained state over many bars** (one pipeline: `ConditionPipeline`):
+  - **Session conditions** (always present): `session` (PM/RTH/AH) and `signal_eligible` (are we inside the allowed trading window right now). A boolean `True` across a span of bars — e.g. `signal_eligible` is `True` from 09:30–11:30 ET for `ema_cross`. Computed first inside `ConditionPipeline` when a `SessionConfig` is attached. Math lives in `backtesting/conditions/session_regime.py`.
+  - **Optional pattern conditions** from `CONDITION_REGISTRY` (e.g. `close_above_vwap`): a boolean `True` across a run of bars while price stays above VWAP. Strategies opt in via `conditions:` in YAML.
+- **Signals** — **the strategy's rule engine** for YAML `triggers:` and `filters:`. `SignalPipeline` reads columns already on the table (indicators or conditions); it does not register reusable condition packs. Two sub-types:
+  - *Triggers* (`trigger_*`): point-in-time edges — `True` on exactly one bar (e.g. EMA9 crossing above EMA21). Produced from YAML `triggers:`.
+  - *Filters* (`filter_*`): level checks sampled at the action bar — `rvol >= 1.5`, or `close_above_vwap == true` (reading a condition column). Produce `all_filters_ok`. **Why not fold signals into conditions?** Every strategy would need registry entries for `ema9 cross_above ema21`; YAML + generic evaluators avoid that.
 
-Both appear as **normal columns on the same table**. Neither is “off-table.” The difference is **how the column is produced** and **whether it describes a regime (many bars) or an edge (one bar)**.
+Both appear as **normal columns on the same table**. Neither is “off-table.” The difference is **how the column is produced** — conditions describe sustained state (many bars true), signals describe events (one bar for triggers, level check at action bar for filters).
 
 **Strategy composition (entry, exit, add, trim)**
 
 Actions can be driven by **either** layer, composed in YAML:
 
-- **Triggers** (signals) — arm or fire on an **edge** (cross, break, condition column just turned true if modeled as edge).
+- **Triggers** (signals) — arm or fire on an **edge** (cross, break, or condition column just turned true if modeled as edge).
 - **Filters** (signals) — gate on **level** at the action bar: `rvol >= 1.5`, or `close_above_vwap == true` (reading a **condition** column).
-- **Conditions** — materialize regime columns first; **signal filters** reference them by column name without reimplementing VWAP (or other) logic in YAML.
+- **Conditions** — materialize sustained-state columns first; **signal filters** reference them by column name without reimplementing VWAP (or other) logic in YAML.
 
-Example mental flow for a long entry:
+**Entry logic (arming)** — combines conditions and signals into a portfolio event:
 
-1. Condition `close_above_vwap` is `True` for a run of bars (regime).
-2. Signal trigger `ema9_cross_above_ema21` fires on **one** bar (event).
-3. Signal filter `rvol >= 1.5` is checked on the **entry bar** (level).
-4. `signal_eligible` is `True` (session regime column from conditions pipeline).
-5. Step 8 combines these into `entry_event` (first per `trading_date`).
+1. Condition `close_above_vwap` is `True` for a run of bars (sustained state).
+2. Signal trigger `ema9_cross_above_ema21` fires on **one** bar (edge event).
+3. Strategy arms for `arming_window` bars after the trigger.
+4. Signal filter `rvol >= 1.5` is checked on the **entry bar** (level check) → `all_filters_ok`.
+5. `signal_eligible` is `True` (session condition column).
+6. Step 8 combines these into `entry_event` (first per `trading_date`).
 
 Exit / add / trim (future) use the same table: exit triggers or filters can point at condition columns or indicator columns the same way.
 
@@ -50,7 +52,7 @@ flowchart TB
     direction TB
     raw[OHLCV + timestamp UTC]
     ind[Indicator columns — numeric]
-    cond[ConditionPipeline — session + optional registry regimes]
+    cond[ConditionPipeline — session + optional registry conditions]
     sig[SignalPipeline — trigger_* + filter_*]
     ent[armed + entry_event — step 8]
     raw --> ind --> cond --> sig --> ent
@@ -80,7 +82,7 @@ With VWAP conditions enabled, the same table might also include:
 |---|------------------|----------------------|------------------|
 | … | True (many bars) | True (one bar) | True when filter applied |
 
-Here `close_above_vwap` is a **condition** (regime); `trigger_vwap_cross_up` is a **condition** edge registered as `ConditionKind.TRIGGER`; a **signal** filter can require `close_above_vwap == true` on the entry bar.
+Here `close_above_vwap` is a **condition** (sustained state); `trigger_vwap_cross_up` is a **condition** edge registered as `ConditionKind.TRIGGER`; a **signal** filter can require `close_above_vwap == true` on the entry bar.
 
 ### Code mapping (today)
 
@@ -92,6 +94,57 @@ Here `close_above_vwap` is a **condition** (regime); `trigger_vwap_cross_up` is 
 | Universe | `load_universe_bars` → `UniverseBarFrames` after full prep chain |
 
 Registry note: `CONDITION_REGISTRY` today includes both FILTER (level) and TRIGGER (edge) kinds. New conditions should favor **sustained state**; one-bar edges can stay in conditions when reused (VWAP cross) or move to strategy `triggers:` when generic (`cross_above` on any column).
+
+---
+
+## Status summary
+
+| Step | Topic | Status |
+|------|-------|--------|
+| 1–4 | Catalog, math, multi-res I/O, bar interval | Done |
+| 5 | Session columns + `signal_eligible` | Done |
+| 6 | Universe load (`universe_resolver`, `universe_loader`) | Done |
+| 7 | Trigger & filter evaluator | Done |
+| 8 | Arming + `entry_event` | Done |
+| 9 | Simulation | Partial — see below |
+| 10 | `run_backtest` CLI | Done |
+| 11 | `inspect_indicator_bars` polish | Done |
+
+### Step 9 — what is built vs what is missing
+
+**Built:**
+- `PortfolioSimulator.run()` iterates all symbols in `UniverseBarFrames`
+- `PortfolioSimResult` — `trades` tuple, `trade_count`, `total_pnl`
+- `Trade` dataclass — `entry_price`, `exit_price`, `shares`, `pnl`, `pnl_pct`, `exit_reason`
+- Exit types: `stop_loss` (pct from entry), `take_profit` (pct from entry), `end_of_session` (last RTH bar close)
+- `OtherExitClosePastEma` model exists in `strategy_config.py` — pydantic parses it from YAML, but not wired in `symbol_simulator.py` (no handler for it in `_exit_on_bar_long`)
+- `fixed_dollars` sizing only
+- Fill at bar close (conservative)
+- `format_backtest_summary` — prints trades, `total_pnl`, PnL by symbol, elapsed time
+
+**Missing / not yet built:**
+- `OtherExitClosePastEma` — model exists, sim ignores it silently; needs handler in `_exit_on_bar_long`
+- Exit via YAML signal triggers/filters (dynamic exit rules, not just hardcoded price levels) — referenced at line 43 as "(future)"
+- **Equity curve** — no bar-by-bar or daily portfolio value series; `PortfolioSimResult` only sums PnL
+- **Shared capital pool** — no max positions, no capital allocation across simultaneous entries; each trade is sized independently
+- **Portfolio-level metrics** — no Sharpe, Calmar, Sortino, max drawdown, win rate, avg win/loss; only `total_pnl`
+- **Short side** — long-only MVP; `OtherExitClosePastEma.side` supports `short` in the model but no short entry path exists
+- **Daily return series** — needed for Sharpe/Calmar/Sortino; not computed
+
+### Gaps to address before production use
+
+| Gap | Decision | Notes |
+|-----|----------|-------|
+| **Run artifacts** — no `run_id`, no saving `trades.parquet` / `equity.parquet` / `request.json` to disk | Build | Re-running overwrites results; no reproducibility. Designed in `cold_lake_portfolio_backtester` plan but not wired here. |
+| **`RunTimezoneConfig`** | Build | `SessionConfig.timezone` handles exchange-side clock; run-level display/input timezone wrapper is unbuilt. Affects how CLI `--start`/`--end` and printed trade timestamps behave for PT users. |
+| **Commission model** | Build — flat dollar per trade | Add `commission_per_trade: float` to `SizingConfig` or a new `SimConfig`; deducted from `pnl` on close. No slippage modeling. |
+| **Data snapshot version** | Build | Cold lake is mutable. No fingerprint of which parquet bytes backed a run; makes result comparison unreliable after re-ingest. Hash symbol file sizes + mtimes at run start; store in artifacts. |
+| **Per-trade tags** | Build | Entry attribution (triggers fired, filter values, rvol, intraday window) not carried into `Trade`; limits post-run analysis of why trades fired. |
+| **Progress reporting + cancellation** | Build | Full-universe runs over 1010 symbols have no progress output or cooperative cancel. Add a `ProgressSink` protocol with a `StdoutProgressSink`; plumb a cancel token through `load_prepared_universe` and the portfolio loop so a run can be interrupted cleanly. |
+| **Walk-forward / out-of-sample discipline** | Defer | No holdout window enforcement. Note the risk in docs; implement when running parameter sweeps. |
+| **`StudyRunner` / parameter sweep** | Defer | Single-config runs only. Planned in `cold_lake_portfolio_backtester` plan. |
+| **Benchmark comparison** | Out of scope | Not needed. |
+| **Slippage model** | Out of scope | No reliable way to model; flat commission only. |
 
 ---
 
@@ -170,7 +223,7 @@ These steps **must respect** the architecture above. Conflicts to avoid are call
 ### 5 — Session columns & `signal_eligible` — done
 
 - **`backtesting/conditions/session_regime.py`** — `session` (PM/RTH/AH), `signal_eligible` from `SessionConfig` (allowed_sessions + intraday clock window in ``timezone``). Not display/view TZ for the UI — see ``RunTimezoneConfig`` (planned under ``backtesting/run/``).
-- **Session regime** — applied inside **`ConditionPipeline(session_config=...)`** (not indicator catalog; not `CONDITION_REGISTRY`).
+- **Session conditions** — applied inside **`ConditionPipeline(session_config=...)`** (not indicator catalog; not `CONDITION_REGISTRY`).
 - Clock: US equity 09:30–16:00 bounds from `strategies.utils`; wall clock in `session_config.timezone` (typically `America/New_York`).
 - **`inspect_indicator_bars.py --strategy ema_cross`** applies session columns and strategy indicator/condition ids.
 

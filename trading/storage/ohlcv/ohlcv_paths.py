@@ -6,7 +6,7 @@ from pathlib import Path
 from trading import config as cf
 
 _p_trading_pkg = Path(__file__).resolve().parent.parent.parent
-p_ohlcv_symbol_list_path = _p_trading_pkg / 'data' / 'symbols' / 'shortlist_stocks.csv'
+p_ohlcv_symbol_list_path = _p_trading_pkg / 'data' / 'symbols' / 'all_stocks_filtered.csv'
 
 
 def get_p_ohlcv_symbol_list_path() -> Path:

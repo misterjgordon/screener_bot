@@ -49,7 +49,6 @@ def _apply_dotenv_cold_root_when_unset_or_placeholder() -> None:
 
 _apply_dotenv_cold_root_when_unset_or_placeholder()
 
-from backtesting.bt_config import DEFAULT_WARMUP_BARS  # noqa: E402
 from backtesting.run.backtest_run import format_backtest_summary  # noqa: E402
 from backtesting.run.backtest_run import run_backtest  # noqa: E402
 from backtesting.strategy.strategy_loader import resolve_strategy_config_path  # noqa: E402
@@ -104,12 +103,6 @@ def _parse_args() -> argparse.Namespace:
         help='Print each trade under trades_detail (default: totals and pnl_by_symbol only)',
     )
     parser.add_argument(
-        '--warmup-bars',
-        type=int,
-        default=DEFAULT_WARMUP_BARS,
-        help=f'Warmup 1m bars before analysis window (default: {DEFAULT_WARMUP_BARS})',
-    )
-    parser.add_argument(
         '--indicators',
         nargs='+',
         metavar='INDICATOR_ID',
@@ -120,6 +113,13 @@ def _parse_args() -> argparse.Namespace:
         nargs='+',
         metavar='CONDITION_ID',
         help='Optional condition registry ids (default: strategy conditions: list)',
+    )
+    parser.add_argument(
+        '--capital',
+        type=float,
+        default=10_000.0,
+        metavar='DOLLARS',
+        help='Starting capital in dollars for equity curve and metrics (default: 10000)',
     )
     default_jobs = max(1, os.cpu_count() or 1)
     parser.add_argument(
@@ -172,10 +172,10 @@ def main() -> None:
             start=args.start,
             end=args.end,
             universe_resolve=universe_resolve,
-            warmup_bars=args.warmup_bars,
             indicator_ids=indicator_ids,
             condition_ids=condition_ids,
             jobs=max(1, args.jobs),
+            initial_capital=args.capital,
         )
     except ValueError as exc:
         raise SystemExit(str(exc)) from exc

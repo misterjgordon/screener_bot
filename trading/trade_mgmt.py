@@ -777,6 +777,12 @@ def process_trim(
             if current_position == 0:
                 no_place_reason = 'no position in IB'
                 print(f'⚠️  No position found in IB for {underlying} - nothing to trim')
+            elif (is_long and current_position < 0) or (not is_long and current_position > 0):
+                no_place_reason = f'position direction mismatch: signal={net_side}, IB={current_position} shares'
+                print(
+                    f'ERROR: BLOCKED TRIM for {underlying} ({trader}): screener says {net_side} '
+                    f'but IB position is {current_position} shares - refusing to worsen position'
+                )
             else:
                 if shares_override is not None:
                     exit_size = shares_override

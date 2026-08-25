@@ -96,7 +96,12 @@ def _symbols_from_rundown_text(text: str) -> list[str]:
 
 
 def _symbols_from_tradertv_text(text: str) -> list[str]:
-    """Extract TraderTV symbols from Premarket and In-The-News sections."""
+    """Extract TraderTV symbols from Premarket and news/focus sections.
+
+    Supports the legacy Beehiiv markdown export (``# **Premarket Trading:**`` /
+    ``# **In The News``) and the post-2026-08-04 HTML-derived plain text
+    (``Premarket Trading`` / ``TRADING HIGHER`` / ``Company (TICKER):``).
+    """
     body = _strip_leading_hash_lines(text.lstrip('\ufeff'))
 
     seen: set[str] = set()
@@ -110,6 +115,7 @@ def _symbols_from_tradertv_text(text: str) -> list[str]:
             seen.add(cleaned)
             ordered.append(cleaned)
 
+    # Legacy markdown export
     idx_pm = body.find('# **Premarket Trading:**')
     if idx_pm != -1:
         idx_earn = body.find('# **Earnings Today:**', idx_pm)
@@ -137,6 +143,42 @@ def _symbols_from_tradertv_text(text: str) -> list[str]:
                 inner = line.strip('*').strip()
                 if ',' in inner:
                     for sym in TRADERTV_WORD_TICKER.findall(inner):
+                        add_symbol(sym)
+
+    # New HTML-derived plain text (no markdown section markers)
+    if idx_pm == -1:
+        idx_pm_new = body.find('Premarket Trading')
+        if idx_pm_new != -1:
+            idx_end = body.find('Stocks in Focus', idx_pm_new)
+            if idx_end == -1:
+                idx_end = body.find('Economic Events', idx_pm_new)
+            pm_block = body[idx_pm_new:idx_end] if idx_end != -1 else body[idx_pm_new:]
+            for raw_line in pm_block.splitlines():
+                line = raw_line.strip()
+                if not line or line == 'Premarket Trading':
+                    continue
+                if line.upper().startswith('TRADING HIGHER') or line.upper().startswith('TRADING LOWER'):
+                    line = line.split(':', maxsplit=1)[1].strip() if ':' in line else ''
+                    if not line:
+                        continue
+                # ``ANET +12% - ...; BKNG +6.6% - ...`` (label line or following row)
+                for item in line.split(';'):
+                    head = item.strip().split(' ', maxsplit=1)[0]
+                    if TRADERTV_WORD_TICKER.fullmatch(head):
+                        add_symbol(head)
+
+    if idx_news == -1:
+        idx_focus = body.find('Stocks in Focus')
+        focus_block = body[idx_focus:] if idx_focus != -1 else body
+        for raw_line in focus_block.splitlines():
+            line = raw_line.strip()
+            for sym in TRADERTV_PARENTHESES_TICKER.findall(line):
+                add_symbol(sym)
+            # Peer / read-through lists under a focus name: ``NVDA, AMD, INTC``
+            if ',' in line and TRADERTV_PARENTHESES_TICKER.search(line) is None:
+                tokens = [t.strip() for t in line.split(',')]
+                if tokens and all(TRADERTV_WORD_TICKER.fullmatch(t) for t in tokens):
+                    for sym in tokens:
                         add_symbol(sym)
 
     return ordered
