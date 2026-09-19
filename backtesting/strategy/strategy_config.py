@@ -12,11 +12,12 @@ from pydantic import model_validator
 from backtesting.indicators.indicator_catalog_load import topological_indicator_order
 
 SessionLabel = Literal['PM', 'RTH', 'AH']
+StrategySide = Literal['long', 'short']
 TriggerOp = Literal['cross_above', 'cross_below']
 FilterOp = Literal['>=', '<=', '>', '<', '==', '!=']
 DayBoundary = Literal['session']
 EntryRule = Literal['first']
-SizingMethod = Literal['fixed_dollars']
+SizingMethod = Literal['fixed_dollars', 'full_allocation']
 
 _CLOCK_RE = re.compile(r'^\d{2}:\d{2}$')
 
@@ -39,7 +40,7 @@ class SessionConfig(BaseModel):
 
 
 class TriggerRule(BaseModel):
-    """Edge trigger evaluated on consecutive bars (arms entry setup).
+    """Edge trigger evaluated on consecutive bars (arms entry setup, or fires an exit).
 
     One of ``ref_column`` (another bar column) or ``ref_value`` (constant) must be set
     for ``cross_above``/``cross_below`` ops.
@@ -60,7 +61,7 @@ class TriggerRule(BaseModel):
 
 
 class FilterRule(BaseModel):
-    """Level filter evaluated on the entry bar."""
+    """Level filter: gates the entry bar, or (as an ``exit_filter``) checked every open bar."""
 
     id: str
     column: str
@@ -115,11 +116,27 @@ OtherExitRule = Annotated[
 ]
 
 
-class SizingConfig(BaseModel):
-    """Position sizing for entries."""
+class SizingFixedDollars(BaseModel):
+    """Fixed dollar amount per trade, independent of account capital."""
 
-    method: SizingMethod
+    method: Literal['fixed_dollars']
     amount: float
+
+
+class SizingFullAllocation(BaseModel):
+    """Trade uses the full capital allocated to this strategy for the run.
+
+    ``amount`` is not set in YAML — resolved at run time from account-level
+    capital allocation (``capital_pct`` * account ``initial_capital``).
+    """
+
+    method: Literal['full_allocation']
+
+
+SizingConfig = Annotated[
+    SizingFixedDollars | SizingFullAllocation,
+    Field(discriminator='method'),
+]
 
 
 class StrategyConfig(BaseModel):
@@ -127,10 +144,13 @@ class StrategyConfig(BaseModel):
 
     id: str
     version: str
+    side: StrategySide
     signal_timeframe_minutes: int
     session_config: SessionConfig
     triggers: tuple[TriggerRule, ...]
     filters: tuple[FilterRule, ...]
+    exit_triggers: tuple[TriggerRule, ...] = ()
+    exit_filters: tuple[FilterRule, ...] = ()
     arming_window: int
     day_boundary: DayBoundary
     entry_rule: EntryRule
@@ -148,14 +168,25 @@ class StrategyConfig(BaseModel):
             raise ValueError(msg)
         return value
 
+    @model_validator(mode='after')
+    def _other_exit_side_matches_strategy(self) -> 'StrategyConfig':
+        for rule in self.other_exits:
+            if isinstance(rule, OtherExitClosePastEma) and rule.side != self.side:
+                msg = (
+                    f'other_exits[{rule.id!r}].side={rule.side!r} does not match '
+                    f'strategy side={self.side!r}'
+                )
+                raise ValueError(msg)
+        return self
+
     def referenced_bar_columns(self) -> tuple[str, ...]:
         """Distinct bar columns referenced by triggers and filters."""
         cols: list[str] = []
-        for rule in self.triggers:
+        for rule in (*self.triggers, *self.exit_triggers):
             cols.append(rule.column)
             if rule.ref_column is not None:
                 cols.append(rule.ref_column)
-        for rule in self.filters:
+        for rule in (*self.filters, *self.exit_filters):
             cols.append(rule.column)
         for rule in self.other_exits:
             if isinstance(rule, OtherExitClosePastEma):

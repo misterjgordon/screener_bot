@@ -32,6 +32,7 @@ from trading.snapshot_mgmt import normalize_record  # noqa: E402
 from trading.snapshot_mgmt import save_snapshot  # noqa: E402
 from trading.snapshot_mgmt import summarize_group  # noqa: E402
 from trading.snapshot_printing import print_position_table  # noqa: E402
+from trading.trade_mgmt import enforce_position_direction_guard  # noqa: E402
 from trading.trade_mgmt import process_execution_change  # noqa: E402
 
 if TYPE_CHECKING:
@@ -213,6 +214,10 @@ def run_single_cycle(
                 print(f'Warning: Failed to refresh positions/orders from TWS: {e}')
     for row, change_type in changes_to_run:
         process_execution_change(ib, row, change_type)
+
+    # Backstop: catch any bot position left opposite the trader's side (missed FLIP,
+    # bug, manual order) even for rows with no change_type this cycle, and flatten it.
+    enforce_position_direction_guard(ib, summary_rows)
 
     # Always persist full snapshot so we never retry by omitting; diagnose real causes when orders aren't placed.
     save_snapshot(summary_rows)

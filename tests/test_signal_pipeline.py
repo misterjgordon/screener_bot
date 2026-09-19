@@ -5,7 +5,10 @@ import pytest
 
 from backtesting.signals.filter_evaluator import filter_level_series
 from backtesting.signals.signal_columns import ALL_FILTERS_OK_COLUMN
+from backtesting.signals.signal_columns import SIGNAL_EXIT_HIT_COLUMN
 from backtesting.signals.signal_columns import SignalColumnError
+from backtesting.signals.signal_columns import exit_filter_column_name
+from backtesting.signals.signal_columns import exit_trigger_column_name
 from backtesting.signals.signal_columns import filter_column_name
 from backtesting.signals.signal_columns import trigger_column_name
 from backtesting.signals.signal_pipeline import SignalPipeline
@@ -102,6 +105,7 @@ def test_signal_pipeline_adds_rule_columns(strategy_id: str) -> None:
     cross_trigger = first_cross_above_trigger(strategy)
     if cross_trigger is None:
         pytest.skip(f'{strategy_id}: no cross_above trigger')
+        return
     if not strategy.filters:
         pytest.skip(f'{strategy_id}: no filters')
 
@@ -144,6 +148,77 @@ def test_signal_pipeline_adds_rule_columns(strategy_id: str) -> None:
     assert filter_on_cross
     assert all_ok_on_cross
     assert filter_off_later
+
+
+def test_signal_pipeline_no_exit_rules_omits_signal_exit_hit_column() -> None:
+    strategy = load_strategy(STRATEGY_IDS[0])
+    frame = frame_with_session(strategy, close=pd.Series([100.0, 100.0]))
+    out = SignalPipeline(strategy).run(frame)
+
+    has_column = SIGNAL_EXIT_HIT_COLUMN in out.column_names
+
+    print(f'**summary for no exit rules:**\nhas_signal_exit_hit_column = {has_column}')
+
+    assert not has_column
+
+
+def test_signal_pipeline_exit_trigger_fires_signal_exit_hit() -> None:
+    strategy = load_strategy(STRATEGY_IDS[0])
+    exit_trigger = TriggerRule(
+        id='fast_cross_slow_down',
+        column='fast_line',
+        op='cross_below',
+        ref_column='slow_line',
+    )
+    strategy = strategy.model_copy(update={'exit_triggers': (exit_trigger,)})
+    cross_bar = 2
+    bar_count = 4
+    frame = frame_with_session(strategy, **build_cross_below_series(exit_trigger, bar_count, cross_bar))
+    out = SignalPipeline(strategy).run(frame)
+
+    exit_trigger_col = exit_trigger_column_name(exit_trigger.id)
+    trigger_on_cross = bool(out.bars[exit_trigger_col].iloc[cross_bar])
+    exit_hit_on_cross = bool(out.bars[SIGNAL_EXIT_HIT_COLUMN].iloc[cross_bar])
+    exit_hit_before_cross = bool(out.bars[SIGNAL_EXIT_HIT_COLUMN].iloc[0])
+
+    print(
+        '**summary for exit_trigger:**\n'
+        f'trigger_on_cross = {trigger_on_cross} | exit_hit_on_cross = {exit_hit_on_cross}\n'
+        f'exit_hit_before_cross = {exit_hit_before_cross}'
+    )
+
+    assert exit_trigger_col in out.column_names
+    assert trigger_on_cross
+    assert exit_hit_on_cross
+    assert not exit_hit_before_cross
+
+
+def test_signal_pipeline_exit_filter_fires_signal_exit_hit() -> None:
+    strategy = load_strategy(STRATEGY_IDS[0])
+    exit_filter = FilterRule(id='rvol_drop', column='exit_metric', op='<', value=1.0)
+    strategy = strategy.model_copy(update={'exit_filters': (exit_filter,)})
+    bar_count = 3
+    frame = frame_with_session(
+        strategy,
+        exit_metric=build_filter_level_series(exit_filter, bar_count, pass_bars={1}),
+    )
+    out = SignalPipeline(strategy).run(frame)
+
+    exit_filter_col = exit_filter_column_name(exit_filter.id)
+    filter_on_bar1 = bool(out.bars[exit_filter_col].iloc[1])
+    exit_hit_on_bar1 = bool(out.bars[SIGNAL_EXIT_HIT_COLUMN].iloc[1])
+    exit_hit_on_bar0 = bool(out.bars[SIGNAL_EXIT_HIT_COLUMN].iloc[0])
+
+    print(
+        '**summary for exit_filter:**\n'
+        f'filter_on_bar1 = {filter_on_bar1} | exit_hit_on_bar1 = {exit_hit_on_bar1}\n'
+        f'exit_hit_on_bar0 = {exit_hit_on_bar0}'
+    )
+
+    assert exit_filter_col in out.column_names
+    assert filter_on_bar1
+    assert exit_hit_on_bar1
+    assert not exit_hit_on_bar0
 
 
 def test_trigger_missing_column_raises() -> None:

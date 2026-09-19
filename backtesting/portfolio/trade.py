@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Literal
 
-ExitReason = Literal['stop_loss', 'take_profit', 'end_of_session']
+ExitReason = Literal['stop_loss', 'take_profit', 'close_past_ema', 'signal_exit', 'end_of_session']
 
 
 @dataclass(frozen=True)

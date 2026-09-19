@@ -36,12 +36,18 @@ class PortfolioSimulator:
     """Bar-table → trade list using ``entry_event`` and strategy exit/sizing rules.
 
     Expects each frame to already have run IndicatorPipeline, ConditionPipeline
-    (session columns), and SignalPipeline. Fill model: long entry at bar close;
-    stops/targets from entry fill; ``end_of_session`` at last RTH bar close.
+    (session columns), and SignalPipeline. Fill model: entry at bar close in
+    ``strategy.side`` direction; stops/targets from entry fill; ``end_of_session``
+    at last RTH bar close.
+
+    Every symbol is simulated independently with the full ``capital`` on every
+    trade, regardless of any other symbol's open position (uncapped allocation
+    mode) — pass ``capital`` when ``strategy.sizing.method == 'full_allocation'``.
     """
 
-    def __init__(self, strategy: 'StrategyConfig') -> None:
+    def __init__(self, strategy: 'StrategyConfig', *, capital: float | None = None) -> None:
         self._strategy = strategy
+        self._capital = capital
 
     @property
     def strategy(self) -> 'StrategyConfig':
@@ -49,7 +55,7 @@ class PortfolioSimulator:
 
     def run_symbol(self, frame: 'SymbolBarFrame') -> tuple['Trade', ...]:
         """Simulate one symbol's prepared bar table."""
-        return simulate_symbol_trades(frame, self._strategy)
+        return simulate_symbol_trades(frame, self._strategy, capital=self._capital)
 
     def run(self, universe: 'UniverseBarFrames') -> PortfolioSimResult:
         """Simulate each loaded frame's bars and return trades sorted by entry time."""

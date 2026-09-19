@@ -60,18 +60,27 @@ class TestTradeMgmtDecisionPrice(unittest.TestCase):
         self.assertIsNone(save_db.call_args.kwargs['filled_price'])
 
     def test_flip_records_entry_price_without_order(self) -> None:
+        """FLIP's own audit record (first save) has no filled_price key.
+
+        process_flip also flattens (via process_close) and, with ib=None, tries to
+        reopen too - both no-op without an order since IB is unavailable - so only
+        the first save call (the FLIP audit record itself) is checked here.
+        """
         row = _make_row(change_type='FLIP', net_side='short', delta_magnitude=-20.0)
         with (
             patch('trading.trade_mgmt.get_decision_price_for_recording', return_value=31.0),
             patch('trading.trade_mgmt.save_execution_to_csv') as save_csv,
             patch('trading.trade_mgmt.save_execution_to_db') as save_db,
         ):
-            process_flip(row, 'AAPL', ib=None)
+            process_flip(None, row, 'AAPL')
 
-        self.assertEqual(save_csv.call_args.kwargs['entry_price'], 31.0)
-        self.assertEqual(save_db.call_args.kwargs['entry_price'], 31.0)
-        self.assertNotIn('filled_price', save_csv.call_args.kwargs)
-        self.assertNotIn('filled_price', save_db.call_args.kwargs)
+        flip_csv_call = save_csv.call_args_list[0]
+        flip_db_call = save_db.call_args_list[0]
+        self.assertEqual(flip_csv_call.kwargs['change_type'], 'FLIP')
+        self.assertEqual(flip_csv_call.kwargs['entry_price'], 31.0)
+        self.assertEqual(flip_db_call.kwargs['entry_price'], 31.0)
+        self.assertNotIn('filled_price', flip_csv_call.kwargs)
+        self.assertNotIn('filled_price', flip_db_call.kwargs)
 
 
 if __name__ == '__main__':

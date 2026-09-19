@@ -397,6 +397,13 @@ def place_add_order(
     """Place ADD order: scale into existing position or send new bracket/entry-only."""
     trader = row.trader or ''
     current_position = get_position_size(ib, underlying)
+    if (is_long and current_position < 0) or (not is_long and current_position > 0):
+        no_place_reason = f'position direction mismatch: signal={row.net_side}, IB={current_position} shares'
+        print(
+            f'ERROR: BLOCKED ADD for {underlying} ({trader}): screener says {row.net_side} '
+            f'but IB position is {current_position} shares - refusing to worsen position'
+        )
+        return NewAddPlacementResult(None, None, None, None, None, no_place_reason)
     has_existing_position = (is_long and current_position > 0) or (not is_long and current_position < 0)
 
     if has_existing_position:
@@ -921,12 +928,37 @@ def process_close(
     )
 
 
+def wait_for_flat_position(
+    ib: 'IB',
+    underlying: str,
+    timeout_s: float = 5.0,
+    poll_interval_s: float = 0.5,
+) -> bool:
+    """Poll IB position after a flatten until it reads 0 or timeout_s elapses."""
+    elapsed = 0.0
+    while elapsed < timeout_s:
+        if get_position_size(ib, underlying) == 0:
+            return True
+        ib.sleep(poll_interval_s)
+        elapsed += poll_interval_s
+    return get_position_size(ib, underlying) == 0
+
+
 def process_flip(
+    ib: 'IB | None',
     row: 'PositionSummary',
     underlying: str,
-    ib: 'IB | None' = None,
+    shares_override: int | None = None,
 ) -> None:
-    """Handle FLIP: record to CSV and database (no order placement)."""
+    """Handle FLIP: record to CSV/DB, close the existing position, then open the trader's new side.
+
+    The trader's reported direction reversed, so the bot's existing position (still on
+    the old side) must be flattened before any new order is placed - otherwise the two
+    legs could overlap and leave the bot on the wrong side. process_close is reused for
+    the flatten leg (it exits whatever the bot actually holds, not the signal side) and
+    process_new_or_add for the reopen leg, so both legs go through the same guarded,
+    audited order-placement paths as a normal CLOSE/NEW.
+    """
     decision_price = get_decision_price_for_recording(ib, underlying)
     ts = format_timestamp()
     save_execution_to_csv(
@@ -947,6 +979,22 @@ def process_flip(
         entry_price=decision_price,
         timestamp=ts,
     )
+
+    process_close(ib, row, underlying, shares_override=None)
+
+    net_side = row.net_side
+    if net_side not in ('long', 'short'):
+        print(f'FLIP for {underlying} ({row.trader}): net_side={net_side!r} - flattened only, not reopening')
+        return
+    if ib is None or not ib.isConnected() or not ACTIVE_TRADING:
+        return
+    if not wait_for_flat_position(ib, underlying):
+        print(
+            f'ERROR: FLIP for {underlying} ({row.trader}): position did not flatten in time - '
+            'not opening new side this cycle; will retry next cycle'
+        )
+        return
+    process_new_or_add(ib, row, 'NEW', shares_override)
 
 
 def process_execution_change(
@@ -990,4 +1038,49 @@ def process_execution_change(
     elif change_type == 'CLOSE':
         process_close(ib, row, underlying, shares_override)
     elif change_type == 'FLIP':
-        process_flip(row, underlying, ib=ib)
+        process_flip(ib, row, underlying, shares_override)
+
+
+def enforce_position_direction_guard(
+    ib: 'IB | None',
+    summary_rows: list['PositionSummary'],
+) -> None:
+    """
+    Fail-guard: flatten any bot IB position whose sign is opposite the trader's
+    current reported side.
+
+    Runs every screener cycle over every row, independent of change_type, so a
+    mismatch (from a bug, a manual order, or a missed FLIP) can never persist
+    silently. Reuses process_close, which exits whatever the bot actually holds
+    rather than trusting the signal side.
+    """
+    if ib is None or not ib.isConnected():
+        return
+    for row in summary_rows:
+        trader = row.trader or ''
+        net_side = row.net_side
+        underlying = row.underlying or row.symbol
+        if net_side not in ('long', 'short'):
+            continue
+        if row.instrument_type != 'equity':
+            continue
+        if not TRADER_ENABLED.get(trader, False):
+            continue
+        if not underlying:
+            continue
+
+        current_position = get_position_size(ib, underlying)
+        if current_position == 0:
+            continue
+        is_inverse = (net_side == 'long' and current_position < 0) or (net_side == 'short' and current_position > 0)
+        if not is_inverse:
+            continue
+
+        print(
+            f'🚨 FAIL-GUARD: {underlying} ({trader}) bot position ({current_position} shares) is '
+            f'INVERSE to trader ({net_side}) - flattening immediately'
+        )
+        if not ACTIVE_TRADING:
+            print('   ACTIVE_TRADING is False - would flatten now if live')
+            continue
+        process_close(ib, row, underlying, shares_override=None)

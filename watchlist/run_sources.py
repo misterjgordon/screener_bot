@@ -206,15 +206,18 @@ def main() -> None:
             f'tickers_on_watchlist date={trade_date.isoformat()} count={len(wl_rows)}'
             f' with_atr_14={with_atr}'
         )
-        session_range_payload, p_session = export_session_range_for_watchlist(trade_date, ib=ib)
-        n_sym = len(session_range_payload['tickers'])
-        with_sess = sum(
-            1 for t in session_range_payload['tickers'] if t.get('sessions') is not None
-        )
-        print(
-            f'session_range_export date={trade_date.isoformat()} tickers={n_sym}'
-            f' with_sessions={with_sess} path={p_session!s}',
-        )
+        try:
+            session_range_payload, p_session = export_session_range_for_watchlist(trade_date, ib=ib)
+            n_sym = len(session_range_payload['tickers'])
+            with_sess = sum(
+                1 for t in session_range_payload['tickers'] if t.get('sessions') is not None
+            )
+            print(
+                f'session_range_export date={trade_date.isoformat()} tickers={n_sym}'
+                f' with_sessions={with_sess} path={p_session!s}',
+            )
+        except Exception as exc:
+            print(f'session_range_export skipped: {exc}')
     finally:
         disconnect(ib)
 

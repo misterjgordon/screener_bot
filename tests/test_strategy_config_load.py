@@ -5,6 +5,7 @@ import pytest
 from backtesting.indicators.indicator_catalog_load import default_indicator_ids
 from backtesting.indicators.indicator_catalog_load import topological_indicator_order
 from backtesting.indicators.indicator_registry import INDICATOR_REGISTRY
+from backtesting.strategy.strategy_config import SizingFixedDollars
 from backtesting.strategy.strategy_config import StrategyConfig
 from backtesting.strategy.strategy_loader import StrategyConfigLoadError
 from backtesting.strategy.strategy_loader import load_strategy_config
@@ -74,6 +75,7 @@ def test_load_ema_cross_strategy_config() -> None:
     assert len(config.other_exits) == 1
     assert config.other_exits[0].id == 'end_of_session'
     assert config.other_exits[0].type == 'end_of_session'
+    assert isinstance(config.sizing, SizingFixedDollars)
     assert config.sizing.method == 'fixed_dollars'
     assert config.sizing.amount == 5000
     assert has_ema21

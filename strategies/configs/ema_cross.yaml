@@ -2,6 +2,7 @@
 # Used as the bootstrap config for CLI smoke runs and test_strategy_config_load.py.
 id: ema_cross
 version: "1.0"
+side: long
 signal_timeframe_minutes: 1
 
 session_config:

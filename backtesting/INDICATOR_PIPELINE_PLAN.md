@@ -121,15 +121,15 @@ Registry note: `CONDITION_REGISTRY` today includes both FILTER (level) and TRIGG
 - `fixed_dollars` sizing only
 - Fill at bar close (conservative)
 - `format_backtest_summary` — prints trades, `total_pnl`, PnL by symbol, elapsed time
+- **Equity curve** — `backtesting/metrics/equity_curve.py::build_equity_curve` (daily `EquityPoint` series incl. `daily_return`), called from `run_backtest()`
+- **Portfolio-level metrics** — `backtesting/metrics/portfolio_metrics.py::compute_portfolio_metrics` — Sharpe, Sortino, Calmar, max drawdown, win rate, avg win/loss pnl; printed in `format_backtest_summary`
+- **Daily return series** — `EquityPoint.daily_return`, feeds Sharpe/Sortino/Calmar above
 
 **Missing / not yet built:**
 - `OtherExitClosePastEma` — model exists, sim ignores it silently; needs handler in `_exit_on_bar_long`
 - Exit via YAML signal triggers/filters (dynamic exit rules, not just hardcoded price levels) — referenced at line 43 as "(future)"
-- **Equity curve** — no bar-by-bar or daily portfolio value series; `PortfolioSimResult` only sums PnL
 - **Shared capital pool** — no max positions, no capital allocation across simultaneous entries; each trade is sized independently
-- **Portfolio-level metrics** — no Sharpe, Calmar, Sortino, max drawdown, win rate, avg win/loss; only `total_pnl`
 - **Short side** — long-only MVP; `OtherExitClosePastEma.side` supports `short` in the model but no short entry path exists
-- **Daily return series** — needed for Sharpe/Calmar/Sortino; not computed
 
 ### Gaps to address before production use
 

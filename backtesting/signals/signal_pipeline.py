@@ -5,9 +5,13 @@ from typing import TYPE_CHECKING
 
 from backtesting.signals.arming import entry_column_assign_kw
 from backtesting.signals.filter_evaluator import all_filters_ok_series
+from backtesting.signals.filter_evaluator import evaluate_exit_filter_columns
 from backtesting.signals.filter_evaluator import evaluate_filter_columns
 from backtesting.signals.signal_columns import ALL_FILTERS_OK_COLUMN
 from backtesting.signals.signal_columns import ALL_TRIGGERS_OK_COLUMN
+from backtesting.signals.signal_columns import SIGNAL_EXIT_HIT_COLUMN
+from backtesting.signals.signal_columns import any_true_series
+from backtesting.signals.trigger_evaluator import evaluate_exit_trigger_columns
 from backtesting.signals.trigger_evaluator import evaluate_trigger_columns
 
 if TYPE_CHECKING:
@@ -32,7 +36,7 @@ class SignalPipeline:
         return self._strategy
 
     def run(self, frame: 'SymbolBarFrame') -> 'SymbolBarFrame':
-        """Return a new frame with trigger, filter, arming, and entry event columns."""
+        """Return a new frame with trigger, filter, arming, entry event, and exit signal columns."""
         if frame.bars.empty:
             return frame
 
@@ -62,4 +66,15 @@ class SignalPipeline:
                 all_filters_ok=filters_ok,
             ),
         )
+
+        exit_trigger_cols = evaluate_exit_trigger_columns(frame, self._strategy.exit_triggers)
+        assign_kw.update(exit_trigger_cols)
+        exit_filter_cols = evaluate_exit_filter_columns(frame, self._strategy.exit_filters)
+        assign_kw.update(exit_filter_cols)
+        if exit_trigger_cols or exit_filter_cols:
+            assign_kw[SIGNAL_EXIT_HIT_COLUMN] = any_true_series(
+                {**exit_trigger_cols, **exit_filter_cols},
+                bar_index=frame.bars.index,
+            )
+
         return frame.with_columns(**assign_kw) if assign_kw else frame

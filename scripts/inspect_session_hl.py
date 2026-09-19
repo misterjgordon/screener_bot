@@ -88,7 +88,7 @@ def _session_hl_row(sym: str, df_bars: pd.DataFrame) -> dict[str, object]:
         row[f'{key}_bar_count'] = int(len(df_part))
     return row
 
-
+####test####
 def _build_summary(symbols: list[str]) -> pd.DataFrame:
     rows: list[dict[str, object]] = []
     for sym in symbols:

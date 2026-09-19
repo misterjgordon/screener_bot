@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 import pandas as pd
 
 from backtesting.signals.signal_columns import SignalColumnError
+from backtesting.signals.signal_columns import exit_filter_column_name
 from backtesting.signals.signal_columns import filter_column_name
 
 if TYPE_CHECKING:
@@ -53,6 +54,17 @@ def evaluate_filter_columns(
     columns: dict[str, pd.Series] = {}
     for rule in filters:
         columns[filter_column_name(rule.id)] = filter_level_series(frame, rule)
+    return columns
+
+
+def evaluate_exit_filter_columns(
+    frame: 'SymbolBarFrame',
+    exit_filters: tuple['FilterRule', ...],
+) -> dict[str, 'pd.Series']:
+    """Map ``exit_filter_<id>`` column names to level boolean series."""
+    columns: dict[str, pd.Series] = {}
+    for rule in exit_filters:
+        columns[exit_filter_column_name(rule.id)] = filter_level_series(frame, rule)
     return columns
 
 

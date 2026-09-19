@@ -1,5 +1,6 @@
 """Per-symbol bar walk: ``entry_event`` rows → closed trades."""
 
+from dataclasses import dataclass
 from datetime import date
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -8,12 +9,17 @@ import pandas as pd
 
 from backtesting.conditions.session_regime import SESSION_COLUMN
 from backtesting.portfolio.exit_levels import ExitLevels
-from backtesting.portfolio.exit_levels import exit_levels_for_long
+from backtesting.portfolio.exit_levels import close_past_ema_rule
+from backtesting.portfolio.exit_levels import exit_levels
 from backtesting.portfolio.exit_levels import has_end_of_session_other
 from backtesting.portfolio.trade import ExitReason
 from backtesting.portfolio.trade import Trade
 from backtesting.signals.entry_columns import ENTRY_EVENT_COLUMN
 from backtesting.signals.entry_columns import TRADING_DATE_COLUMN
+from backtesting.signals.signal_columns import SIGNAL_EXIT_HIT_COLUMN
+from backtesting.strategy.strategy_config import SizingFixedDollars
+from backtesting.strategy.strategy_config import SizingFullAllocation
+from strategies.exit.other.close_past_ema import close_past_ema_exit_series
 
 if TYPE_CHECKING:
 
@@ -21,6 +27,7 @@ if TYPE_CHECKING:
     from backtesting.strategy.strategy_config import SessionLabel
     from backtesting.strategy.strategy_config import SizingConfig
     from backtesting.strategy.strategy_config import StrategyConfig
+    from backtesting.strategy.strategy_config import StrategySide
 
 
 class PortfolioSimError(Exception):
@@ -55,14 +62,22 @@ def _bar_fill_price(close: float) -> float:
     return float(close)
 
 
-def _shares_for_entry(sizing: 'SizingConfig', entry_price: float) -> float:
-    if sizing.method != 'fixed_dollars':
-        msg = f'Unsupported sizing.method: {sizing.method!r}'
-        raise PortfolioSimError(msg)
+def _shares_for_entry(sizing: 'SizingConfig', entry_price: float, *, capital: float | None) -> float:
     if entry_price <= 0:
         msg = f'entry_price must be > 0 for sizing, got {entry_price}'
         raise PortfolioSimError(msg)
-    return sizing.amount / entry_price
+    if isinstance(sizing, SizingFixedDollars):
+        return sizing.amount / entry_price
+    if isinstance(sizing, SizingFullAllocation):
+        if capital is None:
+            msg = 'sizing.method=full_allocation requires capital to be passed to the simulator'
+            raise PortfolioSimError(msg)
+        if capital <= 0:
+            msg = f'capital must be > 0 for full_allocation sizing, got {capital}'
+            raise PortfolioSimError(msg)
+        return capital / entry_price
+    msg = f'Unsupported sizing.method: {sizing.method!r}'
+    raise PortfolioSimError(msg)
 
 
 def _last_bar_position_by_trading_date(bars: 'pd.DataFrame') -> dict[date, int]:
@@ -100,35 +115,62 @@ def _last_session_exit_position_by_trading_date(
     return out
 
 
-def _exit_on_bar_long(
+def _exit_on_bar(
     *,
+    side: 'StrategySide',
     low: float,
     high: float,
     close: float,
     levels: ExitLevels,
+    close_past_ema_hit: bool,
+    signal_exit_hit: bool,
     is_last_session_exit_bar: bool,
     end_of_session_enabled: bool,
 ) -> tuple[float, ExitReason] | None:
-    """First hit wins: stop before target on the same bar (conservative for longs)."""
-    if low <= levels.stop_price:
+    """First hit wins: stop, target, close-past-EMA, YAML exit signal, then end of session."""
+    if side == 'long':
+        stop_hit = low <= levels.stop_price
+        target_hit = high >= levels.take_profit_price
+    else:
+        stop_hit = high >= levels.stop_price
+        target_hit = low <= levels.take_profit_price
+    if stop_hit:
         return levels.stop_price, 'stop_loss'
-    if high >= levels.take_profit_price:
+    if target_hit:
         return levels.take_profit_price, 'take_profit'
+    if close_past_ema_hit:
+        return _bar_fill_price(close), 'close_past_ema'
+    if signal_exit_hit:
+        return _bar_fill_price(close), 'signal_exit'
     if is_last_session_exit_bar and end_of_session_enabled:
         return _bar_fill_price(close), 'end_of_session'
     return None
 
 
-def _simulate_one_long_trade(
+def _trade_pnl(*, side: 'StrategySide', entry_price: float, exit_price: float, shares: float) -> tuple[float, float]:
+    """(pnl, pnl_pct) signed for the entry side."""
+    if side == 'long':
+        pnl = (exit_price - entry_price) * shares
+        pnl_pct = (exit_price - entry_price) / entry_price
+    else:
+        pnl = (entry_price - exit_price) * shares
+        pnl_pct = (entry_price - exit_price) / entry_price
+    return pnl, pnl_pct
+
+
+def _simulate_one_trade(
     bars: 'pd.DataFrame',
     *,
     symbol: str,
+    side: 'StrategySide',
     entry_pos: int,
     levels: ExitLevels,
     scan_end_pos: int,
     last_session_exit_pos: int | None,
     shares: float,
     end_of_session_enabled: bool,
+    close_past_ema_hits: 'pd.Series | None',
+    signal_exit_hits: 'pd.Series | None',
 ) -> Trade:
     entry_row = bars.iloc[entry_pos]
     entry_price = _bar_fill_price(float(entry_row.close))
@@ -142,19 +184,23 @@ def _simulate_one_long_trade(
             and last_session_exit_pos is not None
             and pos == last_session_exit_pos
         )
-        hit = _exit_on_bar_long(
+        close_past_ema_hit = bool(close_past_ema_hits.iloc[pos]) if close_past_ema_hits is not None else False
+        signal_exit_hit = bool(signal_exit_hits.iloc[pos]) if signal_exit_hits is not None else False
+        hit = _exit_on_bar(
+            side=side,
             low=float(row.low),
             high=float(row.high),
             close=float(row.close),
             levels=levels,
+            close_past_ema_hit=close_past_ema_hit,
+            signal_exit_hit=signal_exit_hit,
             is_last_session_exit_bar=is_last_session_bar,
             end_of_session_enabled=end_of_session_enabled,
         )
         if hit is None:
             continue
         exit_price, exit_reason = hit
-        pnl = (exit_price - entry_price) * shares
-        pnl_pct = (exit_price - entry_price) / entry_price
+        pnl, pnl_pct = _trade_pnl(side=side, entry_price=entry_price, exit_price=exit_price, shares=shares)
         return Trade(
             symbol=symbol,
             trading_date=trading_date,
@@ -175,12 +221,33 @@ def _simulate_one_long_trade(
     raise PortfolioSimError(msg)
 
 
-def simulate_symbol_trades(frame: 'SymbolBarFrame', strategy: 'StrategyConfig') -> tuple[Trade, ...]:
-    """Walk ``frame.bars`` and emit one trade per ``entry_event`` row (long-only MVP)."""
+@dataclass(frozen=True)
+class SymbolExitContext:
+    """Precomputed per-frame exit data, independent of which entry candidate is resolved.
+
+    Built once per symbol and reused across every entry candidate on that symbol
+    (whole-frame walk, or one candidate at a time from a merged cross-symbol stream).
+    """
+
+    bars: 'pd.DataFrame'
+    symbol: str
+    side: 'StrategySide'
+    allowed_sessions: tuple['SessionLabel', ...]
+    last_bar_by_date: dict[date, int]
+    end_of_session_enabled: bool
+    last_session_exit: dict[date, int]
+    close_past_ema_hits: 'pd.Series | None'
+    signal_exit_hits: 'pd.Series | None'
+
+
+def build_symbol_exit_context(frame: 'SymbolBarFrame', strategy: 'StrategyConfig') -> SymbolExitContext:
+    """Validate ``frame.bars`` and precompute exit-check data for one symbol.
+
+    Raises :class:`PortfolioSimError` for a misconfigured strategy (missing bar columns)
+    regardless of whether the frame has any entry candidates.
+    """
     bars = frame.bars
     symbol = symbol_from_frame(frame)
-    if bars.empty:
-        return ()
     if ENTRY_EVENT_COLUMN not in bars.columns:
         msg = f'{symbol}: missing {ENTRY_EVENT_COLUMN!r}; run SignalPipeline first'
         raise PortfolioSimError(msg)
@@ -192,39 +259,99 @@ def simulate_symbol_trades(frame: 'SymbolBarFrame', strategy: 'StrategyConfig') 
     if end_of_session_enabled:
         last_session_exit = _last_session_exit_position_by_trading_date(bars, allowed_sessions)
 
-    entry_mask = bars[ENTRY_EVENT_COLUMN].astype(bool)
-    if not entry_mask.any():
-        return ()
-
-    trades: list[Trade] = []
-    for entry_idx in bars.index[entry_mask]:
-        entry_pos = int(bars.index.get_loc(entry_idx))
-        entry_row = bars.iloc[entry_pos]
-        td = _trading_date_key(entry_row[TRADING_DATE_COLUMN])
-        if td not in last_bar_by_date:
-            msg = f'{symbol} {td}: no bars for trading_date on loaded frame'
+    close_past_ema_hits: pd.Series | None = None
+    close_past_ema = close_past_ema_rule(strategy.other_exits)
+    if close_past_ema is not None:
+        if close_past_ema.ema_column not in bars.columns:
+            msg = f'{symbol}: missing {close_past_ema.ema_column!r} for close_past_ema exit'
             raise PortfolioSimError(msg)
-        if end_of_session_enabled and td not in last_session_exit:
-            msg = (
-                f'{symbol} {td}: no bars in allowed sessions {list(allowed_sessions)!r} '
-                'for end_of_session exit'
-            )
-            raise PortfolioSimError(msg)
-
-        entry_price = _bar_fill_price(float(entry_row.close))
-        shares = _shares_for_entry(strategy.sizing, entry_price)
-        levels = exit_levels_for_long(entry_price, strategy.stop_loss, strategy.take_profit)
-        trades.append(
-            _simulate_one_long_trade(
-                bars,
-                symbol=symbol,
-                entry_pos=entry_pos,
-                levels=levels,
-                scan_end_pos=last_bar_by_date[td],
-                last_session_exit_pos=last_session_exit.get(td),
-                shares=shares,
-                end_of_session_enabled=end_of_session_enabled,
-            ),
+        close_past_ema_hits = close_past_ema_exit_series(
+            bars.close,
+            bars[close_past_ema.ema_column],
+            side=close_past_ema.side,
         )
 
-    return tuple(trades)
+    signal_exit_hits: pd.Series | None = None
+    if SIGNAL_EXIT_HIT_COLUMN in bars.columns:
+        signal_exit_hits = bars[SIGNAL_EXIT_HIT_COLUMN].astype(bool)
+
+    return SymbolExitContext(
+        bars=bars,
+        symbol=symbol,
+        side=strategy.side,
+        allowed_sessions=allowed_sessions,
+        last_bar_by_date=last_bar_by_date,
+        end_of_session_enabled=end_of_session_enabled,
+        last_session_exit=last_session_exit,
+        close_past_ema_hits=close_past_ema_hits,
+        signal_exit_hits=signal_exit_hits,
+    )
+
+
+def entry_candidate_positions(bars: 'pd.DataFrame') -> tuple[int, ...]:
+    """``iloc`` positions of every ``entry_event`` row, in bar order."""
+    if ENTRY_EVENT_COLUMN not in bars.columns:
+        msg = f'missing {ENTRY_EVENT_COLUMN!r}; run SignalPipeline first'
+        raise PortfolioSimError(msg)
+    entry_mask = bars[ENTRY_EVENT_COLUMN].astype(bool)
+    return tuple(int(bars.index.get_loc(idx)) for idx in bars.index[entry_mask])
+
+
+def resolve_trade_for_candidate(
+    ctx: SymbolExitContext,
+    entry_pos: int,
+    strategy: 'StrategyConfig',
+    *,
+    capital: float | None,
+) -> Trade:
+    """Resolve one entry candidate (``entry_pos`` on ``ctx.bars``) into a closed :class:`Trade`."""
+    bars = ctx.bars
+    entry_row = bars.iloc[entry_pos]
+    td = _trading_date_key(entry_row[TRADING_DATE_COLUMN])
+    if td not in ctx.last_bar_by_date:
+        msg = f'{ctx.symbol} {td}: no bars for trading_date on loaded frame'
+        raise PortfolioSimError(msg)
+    if ctx.end_of_session_enabled and td not in ctx.last_session_exit:
+        msg = (
+            f'{ctx.symbol} {td}: no bars in allowed sessions {list(ctx.allowed_sessions)!r} '
+            'for end_of_session exit'
+        )
+        raise PortfolioSimError(msg)
+
+    entry_price = _bar_fill_price(float(entry_row.close))
+    shares = _shares_for_entry(strategy.sizing, entry_price, capital=capital)
+    levels = exit_levels(entry_price, strategy.stop_loss, strategy.take_profit, strategy.side)
+    return _simulate_one_trade(
+        bars,
+        symbol=ctx.symbol,
+        side=ctx.side,
+        entry_pos=entry_pos,
+        levels=levels,
+        scan_end_pos=ctx.last_bar_by_date[td],
+        last_session_exit_pos=ctx.last_session_exit.get(td),
+        shares=shares,
+        end_of_session_enabled=ctx.end_of_session_enabled,
+        close_past_ema_hits=ctx.close_past_ema_hits,
+        signal_exit_hits=ctx.signal_exit_hits,
+    )
+
+
+def simulate_symbol_trades(
+    frame: 'SymbolBarFrame',
+    strategy: 'StrategyConfig',
+    *,
+    capital: float | None = None,
+) -> tuple[Trade, ...]:
+    """Walk ``frame.bars`` and emit one trade per ``entry_event`` row (``strategy.side`` direction).
+
+    ``capital`` is required when ``strategy.sizing.method == 'full_allocation'`` (account-level
+    capital allocated to this strategy for the run); ignored for ``fixed_dollars`` sizing.
+    """
+    if frame.bars.empty:
+        return ()
+    ctx = build_symbol_exit_context(frame, strategy)
+    positions = entry_candidate_positions(ctx.bars)
+    return tuple(
+        resolve_trade_for_candidate(ctx, pos, strategy, capital=capital)
+        for pos in positions
+    )

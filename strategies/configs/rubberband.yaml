@@ -10,6 +10,7 @@
 # The stop/target below use percentage approximations; the original algo sizes from LOD/HOD.
 id: rubberband
 version: "1.0"
+side: long
 signal_timeframe_minutes: 1
 
 session_config:

@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 import pandas as pd
 
 from backtesting.signals.signal_columns import SignalColumnError
+from backtesting.signals.signal_columns import exit_trigger_column_name
 from backtesting.signals.signal_columns import trigger_column_name
 
 if TYPE_CHECKING:
@@ -63,4 +64,15 @@ def evaluate_trigger_columns(
     columns: dict[str, pd.Series] = {}
     for rule in triggers:
         columns[trigger_column_name(rule.id)] = trigger_edge_series(frame, rule)
+    return columns
+
+
+def evaluate_exit_trigger_columns(
+    frame: 'SymbolBarFrame',
+    exit_triggers: tuple['TriggerRule', ...],
+) -> dict[str, 'pd.Series']:
+    """Map ``exit_trigger_<id>`` column names to edge boolean series."""
+    columns: dict[str, pd.Series] = {}
+    for rule in exit_triggers:
+        columns[exit_trigger_column_name(rule.id)] = trigger_edge_series(frame, rule)
     return columns

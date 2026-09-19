@@ -166,7 +166,7 @@ class TestTradeMgmtIntegration(unittest.TestCase):
         )
 
     def test_flip(self) -> None:
-        """FLIP: tracks only (no order sent)."""
+        """FLIP: closes the existing position, then opens the trader's new side."""
         self._run_process_execution_change(
             change_type='FLIP',
             net_side='short',
